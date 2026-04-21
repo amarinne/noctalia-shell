@@ -1133,6 +1133,7 @@
       "appearance-display-auto-hide": "Auto hide",
       "appearance-display-description": "Choose how the dock behaves.",
       "appearance-display-exclusive": "Exclusive",
+      "appearance-display-overview-only": "Overview only",
       "appearance-dock-indicator-description": "Show a small indicator when the dock is hidden.",
       "appearance-dock-indicator-label": "Dock indicator",
       "appearance-floating-distance-description": "Set the distance between the dock and the edge of the screen.",

@@ -578,7 +578,7 @@ Singleton {
     property JsonObject dock: JsonObject {
       property bool enabled: true
       property string position: "bottom" // "top", "bottom", "left", "right"
-      property string displayMode: "auto_hide" // "always_visible", "auto_hide", "exclusive"
+      property string displayMode: "auto_hide" // "always_visible", "auto_hide", "exclusive", "overview_only"
       property string dockType: "floating" // "floating", "attached"
       property real backgroundOpacity: 1.0
       property real floatingRatio: 1.0

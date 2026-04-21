@@ -82,7 +82,8 @@ Loader {
 
       // Shared properties between peek and dock windows
       readonly property string displayMode: Settings.data.dock.displayMode
-      readonly property bool autoHide: displayMode === "auto_hide"
+      readonly property bool overviewOnly: displayMode === "overview_only"
+      readonly property bool autoHide: displayMode === "auto_hide" || overviewOnly
       readonly property bool exclusive: displayMode === "exclusive"
       readonly property bool isAttachedMode: Settings.data.dock.dockType === "attached"
       readonly property int hideDelay: 500
@@ -633,6 +634,34 @@ Loader {
       property alias showTimer: showTimer
       property alias unloadTimer: unloadTimer
 
+      function syncOverviewOnlyVisibility() {
+        if (!overviewOnly)
+          return;
+
+        if (CompositorService.overviewActive) {
+          dockLoaded = true;
+          hidden = false;
+          hideTimer.stop();
+          showTimer.stop();
+          unloadTimer.stop();
+        } else {
+          showTimer.stop();
+          hidden = true;
+          unloadTimer.restart();
+        }
+      }
+
+      Connections {
+        target: CompositorService
+        function onOverviewActiveChanged() {
+          root.syncOverviewOnlyVisibility();
+        }
+      }
+
+      onOverviewOnlyChanged: {
+        syncOverviewOnlyVisibility();
+      }
+
       // Timer for auto-hide delay
       Timer {
         id: hideTimer
@@ -698,12 +727,13 @@ Loader {
         } else {
           hidden = true;
           unloadTimer.restart(); // Schedule unload after animation
+          syncOverviewOnlyVisibility();
         }
       }
 
       // PEEK WINDOW — only needed when dock can auto-hide or is in attached mode
       Loader {
-        active: (autoHide || isAttachedMode) && (barIsReady || !hasBar) && modelData && (Settings.data.dock.monitors.length === 0 || Settings.data.dock.monitors.includes(modelData.name))
+        active: !overviewOnly && (autoHide || isAttachedMode) && (barIsReady || !hasBar) && modelData && (Settings.data.dock.monitors.length === 0 || Settings.data.dock.monitors.includes(modelData.name))
 
         sourceComponent: PanelWindow {
           id: peekWindow
@@ -765,7 +795,7 @@ Loader {
 
       // DOCK INDICATOR WINDOW — only needed when dock can auto-hide/attach and indicator is enabled
       Loader {
-        active: (autoHide || isAttachedMode) && Settings.data.dock.showDockIndicator && (barIsReady || !hasBar) && modelData && (Settings.data.dock.monitors.length === 0 || Settings.data.dock.monitors.includes(modelData.name))
+        active: !overviewOnly && (autoHide || isAttachedMode) && Settings.data.dock.showDockIndicator && (barIsReady || !hasBar) && modelData && (Settings.data.dock.monitors.length === 0 || Settings.data.dock.monitors.includes(modelData.name))
 
         sourceComponent: PanelWindow {
           id: dockIndicatorWindow

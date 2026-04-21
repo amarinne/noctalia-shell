@@ -82,6 +82,10 @@ ColumnLayout {
         {
           "key": "exclusive",
           "name": I18n.tr("panels.dock.appearance-display-exclusive")
+        },
+        {
+          "key": "overview_only",
+          "name": I18n.tr("panels.dock.appearance-display-overview-only")
         }
       ]
       currentKey: Settings.data.dock.displayMode
