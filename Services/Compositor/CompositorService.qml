@@ -592,16 +592,22 @@ Singleton {
   function lockAndSuspend() {
     Logger.i("Compositor", "Lock and suspend requested");
 
-    // Check for custom idle lock command first
+    // Check for custom idle lock command and run it (for idle, lock+suspend are separate)
     if (Settings.data.idle.lockCommand) {
       Quickshell.execDetached(["sh", "-c", Settings.data.idle.lockCommand]);
-      suspend();
+      // Don't auto-suspend on idle lock - user sets separate suspend timeout
+      Logger.i("Compositor", "Custom lock command executed, not suspending (separate suspend timeout)");
       return;
     }
 
-    // if a custom session menu lock command exists, execute it and suspend without wait
-    if (executeSessionAction("lock")) {
-      suspend();
+    // Check for custom session menu lock command and run it with suspend
+    const customLockCmd = getCustomCommand("lock");
+    if (customLockCmd) {
+      Quickshell.execDetached(["sh", "-c", customLockCmd]);
+      // Wait a bit for lock screen to appear before suspending
+      lockAndSuspendCheckCount = 0;
+      lockAndSuspendTimer.customLockCommand = true;
+      lockAndSuspendTimer.start();
       return;
     }
 
@@ -617,6 +623,7 @@ Singleton {
       if (PanelService && PanelService.lockScreen) {
         PanelService.lockScreen.active = true;
         lockAndSuspendCheckCount = 0;
+        lockAndSuspendTimer.customLockCommand = false;
 
         // Wait for lock screen to be confirmed active before suspending
         lockAndSuspendTimer.start();
@@ -635,6 +642,7 @@ Singleton {
     interval: 100
     repeat: true
     running: false
+    property bool customLockCommand: false
 
     onTriggered: {
       lockAndSuspendCheckCount++;
@@ -646,6 +654,7 @@ Singleton {
           Logger.i("Compositor", "Lock screen confirmed active, suspending");
           stop();
           lockAndSuspendCheckCount = 0;
+          customLockCommand = false;
           suspend();
         } else {
           // Lock screen is active but component not loaded yet, wait a bit more
@@ -654,8 +663,18 @@ Singleton {
             Logger.w("Compositor", "Lock screen active but component not loaded, suspending anyway");
             stop();
             lockAndSuspendCheckCount = 0;
+            customLockCommand = false;
             suspend();
           }
+        }
+      } else if (customLockCommand) {
+        // Custom lock command running - wait a bit for it to appear, then suspend
+        if (lockAndSuspendCheckCount > 20) {
+          Logger.i("Compositor", "Custom lock command executed, suspending after delay");
+          stop();
+          lockAndSuspendCheckCount = 0;
+          customLockCommand = false;
+          suspend();
         }
       } else {
         // Lock screen not active yet, keep checking
