@@ -38,6 +38,7 @@ Singleton {
 
   signal volumeAtMaximum
   signal volumeAtMinimum
+  signal outputToggled
 
   function clampOutputVolume(vol: real): real {
     if (vol === undefined || isNaN(vol)) {
@@ -1229,6 +1230,28 @@ Singleton {
       return;
     }
     Pipewire.preferredDefaultAudioSink = newSink;
+  }
+
+  function toggleOutput(): string {
+    if (!Pipewire.ready) {
+      Logger.w("AudioService", "Pipewire not ready");
+      return "";
+    }
+
+    const availableSinks = root.sinks;
+    if (availableSinks.length < 2) {
+      Logger.w("AudioService", "Not enough sinks to toggle");
+      return "";
+    }
+
+    const currentSink = root.sink;
+    const currentIdx = availableSinks.findIndex(s => s.id === currentSink?.id);
+    const nextIdx = (currentIdx + 1) % availableSinks.length;
+    const nextSink = availableSinks[nextIdx];
+
+    root.setAudioSink(nextSink);
+    root.outputToggled();
+    return nextSink.name || nextSink.description || String(nextSink.id);
   }
 
   function setAudioSource(newSource: PwNode): void {
