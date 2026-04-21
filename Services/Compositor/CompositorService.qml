@@ -592,7 +592,14 @@ Singleton {
   function lockAndSuspend() {
     Logger.i("Compositor", "Lock and suspend requested");
 
-    // if a custom lock command exists, execute it and suspend without wait
+    // Check for custom idle lock command first
+    if (Settings.data.idle.lockCommand) {
+      Quickshell.execDetached(["sh", "-c", Settings.data.idle.lockCommand]);
+      suspend();
+      return;
+    }
+
+    // if a custom session menu lock command exists, execute it and suspend without wait
     if (executeSessionAction("lock")) {
       suspend();
       return;
