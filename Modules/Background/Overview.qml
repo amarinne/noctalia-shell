@@ -14,55 +14,13 @@ Loader {
     model: Quickshell.screens
 
     delegate: PanelWindow {
-      id: panelWindow
+      id: root
 
       required property ShellScreen modelData
-      property string wallpaper: ""
-      property string preprocessedWallpaper: "" // Pre-resized wallpaper from Background.qml
-      property bool isSolidColor: Settings.data.wallpaper.useSolidColor
-      property color solidColor: Settings.data.wallpaper.solidColor
-      property color tintColor: Settings.data.colorSchemes.darkMode ? Color.mSurface : Color.mOnSurface
 
-      visible: wallpaper !== "" || isSolidColor
+      readonly property color tintColor: Settings.data.colorSchemes.darkMode ? Color.mSurface : Color.mOnSurface
 
-      Component.onCompleted: {
-        if (modelData) {
-          Logger.d("Overview", "Loading overview for Niri on", modelData.name);
-        }
-      }
-
-      Component.onDestruction: {
-        bgImage.source = "";
-      }
-
-      // External state management - wait for wallpaper processing to complete
-      // Reuses the same cached image as Background.qml for memory efficiency + GPU blur
-      Connections {
-        target: WallpaperService
-        function onWallpaperProcessingComplete(screenName, path, cachedPath) {
-          if (screenName === modelData.name) {
-            preprocessedWallpaper = cachedPath || "";
-            wallpaper = path;
-          }
-        }
-      }
-
-      // Handle wallpaper changes (solid color detection)
-      onWallpaperChanged: {
-        if (!wallpaper)
-          return;
-
-        // Check if this is a solid color path
-        if (WallpaperService.isSolidColorPath(wallpaper)) {
-          isSolidColor = true;
-          var colorStr = WallpaperService.getSolidColor(wallpaper);
-          solidColor = colorStr;
-          return;
-        }
-
-        isSolidColor = false;
-      }
-
+      visible: transitionLayer.wallpaperReady
       color: "transparent"
       screen: modelData
       WlrLayershell.layer: WlrLayer.Background
@@ -76,30 +34,36 @@ Loader {
         left: true
       }
 
-      // Solid color background
-      Rectangle {
-        anchors.fill: parent
-        visible: isSolidColor
-        color: solidColor
+      Component.onCompleted: {
+        if (modelData) {
+          Logger.d("Overview", "Loading overview for Niri on", modelData.name);
+        }
+        setWallpaperInitial();
+      }
 
-        Rectangle {
-          anchors.fill: parent
-          color: tintColor
-          opacity: Settings.data.wallpaper.overviewTint
+      Connections {
+        target: WallpaperService
+        function onWallpaperProcessingComplete(screenName, path, cachedPath) {
+          if (screenName === modelData.name) {
+            transitionLayer.requestWallpaperTransition(path, cachedPath || path);
+          }
         }
       }
 
-      // Image background with GPU-based blur
-      Image {
-        id: bgImage
+      Connections {
+        target: Settings.data.wallpaper
+        function onFillModeChanged() {
+          if (!transitionLayer.wallpaperReady || WallpaperService.isSolidColorPath(transitionLayer.currentSource)) {
+            return;
+          }
+          transitionLayer.requestWallpaperTransition(transitionLayer.transitioningToOriginalPath || WallpaperService.getWallpaper(modelData.name), transitionLayer.currentSource);
+        }
+      }
+
+      Item {
+        id: wallpaperLayer
         anchors.fill: parent
-        visible: !isSolidColor
-        fillMode: Image.PreserveAspectCrop
-        source: preprocessedWallpaper || wallpaper
-        smooth: true
-        mipmap: false
-        cache: true // Shares texture with Background's currentWallpaper
-        asynchronous: true
+        visible: transitionLayer.wallpaperReady
 
         layer.enabled: Settings.data.wallpaper.overviewBlur > 0 && !PowerProfileService.noctaliaPerformanceMode
         layer.smooth: false
@@ -109,12 +73,31 @@ Loader {
           blurMax: 48
         }
 
-        // Tint overlay
-        Rectangle {
+        WallpaperTransitionLayer {
+          id: transitionLayer
           anchors.fill: parent
-          color: tintColor
-          opacity: Settings.data.wallpaper.overviewTint
         }
+      }
+
+      Rectangle {
+        anchors.fill: parent
+        visible: transitionLayer.wallpaperReady
+        color: tintColor
+        opacity: Settings.data.wallpaper.overviewTint
+      }
+
+      function setWallpaperInitial() {
+        if (!WallpaperService || !WallpaperService.isInitialized) {
+          Qt.callLater(setWallpaperInitial);
+          return;
+        }
+
+        const wallpaperPath = WallpaperService.getWallpaper(modelData.name);
+        if (!wallpaperPath) {
+          return;
+        }
+
+        transitionLayer.initializeWallpaper(wallpaperPath, false);
       }
     }
   }
