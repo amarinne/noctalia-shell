@@ -194,9 +194,9 @@ Singleton {
       root._screenOffActive = true;
       root.screenOffRequested();
     } else if (stage === "lock") {
-      if (Settings.data.idle.lockCommand)
+      if (Settings.data.idle.lockCommand) {
         Quickshell.execDetached(["sh", "-c", Settings.data.idle.lockCommand]);
-      if (PanelService.lockScreen && !PanelService.lockScreen.active) {
+      } else if (PanelService.lockScreen && !PanelService.lockScreen.active) {
         PanelService.lockScreen.active = true;
       }
       root.lockRequested();
