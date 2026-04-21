@@ -527,6 +527,9 @@ Singleton {
     function muteInput() {
       AudioService.setInputMuted(!AudioService.inputMuted);
     }
+    function toggleOutput() {
+      AudioService.toggleOutput();
+    }
     function togglePanel() {
       root.screenDetector.withCurrentScreen(screen => {
                                               var panel = PanelService.getPanel("audioPanel", screen);
