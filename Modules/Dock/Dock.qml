@@ -84,6 +84,7 @@ Loader {
       readonly property string displayMode: Settings.data.dock.displayMode
       readonly property bool overviewOnly: displayMode === "overview_only"
       readonly property bool autoHide: displayMode === "auto_hide" || overviewOnly
+      readonly property bool hoverAutoHide: displayMode === "auto_hide"
       readonly property bool exclusive: displayMode === "exclusive"
       readonly property bool isAttachedMode: Settings.data.dock.dockType === "attached"
       readonly property int hideDelay: 500
@@ -203,7 +204,7 @@ Loader {
       // when dragging ended but the cursor is outside the dock area, restart the timer
       onDragSourceIndexChanged: {
         if (dragSourceIndex === -1) {
-          if (autoHide && !dockHovered && !anyAppHovered && !peekHovered && !menuHovered) {
+          if (hoverAutoHide && !dockHovered && !anyAppHovered && !peekHovered && !menuHovered) {
             hideTimer.restart();
           }
         }
@@ -676,7 +677,7 @@ Loader {
           if (!root.currentContextMenu || !root.currentContextMenu.visible) {
             menuHovered = false;
           }
-          if (autoHide && !dockHovered && !anyAppHovered && !peekHovered && !menuHovered) {
+          if (hoverAutoHide && !dockHovered && !anyAppHovered && !peekHovered && !menuHovered) {
             if (isAttachedMode) {
               const panel = getStaticDockPanel();
               if (panel && (panel.menuHovered || (panel.currentContextMenu && panel.currentContextMenu.visible))) {
@@ -694,7 +695,7 @@ Loader {
             }
             hidden = true;
             unloadTimer.restart(); // Start unload timer when hiding
-          } else if (autoHide && !dockHovered && !peekHovered) {
+          } else if (hoverAutoHide && !dockHovered && !peekHovered) {
             // Restart timer if menu is closing (handles race condition)
             restart();
           }
@@ -706,7 +707,7 @@ Loader {
         id: showTimer
         interval: showDelay
         onTriggered: {
-          if (autoHide) {
+          if (hoverAutoHide) {
             if (!isAttachedMode) {
               dockLoaded = true; // Load dock immediately
             }
