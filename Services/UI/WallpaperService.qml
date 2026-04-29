@@ -810,8 +810,16 @@ Singleton {
       // We can use any screenName here, so we just pick the primary one.
       var wallpaperList = getWallpapersList(Screen.name);
       if (wallpaperList.length > 0) {
-        var randomPath = _pickUnusedRandom("all", wallpaperList);
-        changeWallpaper(randomPath, screen);
+        // In single-directory mode, always apply the selected wallpaper to all
+        // screens and exclude the currently visible wallpaper from candidates
+        // when possible. This avoids "successful" random IPC calls that appear
+        // to do nothing because the picker re-selected the current image.
+        var currentWallpaper = getWallpaper(Screen.name) || "";
+        var candidateList = wallpaperList.filter(function (path) {
+          return path !== currentWallpaper;
+        });
+        var randomPath = _pickUnusedRandom("all", candidateList.length > 0 ? candidateList : wallpaperList);
+        changeWallpaper(randomPath, undefined);
       }
     }
   }
