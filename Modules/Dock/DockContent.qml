@@ -48,7 +48,7 @@ Item {
 
       onEntered: {
         dockRoot.dockHovered = true;
-        if (dockRoot.autoHide) {
+        if (dockRoot.hoverAutoHide) {
           dockRoot.showTimer.stop();
           dockRoot.hideTimer.stop();
           dockRoot.unloadTimer.stop(); // Cancel unload if hovering
@@ -58,7 +58,7 @@ Item {
 
       onExited: {
         dockRoot.dockHovered = false;
-        if (dockRoot.autoHide && !dockRoot.anyAppHovered && !dockRoot.peekHovered && !dockRoot.menuHovered && dockRoot.dragSourceIndex === -1) {
+        if (dockRoot.hoverAutoHide && !dockRoot.anyAppHovered && !dockRoot.peekHovered && !dockRoot.menuHovered && dockRoot.dragSourceIndex === -1) {
           dockRoot.hideTimer.restart();
         }
       }
@@ -314,7 +314,7 @@ Item {
               onEntered: {
                 dockRoot.anyAppHovered = true;
                 TooltipService.show(launcherButton, I18n.tr("actions.open-launcher"), tooltipDirection);
-                if (dockRoot.autoHide) {
+                if (dockRoot.hoverAutoHide) {
                   dockRoot.showTimer.stop();
                   dockRoot.hideTimer.stop();
                   dockRoot.unloadTimer.stop();
@@ -325,7 +325,7 @@ Item {
               onExited: {
                 dockRoot.anyAppHovered = false;
                 TooltipService.hide();
-                if (dockRoot.autoHide && !dockRoot.dockHovered && !dockRoot.peekHovered && !dockRoot.menuHovered && dockRoot.dragSourceIndex === -1) {
+                if (dockRoot.hoverAutoHide && !dockRoot.dockHovered && !dockRoot.peekHovered && !dockRoot.menuHovered && dockRoot.dragSourceIndex === -1) {
                   dockRoot.hideTimer.restart();
                 }
               }
@@ -388,7 +388,7 @@ Item {
                   dockRoot.currentContextMenu = null;
                   dockRoot.hideTimer.stop();
                   dockRoot.menuHovered = false;
-                  if (dockRoot.autoHide && !dockRoot.dockHovered && !dockRoot.anyAppHovered && !dockRoot.peekHovered && !dockRoot.menuHovered) {
+                  if (dockRoot.hoverAutoHide && !dockRoot.dockHovered && !dockRoot.anyAppHovered && !dockRoot.peekHovered && !dockRoot.menuHovered) {
                     dockRoot.hideTimer.restart();
                   }
                 }
@@ -651,7 +651,7 @@ Item {
                   dockRoot.hideTimer.stop();
                   dockRoot.menuHovered = false;
                   // Restart hide timer after menu closes
-                  if (dockRoot.autoHide && !dockRoot.dockHovered && !dockRoot.anyAppHovered && !dockRoot.peekHovered && !dockRoot.menuHovered) {
+                  if (dockRoot.hoverAutoHide && !dockRoot.dockHovered && !dockRoot.anyAppHovered && !dockRoot.peekHovered && !dockRoot.menuHovered) {
                     dockRoot.hideTimer.restart();
                   }
                 }
@@ -692,7 +692,7 @@ Item {
                 if (!contextMenu.visible) {
                   TooltipService.show(appButton, tooltipText, tooltipDirection);
                 }
-                if (dockRoot.autoHide) {
+                if (dockRoot.hoverAutoHide) {
                   dockRoot.showTimer.stop();
                   dockRoot.hideTimer.stop();
                   dockRoot.unloadTimer.stop(); // Cancel unload if hovering app
@@ -707,7 +707,7 @@ Item {
                 if (!dockRoot.currentContextMenu || !dockRoot.currentContextMenu.visible) {
                   dockRoot.menuHovered = false;
                 }
-                if (dockRoot.autoHide && !dockRoot.dockHovered && !dockRoot.peekHovered && !dockRoot.menuHovered && dockRoot.dragSourceIndex === -1) {
+                if (dockRoot.hoverAutoHide && !dockRoot.dockHovered && !dockRoot.peekHovered && !dockRoot.menuHovered && dockRoot.dragSourceIndex === -1) {
                   dockRoot.hideTimer.restart();
                 }
               }
