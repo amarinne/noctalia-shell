@@ -956,6 +956,25 @@ Singleton {
     return [];
   }
 
+  function _reconcileCurrentWallpaper(screenName, files) {
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    var currentWallpaper = getWallpaper(screenName) || "";
+    if (files.indexOf(currentWallpaper) !== -1) {
+      return;
+    }
+
+    // Changing the wallpaper directory should immediately show a wallpaper from
+    // the new folder instead of keeping a stale path from the previous folder.
+    if (!Settings.data.wallpaper.enableMultiMonitorDirectories && Settings.data.wallpaper.setWallpaperOnAllMonitors) {
+      changeWallpaper(files[0], undefined);
+    } else {
+      changeWallpaper(files[0], screenName);
+    }
+  }
+
   // -------------------------------------------------------------------
   // Browse mode helper functions
   // -------------------------------------------------------------------
@@ -1277,6 +1296,7 @@ Singleton {
 
           Logger.i("Wallpaper", "Scan completed for", screenName, "found", files.length, "files");
           wallpaperListChanged(screenName, files.length);
+          _reconcileCurrentWallpaper(screenName, files);
         }
       } else {
         Logger.w("Wallpaper", "Scan failed for", screenName, "exit code:", exitCode, "(directory might not exist)");
