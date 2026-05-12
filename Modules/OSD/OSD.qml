@@ -291,16 +291,16 @@ Variants {
         showOSD(OSD.Type.InputVolume);
       }
 
-      // Refresh OSD when device changes to ensure correct volume is displayed
+      // Refresh OSD when device changes to show new device info
       function onSinkChanged() {
         suppressInputOSD = true;
         inputSuppressionTimer.restart();
-        // If volume OSD is currently showing, refresh it to show new device's volume
-        if (root.currentOSDType === OSD.Type.Volume) {
-          Qt.callLater(() => {
-                         showOSD(OSD.Type.Volume);
-                       });
-        }
+        Qt.callLater(() => {
+                       showOSD(OSD.Type.Volume);
+                     });
+        // Also show device name toast
+        var deviceName = AudioService.sink?.description || AudioService.sink?.name || "Unknown";
+        ToastService.showNotice("Audio Output", deviceName, "device-speaker");
       }
 
       function onSourceChanged() {
@@ -309,6 +309,20 @@ Variants {
           Qt.callLater(() => {
                          showOSD(OSD.Type.InputVolume);
                        });
+        }
+      }
+    }
+
+    // Media player track change notification
+    Connections {
+      target: MediaService
+
+      function onTrackTitleChanged() {
+        if (MediaService.trackTitle && MediaService.isPlaying) {
+          var text = MediaService.trackArtist
+            ? MediaService.trackTitle + " — " + MediaService.trackArtist
+            : MediaService.trackTitle;
+          ToastService.showNotice("", text, "music");
         }
       }
     }
