@@ -13,6 +13,7 @@ Singleton {
   property string reason: I18n.tr("system.user-requested")
   property var activeInhibitors: []
   property var timeout: null // in seconds
+  property bool restoredPersistedManual: false
 
   // True when the native Wayland IdleInhibitor is handling inhibition
   // (set by the IdleInhibitor element in MainScreen via the nativeInhibitor property)
@@ -20,6 +21,27 @@ Singleton {
 
   function init() {
     Logger.i("IdleInhibitor", "Service started");
+    restorePersistedManual();
+  }
+
+  function restorePersistedManual() {
+    if (restoredPersistedManual || !Settings.isLoaded) {
+      return;
+    }
+
+    restoredPersistedManual = true;
+    if (Settings.data.idle.keepAwake) {
+      addManualInhibitorPersist(null, false, false);
+      Logger.i("IdleInhibitor", "Restored persisted manual inhibition");
+    }
+  }
+
+  Connections {
+    target: Settings
+
+    function onSettingsLoaded() {
+      root.restorePersistedManual();
+    }
   }
 
   // Add an inhibitor
@@ -173,6 +195,10 @@ Singleton {
   }
 
   function removeManualInhibitor() {
+    removeManualInhibitorPersist(true, true);
+  }
+
+  function removeManualInhibitorPersist(persist, notify) {
     if (timeout !== null) {
       timeout = null;
       if (inhibitorTimeout.running) {
@@ -182,15 +208,35 @@ Singleton {
 
     if (activeInhibitors.includes("manual")) {
       removeInhibitor("manual");
-      ToastService.showNotice(I18n.tr("tooltips.keep-awake"), I18n.tr("common.disabled"), "keep-awake-off");
+      if (persist) {
+        Settings.data.idle.keepAwake = false;
+      }
+      if (notify) {
+        ToastService.showNotice(I18n.tr("tooltips.keep-awake"), I18n.tr("common.disabled"), "keep-awake-off");
+      }
       Logger.i("IdleInhibitor", "Manual inhibition disabled");
     }
   }
 
   function addManualInhibitor(timeoutSec) {
+    addManualInhibitorPersist(timeoutSec, timeoutSec === null, true);
+  }
+
+  function addManualInhibitorPersist(timeoutSec, persist, notify) {
     if (!activeInhibitors.includes("manual")) {
       addInhibitor("manual", "Manually activated by user");
-      ToastService.showNotice(I18n.tr("tooltips.keep-awake"), I18n.tr("common.enabled"), "keep-awake-on");
+      if (persist) {
+        Settings.data.idle.keepAwake = true;
+      }
+      if (notify) {
+        ToastService.showNotice(I18n.tr("tooltips.keep-awake"), I18n.tr("common.enabled"), "keep-awake-on");
+      }
+    } else if (persist) {
+      Settings.data.idle.keepAwake = true;
+    }
+
+    if (timeoutSec !== null) {
+      Settings.data.idle.keepAwake = false;
     }
 
     if (timeoutSec === null && timeout === null) {

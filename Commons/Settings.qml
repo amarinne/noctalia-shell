@@ -796,6 +796,7 @@ Singleton {
       property string resumeScreenOffCommand: ""
       property string resumeLockCommand: ""
       property string resumeSuspendCommand: ""
+      property bool keepAwake: false
       property string customCommands: "[]" // JSON array of {timeout, command, resumeCommand}
     }
 

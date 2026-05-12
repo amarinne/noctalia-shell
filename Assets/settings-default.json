@@ -551,6 +551,7 @@
     "resumeScreenOffCommand": "",
     "resumeLockCommand": "",
     "resumeSuspendCommand": "",
+    "keepAwake": false,
     "customCommands": "[]"
   },
   "desktopWidgets": {
