@@ -318,6 +318,11 @@ Variants {
       target: MediaService
 
       function onTrackTitleChanged() {
+        // Skip browser-based players (youtube in brave/chrome/firefox etc.)
+        var identity = MediaService.playerIdentity.toLowerCase();
+        if (/brave|chrome|chromium|firefox|electron/.test(identity))
+          return;
+
         if (MediaService.trackTitle && MediaService.isPlaying) {
           var text = MediaService.trackArtist
             ? MediaService.trackTitle + " — " + MediaService.trackArtist
