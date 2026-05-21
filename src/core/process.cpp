@@ -1,5 +1,7 @@
 #include "core/process.h"
 
+#include "util/string_utils.h"
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -9,6 +11,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -435,10 +438,25 @@ namespace {
     return {exitCode, std::move(out), std::move(err), timedOut, outTruncated, errTruncated};
   }
 
+  // Only alphanum, ':' and '_' allowed in systemd unit names
+  std::string escapeSystemdUnitName(const std::string& input) {
+    std::string res;
+    for (const unsigned char c : input) {
+      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == ':' || c == '_' ||
+          c == '.') {
+        res += c;
+      } else {
+        res += std::format("\\x{:02x}", c);
+      }
+    }
+    return res;
+  }
+
   // Double-fork + setsid so the exec'd process is not a direct child of the caller (matches
   // launcher app activation). Parent reaps the short-lived intermediate child.
   bool doubleForkExecDetached(const std::vector<std::string>& args, pid_t* reportPid,
-                              const std::string& activationToken, const std::string& workingDir = {}) {
+                              const std::string& activationToken, const std::string& workingDir = {},
+                              bool asSystemdService = false, const std::string& appName = {}) {
     int reportPipe[2] = {-1, -1};
     const bool needPid = reportPid != nullptr;
     if (needPid && ::pipe(reportPipe) != 0) {
@@ -514,6 +532,35 @@ namespace {
       ::close(reportPipe[1]);
     }
 
+#ifdef __linux__
+    if (asSystemdService) {
+      std::vector<std::string> systemdArgs;
+      systemdArgs.reserve(7 + args.size());
+      systemdArgs.push_back("systemd-run");
+      systemdArgs.push_back("--user");
+      if (!appName.empty()) {
+        systemdArgs.push_back(
+            std::format("--unit=app-{}@{}.service", escapeSystemdUnitName(appName), StringUtils::generateUuid()));
+      }
+      if (!workingDir.empty()) {
+        systemdArgs.push_back(std::format("--working-directory={}", workingDir));
+      }
+      if (!activationToken.empty()) {
+        systemdArgs.push_back(std::format("--setenv=XDG_ACTIVATION_TOKEN={}", activationToken));
+        systemdArgs.push_back(std::format("--setenv=DESKTOP_STARTUP_ID={}", activationToken));
+      }
+      systemdArgs.push_back("--");
+      systemdArgs.insert(systemdArgs.end(), args.begin(), args.end());
+      process::RunResult result = runSyncProcess(systemdArgs, std::nullopt);
+      if (result) {
+        ::_exit(0);
+      }
+      // If systemd-run failed, fall back to normal launch. E.g., if systemd-run is not available,
+      // or its version is too old for the switches we used, or the executable is not found.
+      // We'd unnecessarily fail again later in the last case, but seems OK to err on the safe side here.
+    }
+#endif
+
     if (!workingDir.empty()) {
       (void)::chdir(workingDir.c_str());
     }
@@ -574,6 +621,22 @@ namespace process {
       return false;
     }
     return doubleForkExecDetached(args, nullptr, activationToken, workingDir);
+  }
+
+  // We don't have a return code, so we don't wait for the launch mechanism to complete (e.g., systemd-run),
+  // which might take more time than a double-fork-exec and block the UI thread for too long. Launcher/AppProvider
+  // doesn't check if the app launch succeeded, anyway.
+  void runAsyncAsApp(const std::vector<std::string>& args, const std::string& appName,
+                     const std::string& activationToken, const std::string& workingDir) {
+#ifdef __linux__
+    // Check if we booted with systemd. The same logic as systemd sd_booted()
+    int r = access("/run/systemd/system/", F_OK);
+    if (r == 0) {
+      (void)doubleForkExecDetached(args, nullptr, activationToken, workingDir, true, appName);
+      return;
+    }
+#endif
+    (void)runAsync(args, activationToken, workingDir);
   }
 
   bool runAsync(std::initializer_list<const char*> args) {

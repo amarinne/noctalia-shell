@@ -32,6 +32,9 @@ namespace process {
   // non-empty, the grandchild sets XDG_ACTIVATION_TOKEN and DESKTOP_STARTUP_ID (launcher).
   [[nodiscard]] bool runAsync(const std::vector<std::string>& args, const std::string& activationToken = {},
                               const std::string& workingDir = {});
+  // Run an app in a separate unit from ours (e.g., as a systemd service), if the system supports.
+  void runAsyncAsApp(const std::vector<std::string>& args, const std::string& appName,
+                     const std::string& activationToken = {}, const std::string& workingDir = {});
   [[nodiscard]] bool runAsync(std::initializer_list<const char*> args);
   [[nodiscard]] RunResult runSync(const std::vector<std::string>& args);
   [[nodiscard]] RunResult runSync(std::initializer_list<const char*> args);
