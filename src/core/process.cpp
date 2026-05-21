@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -24,7 +25,6 @@
 #include <unistd.h>
 
 namespace {
-
   constexpr std::chrono::milliseconds kProcessPollInterval{100};
   constexpr std::chrono::milliseconds kProcessCommandLineCacheTtl{250};
 
@@ -538,6 +538,11 @@ namespace {
       systemdArgs.reserve(7 + args.size());
       systemdArgs.push_back("systemd-run");
       systemdArgs.push_back("--user");
+      systemdArgs.push_back("--slice=app.slice");
+      // Only end the service when all subprocesses have exited. Otherwise, apps using a launcher
+      // script, e.g. vscode, would end prematurely when the script exits, and the actual app process 
+      // is still running.
+      systemdArgs.push_back("--property=ExitType=cgroup");
       if (!appName.empty()) {
         const std::string uuid = StringUtils::generateUuid();
         if (!uuid.empty()) {
@@ -545,12 +550,20 @@ namespace {
         }
       }
       if (!workingDir.empty()) {
-        systemdArgs.push_back(std::format("--working-directory={}", workingDir));
+        systemdArgs.push_back("--working-directory=" + workingDir);
       }
-      if (!activationToken.empty()) {
-        systemdArgs.push_back(std::format("--setenv=XDG_ACTIVATION_TOKEN={}", activationToken));
-        systemdArgs.push_back(std::format("--setenv=DESKTOP_STARTUP_ID={}", activationToken));
+      if (!activationToken.empty()) {       
+        ::setenv("XDG_ACTIVATION_TOKEN", activationToken.c_str(), 1);
+        ::setenv("DESKTOP_STARTUP_ID", activationToken.c_str(), 1);
       }
+
+      // App should inherit our environment.
+      char **s = ::environ;
+      for (; *s; s++) {
+        systemdArgs.push_back("-E");
+        systemdArgs.push_back(*s);
+      }
+
       systemdArgs.push_back("--");
       systemdArgs.insert(systemdArgs.end(), args.begin(), args.end());
       process::RunResult result = runSyncProcess(systemdArgs, std::nullopt);
