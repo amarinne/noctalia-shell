@@ -23,7 +23,6 @@ namespace {
   constexpr float kGraphLineWidth = 0.75f;
   constexpr float kGraphFillOpacity = 0.15f;
   constexpr double kNetMinScaleBps = 10000.0;
-  const auto kSampleInterval = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::seconds(1));
 
   Flex* makeHeaderRow(Flex& parent, const std::string& title, float scale) {
     auto row = std::make_unique<Flex>();
@@ -729,11 +728,18 @@ void SystemTab::syncLabels() {
   }
 }
 
-float SystemTab::scrollProgressForSample(std::chrono::steady_clock::time_point sampledAt) {
+float SystemTab::scrollProgressForSample(std::chrono::steady_clock::time_point sampledAt) const {
   if (sampledAt == std::chrono::steady_clock::time_point{}) {
     return 1.0f;
   }
+
+  const auto sampleInterval = m_monitor != nullptr ? m_monitor->historySampleInterval()
+                                                   : std::chrono::steady_clock::duration{std::chrono::seconds(1)};
+  if (sampleInterval.count() <= 0) {
+    return 1.0f;
+  }
+
   const auto elapsed = std::chrono::steady_clock::now() - sampledAt;
-  const auto clamped = std::clamp(elapsed, std::chrono::steady_clock::duration::zero(), kSampleInterval);
-  return std::chrono::duration<float>(clamped).count() / std::chrono::duration<float>(kSampleInterval).count();
+  const auto clamped = std::clamp(elapsed, std::chrono::steady_clock::duration::zero(), sampleInterval);
+  return std::chrono::duration<float>(clamped).count() / std::chrono::duration<float>(sampleInterval).count();
 }
