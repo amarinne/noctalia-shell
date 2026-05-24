@@ -20,8 +20,7 @@
 #include "system/weather_service.h"
 #include "theme/theme_service.h"
 #include "time/time_service.h"
-#include "ui/controls/box.h"
-#include "ui/controls/flex.h"
+#include "ui/builders.h"
 #include "ui/palette.h"
 #include "ui/style.h"
 #include "util/string_utils.h"
@@ -1495,16 +1494,21 @@ void Bar::attachWidgetsToSections(BarInstance& instance) {
       auto shell = std::make_unique<Node>();
       Node* shellPtr = shell.get();
       shellPtr->setClipChildren(true);
-      auto capsuleBg = std::make_unique<Box>();
-      Box* bgPtr = capsuleBg.get();
-      capsuleBg->setFill(withOpacity(cap.fill, cap.opacity));
       const float scale = widget.contentScale();
-      if (cap.border.has_value()) {
-        capsuleBg->setBorder(*cap.border, Style::borderWidth * scale);
-      } else {
-        capsuleBg->clearBorder();
-      }
-      capsuleBg->setZIndex(-1);
+      Box* bgPtr = nullptr;
+      auto capsuleBg = ui::box({
+          .out = &bgPtr,
+          .fill = withOpacity(cap.fill, cap.opacity),
+          .configure =
+              [&cap, scale](Box& bg) {
+                if (cap.border.has_value()) {
+                  bg.setBorder(*cap.border, Style::borderWidth * scale);
+                } else {
+                  bg.clearBorder();
+                }
+                bg.setZIndex(-1);
+              },
+      });
       shellPtr->addChild(std::move(capsuleBg));
       shellPtr->addChild(widget.releaseRoot());
       widget.setBarCapsuleScene(shellPtr, bgPtr);
@@ -1571,23 +1575,29 @@ void Bar::attachWidgetsToSections(BarInstance& instance) {
       auto shell = std::make_unique<Node>();
       Node* shellPtr = shell.get();
       shellPtr->setClipChildren(true);
-      auto capsuleBg = std::make_unique<Box>();
-      Box* bgPtr = capsuleBg.get();
-      capsuleBg->setFill(withOpacity(cap.fill, cap.opacity));
       const float scale = widget->contentScale();
-      if (cap.border.has_value()) {
-        capsuleBg->setBorder(*cap.border, Style::borderWidth * scale);
-      } else {
-        capsuleBg->clearBorder();
-      }
-      capsuleBg->setZIndex(-1);
+      Box* bgPtr = nullptr;
+      auto capsuleBg = ui::box({
+          .out = &bgPtr,
+          .fill = withOpacity(cap.fill, cap.opacity),
+          .configure =
+              [&cap, scale](Box& bg) {
+                if (cap.border.has_value()) {
+                  bg.setBorder(*cap.border, Style::borderWidth * scale);
+                } else {
+                  bg.clearBorder();
+                }
+                bg.setZIndex(-1);
+              },
+      });
       shellPtr->addChild(std::move(capsuleBg));
 
-      auto inner = std::make_unique<Flex>();
+      auto inner =
+          ui::makeFlex(isVertical ? FlexDirection::Vertical : FlexDirection::Horizontal, {
+                                                                                             .align = FlexAlign::Center,
+                                                                                             .gap = widgetSpacing,
+                                                                                         });
       Flex* innerPtr = inner.get();
-      innerPtr->setDirection(isVertical ? FlexDirection::Vertical : FlexDirection::Horizontal);
-      innerPtr->setGap(widgetSpacing);
-      innerPtr->setAlign(FlexAlign::Center);
       shellPtr->addChild(std::move(inner));
 
       BarCapsuleRun run;
@@ -1847,28 +1857,25 @@ void Bar::buildScene(BarInstance& instance, std::uint32_t width, std::uint32_t h
     instance.slideRoot = instance.sceneRoot->addChild(std::move(slide));
 
     // Bar background
-    auto bg = std::make_unique<Box>();
-    instance.bg = static_cast<Box*>(instance.slideRoot->addChild(std::move(bg)));
+    instance.bg = static_cast<Box*>(instance.slideRoot->addChild(ui::box()));
 
     // Shadow — bar shape copy rendered with large SDF softness to simulate a blurred drop shadow.
     if (shadowSize > 0.0f) {
-      auto shadow = std::make_unique<Box>();
-      shadow->setHitTestVisible(false);
-      instance.shadow = static_cast<Box*>(instance.slideRoot->addChild(std::move(shadow)));
+      instance.shadow = static_cast<Box*>(instance.slideRoot->addChild(ui::box({
+          .configure = [](Box& shadow) { shadow.setHitTestVisible(false); },
+      })));
 
       auto leftClip = std::make_unique<Node>();
       leftClip->setClipChildren(true);
       leftClip->setZIndex(-1);
       instance.shadowLeftClip = instance.slideRoot->addChild(std::move(leftClip));
-      auto leftShadow = std::make_unique<Box>();
-      instance.shadowLeft = static_cast<Box*>(instance.shadowLeftClip->addChild(std::move(leftShadow)));
+      instance.shadowLeft = static_cast<Box*>(instance.shadowLeftClip->addChild(ui::box()));
 
       auto rightClip = std::make_unique<Node>();
       rightClip->setClipChildren(true);
       rightClip->setZIndex(-1);
       instance.shadowRightClip = instance.slideRoot->addChild(std::move(rightClip));
-      auto rightShadow = std::make_unique<Box>();
-      instance.shadowRight = static_cast<Box*>(instance.shadowRightClip->addChild(std::move(rightShadow)));
+      instance.shadowRight = static_cast<Box*>(instance.shadowRightClip->addChild(ui::box()));
     }
     // Note: shadow is inserted before bar sections so it renders below them (z=-1 is set below).
 
@@ -1887,11 +1894,11 @@ void Bar::buildScene(BarInstance& instance, std::uint32_t width, std::uint32_t h
 
     // Create section boxes
     auto makeSection = [widgetSpacing, isVertical]() {
-      auto box = std::make_unique<Flex>();
-      box->setDirection(isVertical ? FlexDirection::Vertical : FlexDirection::Horizontal);
-      box->setGap(widgetSpacing);
-      box->setAlign(FlexAlign::Center);
-      return box;
+      return ui::makeFlex(isVertical ? FlexDirection::Vertical : FlexDirection::Horizontal,
+                          {
+                              .align = FlexAlign::Center,
+                              .gap = widgetSpacing,
+                          });
     };
 
     instance.startSection = static_cast<Flex*>(instance.startSlot->addChild(makeSection()));
