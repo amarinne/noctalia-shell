@@ -1,7 +1,7 @@
 #include "shell/settings/color_spec_picker.h"
 
 #include "i18n/i18n.h"
-#include "ui/controls/select.h"
+#include "ui/builders.h"
 #include "ui/dialogs/color_picker_dialog.h"
 #include "ui/style.h"
 
@@ -122,62 +122,56 @@ namespace settings {
       customInitialColor = colorForRole(*selectedRole);
     }
 
-    auto select = std::make_unique<Select>();
-    select->setOptions(labelsForChoices(choices));
-    if (const auto index = choiceIndex(choices, selectedValue)) {
-      select->setSelectedIndex(*index);
-    } else if (!selectedValue.empty()) {
-      select->clearSelection();
-      select->setPlaceholder(i18n::tr("settings.controls.select.unknown-value", "value", selectedValue));
-    }
-    select->setOptionIndicators(std::move(indicators));
-    if (options.fontSize > 0.0f) {
-      select->setFontSize(options.fontSize);
-    }
-    if (options.controlHeight > 0.0f) {
-      select->setControlHeight(options.controlHeight);
-    }
-    if (options.glyphSize > 0.0f) {
-      select->setGlyphSize(options.glyphSize);
-    }
-    if (options.width > 0.0f) {
-      const float height = options.controlHeight > 0.0f ? options.controlHeight : Style::controlHeight;
-      select->setSize(options.width, height);
-    }
-    if (options.flexGrow) {
-      select->setFlexGrow(1.0f);
-    }
+    const auto selectedIndex = choiceIndex(choices, selectedValue);
+    const bool selectedUnknown = !selectedIndex.has_value() && !selectedValue.empty();
 
-    select->setOnSelectionChanged(
-        [choices = std::move(choices), setValue = std::move(setValue), clearValue = std::move(clearValue),
-         initialColor = customInitialColor](std::size_t index, std::string_view /*label*/) mutable {
-          if (index >= choices.size()) {
-            return;
-          }
-          if (choices[index].value == kCustomColorValue) {
-            ColorPickerDialogOptions dialogOptions;
-            dialogOptions.title = i18n::tr("settings.dialogs.color-picker.title");
-            if (initialColor.has_value()) {
-              dialogOptions.initialColor = *initialColor;
-            } else if (const auto last = ColorPickerDialog::lastResult()) {
-              dialogOptions.initialColor = *last;
-            }
-            (void)ColorPickerDialog::open(std::move(dialogOptions), [setValue](std::optional<Color> result) {
-              if (!result.has_value()) {
+    auto select = ui::select({
+        .options = labelsForChoices(choices),
+        .selectedIndex = selectedIndex,
+        .clearSelection = selectedUnknown,
+        .placeholder = selectedUnknown ? std::optional<std::string>(
+                                             i18n::tr("settings.controls.select.unknown-value", "value", selectedValue))
+                                       : std::nullopt,
+        .fontSize = options.fontSize > 0.0f ? std::optional<float>(options.fontSize) : std::nullopt,
+        .controlHeight = options.controlHeight > 0.0f ? std::optional<float>(options.controlHeight) : std::nullopt,
+        .glyphSize = options.glyphSize > 0.0f ? std::optional<float>(options.glyphSize) : std::nullopt,
+        .optionIndicators = std::move(indicators),
+        .width = options.width > 0.0f ? std::optional<float>(options.width) : std::nullopt,
+        .height = options.width > 0.0f ? std::optional<float>(options.controlHeight > 0.0f ? options.controlHeight
+                                                                                           : Style::controlHeight)
+                                       : std::nullopt,
+        .flexGrow = options.flexGrow ? std::optional<float>(1.0f) : std::nullopt,
+        .onSelectionChanged =
+            [choices = std::move(choices), setValue = std::move(setValue), clearValue = std::move(clearValue),
+             initialColor = customInitialColor](std::size_t index, std::string_view /*label*/) mutable {
+              if (index >= choices.size()) {
                 return;
               }
-              Color rgb = *result;
-              rgb.a = 1.0f;
-              setValue(formatFixedColorConfigValue(rgb));
-            });
-            return;
-          }
-          if (choices[index].value.empty()) {
-            clearValue();
-            return;
-          }
-          setValue(choices[index].value);
-        });
+              if (choices[index].value == kCustomColorValue) {
+                ColorPickerDialogOptions dialogOptions;
+                dialogOptions.title = i18n::tr("settings.dialogs.color-picker.title");
+                if (initialColor.has_value()) {
+                  dialogOptions.initialColor = *initialColor;
+                } else if (const auto last = ColorPickerDialog::lastResult()) {
+                  dialogOptions.initialColor = *last;
+                }
+                (void)ColorPickerDialog::open(std::move(dialogOptions), [setValue](std::optional<Color> result) {
+                  if (!result.has_value()) {
+                    return;
+                  }
+                  Color rgb = *result;
+                  rgb.a = 1.0f;
+                  setValue(formatFixedColorConfigValue(rgb));
+                });
+                return;
+              }
+              if (choices[index].value.empty()) {
+                clearValue();
+                return;
+              }
+              setValue(choices[index].value);
+            },
+    });
 
     return select;
   }
