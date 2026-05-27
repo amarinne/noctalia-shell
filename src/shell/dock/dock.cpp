@@ -477,6 +477,8 @@ void Dock::createInstance(const WaylandOutput& output) {
   instance->output = output.output;
   instance->scale = output.scale;
   instance->activeAppIdLower = shell::dock::currentActiveEntryIdLower(*m_platform);
+  instance->snapshot.output = output.output;
+  instance->snapshot.activeAppIdLower = instance->activeAppIdLower;
 
   const auto& shadowConfig = m_config->config().shell.shadow;
   LayerSurfaceConfig lsCfg = shell::dock::makeLayerSurfaceConfig(

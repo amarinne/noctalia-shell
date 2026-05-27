@@ -3,6 +3,7 @@
 #include "config/config_types.h"
 #include "render/scene/input_dispatcher.h"
 #include "shell/dock/dock_items.h"
+#include "shell/dock/dock_model.h"
 #include "ui/signal.h"
 
 #include <cstdint>
@@ -41,6 +42,7 @@ namespace shell::dock {
     std::uint64_t modelSerial = 0;
     std::string activeAppIdLower;
     wl_output* lastFilterOutput = nullptr;
+    DockSnapshot snapshot;
     bool pointerInside = false;
     // Auto-hide: tracks visibility [0,1] driven by hover.
     float hideOpacity = 1.0f;
