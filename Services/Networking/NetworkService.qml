@@ -448,7 +448,8 @@ Singleton {
       const wl = root.activeWifiDetails;
       const speed = wl.rateShort || wl.rate || "";
       const connectedNet = Object.values(root.networks).find(net => net.connected);
-      const name = connectedNet ? connectedNet.ssid : (wl.connectionName || "");
+      // Device status is authoritative; scan results can lag and keep old IN-USE marker.
+      const name = wl.connectionName || (connectedNet ? connectedNet.ssid : "");
       return (name + (showSpeed && speed ? " - " + speed : ""));
     }
     return "";
