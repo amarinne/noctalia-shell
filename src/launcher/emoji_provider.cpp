@@ -4,10 +4,15 @@
 #include "util/string_utils.h"
 #include "wayland/clipboard_service.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <json.hpp>
 #include <string_view>
+
+namespace {
+  constexpr std::size_t kMaxResults = 100;
+}
 
 void EmojiProvider::initialize() {
   const std::filesystem::path path = paths::assetPath("emoji.json");
@@ -124,7 +129,7 @@ std::vector<LauncherResult> EmojiProvider::query(std::string_view text) const {
   std::sort(scored.begin(), scored.end(), [](const ScoredEntry& a, const ScoredEntry& b) { return a.score > b.score; });
 
   std::vector<LauncherResult> results;
-  for (std::size_t i = 0; i < scored.size() && i < 50; ++i) {
+  for (std::size_t i = 0; i < scored.size() && i < kMaxResults; ++i) {
     const auto& e = m_entries[scored[i].index];
     LauncherResult r;
     r.id = "emoji-" + e.emoji;

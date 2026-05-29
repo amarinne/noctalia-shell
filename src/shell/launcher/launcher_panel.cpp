@@ -31,7 +31,6 @@
 
 namespace {
 
-  constexpr std::size_t kMaxResults = 50;
   constexpr std::size_t kRowOverscan = 3;
   constexpr float kIconSize = 40.0f;
   constexpr double kUsageScorePerCount = 0.1;
@@ -755,9 +754,6 @@ void LauncherPanel::applyActiveCategory() {
         m_results.push_back(r);
       }
     }
-  }
-  if (!m_query.empty() && m_results.size() > kMaxResults) {
-    m_results.resize(kMaxResults);
   }
   m_selectedIndex = 0;
   refreshResults();

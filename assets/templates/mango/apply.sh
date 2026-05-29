@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-config_file="$HOME/.config/mango/config.conf"
-include_line="source=$HOME/.config/mango/noctalia.conf"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+config_file="$config_dir/mango/config.conf"
+include_line="source=$config_dir/mango/noctalia.conf"
 
 mkdir -p "$(dirname "$config_file")"
 

@@ -113,6 +113,11 @@ namespace scripting {
     std::string second;
     bool boolValue = false;
     bool processMatchResult = false;
+    // When true, a newer CallStrings event with the same functionName supersedes
+    // this one while it is still queued (only the latest payload matters, e.g.
+    // onAudioSpectrum frames). IPC and other callbacks leave this false so every
+    // event is delivered.
+    bool coalesce = false;
     int callbackRef = 0;
     process::RunResult commandResult;
     ScriptWidgetSnapshot snapshot;

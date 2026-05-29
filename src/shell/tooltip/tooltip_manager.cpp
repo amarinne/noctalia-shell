@@ -24,11 +24,61 @@ namespace {
   constexpr auto kShowDelay = std::chrono::milliseconds(500);
   constexpr float kMaxContentWidth = 280.0f;
   constexpr int kMaxTextLines = 3;
+  constexpr float kTableMinPeerColumnWidth = 80.0f;
   constexpr float kPadH = Style::spaceMd;
   constexpr float kPadV = Style::spaceSm;
   constexpr float kTableGap = Style::spaceXs;
   constexpr float kTableColumnGap = Style::spaceMd;
   constexpr float kBorder = Style::borderWidth;
+
+  struct TableColumnWidths {
+    float key = 0.0f;
+    float value = 0.0f;
+  };
+
+  TableColumnWidths fitTableColumns(float naturalKeyW, float naturalValueW) {
+    const float availableW = std::max(0.0f, kMaxContentWidth - kTableColumnGap);
+    if (availableW <= 0.0f) {
+      return {};
+    }
+
+    const float halfW = availableW * 0.5f;
+    const float peerReserveW = std::min(kTableMinPeerColumnWidth, halfW);
+    const float columnMaxW = std::max(0.0f, availableW - peerReserveW);
+
+    TableColumnWidths widths{
+        .key = std::min(naturalKeyW, halfW),
+        .value = std::min(naturalValueW, halfW),
+    };
+
+    float remainingW = std::max(0.0f, availableW - widths.key - widths.value);
+    if (remainingW <= 0.0f) {
+      return widths;
+    }
+
+    float keyNeed = std::max(0.0f, std::min(naturalKeyW, columnMaxW) - widths.key);
+    float valueNeed = std::max(0.0f, std::min(naturalValueW, columnMaxW) - widths.value);
+    const float totalNeed = keyNeed + valueNeed;
+    if (totalNeed <= 0.0f) {
+      return widths;
+    }
+
+    const float keyDelta = std::min(keyNeed, remainingW * (keyNeed / totalNeed));
+    widths.key += keyDelta;
+    remainingW -= keyDelta;
+    keyNeed -= keyDelta;
+
+    const float valueDelta = std::min(valueNeed, remainingW);
+    widths.value += valueDelta;
+    remainingW -= valueDelta;
+    valueNeed -= valueDelta;
+
+    if (remainingW > 0.0f && keyNeed > 0.0f) {
+      widths.key += std::min(keyNeed, remainingW);
+    }
+
+    return widths;
+  }
 
 } // namespace
 
@@ -224,11 +274,8 @@ TooltipManager::Size TooltipManager::measureContent(const TooltipContent& conten
       maxValW = std::max(maxValW, vm.width);
       rowH = std::max(rowH, std::max(km.bottom - km.top, vm.bottom - vm.top));
     }
-    float naturalW = maxKeyW + kTableColumnGap + maxValW;
-    float contentW = std::min(naturalW, kMaxContentWidth);
-    if (naturalW > kMaxContentWidth) {
-      maxValW = kMaxContentWidth - maxKeyW - kTableColumnGap;
-    }
+    const TableColumnWidths columns = fitTableColumns(maxKeyW, maxValW);
+    float contentW = columns.key + kTableColumnGap + columns.value;
     float contentH = static_cast<float>(rows->size()) * rowH + static_cast<float>(rows->size() - 1) * kTableGap;
     auto w = static_cast<std::uint32_t>(std::ceil(contentW + kPadH * 2.0f + kBorder * 2.0f));
     auto h = static_cast<std::uint32_t>(std::ceil(contentH + kPadV * 2.0f + kBorder * 2.0f));
@@ -278,11 +325,14 @@ void TooltipManager::buildScene(const TooltipContent& content, float w, float h)
     const float containerW = w - (kPadH + kBorder) * 2.0f;
 
     float maxKeyW = 0.0f;
+    float maxValW = 0.0f;
     for (const auto& row : *rows) {
       auto km = m_renderContext->measureText(row.key, Style::fontSizeCaption);
+      const auto vm = m_renderContext->measureText(row.value, Style::fontSizeCaption);
       maxKeyW = std::max(maxKeyW, km.width);
+      maxValW = std::max(maxValW, vm.width);
     }
-    const float valMaxW = std::max(0.0f, containerW - maxKeyW - kTableColumnGap);
+    const TableColumnWidths columns = fitTableColumns(maxKeyW, maxValW);
 
     auto container = ui::column({
         .gap = kTableGap,
@@ -297,6 +347,10 @@ void TooltipManager::buildScene(const TooltipContent& content, float w, float h)
           .fontSize = Style::fontSizeCaption,
           .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
       });
+      const auto km = m_renderContext->measureText(row.key, Style::fontSizeCaption);
+      if (km.width > columns.key + 0.5f) {
+        keyLabel->setMaxWidth(columns.key);
+      }
       keyLabel->measure(*m_renderContext);
 
       auto valLabel = ui::label({
@@ -306,8 +360,8 @@ void TooltipManager::buildScene(const TooltipContent& content, float w, float h)
           .textAlign = TextAlign::End,
       });
       const auto vm = m_renderContext->measureText(row.value, Style::fontSizeCaption);
-      if (vm.width > valMaxW + 0.5f) {
-        valLabel->setMaxWidth(valMaxW);
+      if (vm.width > columns.value + 0.5f) {
+        valLabel->setMaxWidth(columns.value);
       }
       valLabel->measure(*m_renderContext);
 

@@ -1139,8 +1139,45 @@ namespace noctalia::theme {
       return out;
     }
 
+    // Expand a leading XDG base-directory token (e.g. "$XDG_CONFIG_HOME") to its
+    // value per the XDG Base Directory spec: the env var if set, else the
+    // spec-defined default under $HOME. Naming the spec variable directly keeps
+    // output paths spec-correct instead of baking in a "~/.config" fallback that
+    // ignores a relocated config/data/cache home. If the base can't be resolved
+    // (no env var and no $HOME), the token is left intact so the bad path
+    // surfaces rather than silently landing somewhere wrong.
+    std::string expandXdgBaseDir(const std::string& path) {
+      struct XdgBase {
+        std::string_view token;
+        std::string_view envVar;
+        std::string_view homeDefault; // relative to $HOME
+      };
+      static constexpr std::array<XdgBase, 4> kBases = {{
+          {"$XDG_CONFIG_HOME", "XDG_CONFIG_HOME", ".config"},
+          {"$XDG_DATA_HOME", "XDG_DATA_HOME", ".local/share"},
+          {"$XDG_STATE_HOME", "XDG_STATE_HOME", ".local/state"},
+          {"$XDG_CACHE_HOME", "XDG_CACHE_HOME", ".cache"},
+      }};
+      for (const XdgBase& b : kBases) {
+        if (path.rfind(b.token, 0) != 0)
+          continue;
+        if (path.size() != b.token.size() && path[b.token.size()] != '/')
+          continue;
+        std::string base;
+        if (const char* env = std::getenv(std::string(b.envVar).c_str()); env != nullptr && env[0] != '\0') {
+          base = env;
+        } else if (const char* home = std::getenv("HOME"); home != nullptr && home[0] != '\0') {
+          base = std::string(home) + "/" + std::string(b.homeDefault);
+        } else {
+          return path;
+        }
+        return base + path.substr(b.token.size());
+      }
+      return path;
+    }
+
     std::filesystem::path resolveConfigPath(const std::filesystem::path& configPath, const std::string& path) {
-      const std::filesystem::path expanded = FileUtils::expandUserPath(path);
+      const std::filesystem::path expanded = FileUtils::expandUserPath(expandXdgBaseDir(path));
       if (expanded.is_absolute())
         return expanded;
       const std::filesystem::path base =

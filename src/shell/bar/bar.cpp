@@ -643,8 +643,7 @@ namespace {
           continue;
         }
         if (scale != cachedBodyExtentScale) {
-          const auto refMetrics = renderer.measureFont(Style::fontSizeBody * scale);
-          cachedBodyExtent = std::round(refMetrics.bottom - refMetrics.top);
+          cachedBodyExtent = renderer.fontRowExtent(Style::fontSizeBody * scale);
           cachedBodyExtentScale = scale;
         }
         const float bodyExtent = cachedBodyExtent;

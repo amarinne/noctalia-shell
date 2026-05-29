@@ -767,7 +767,7 @@ void ScriptedWidget::handleAudioSpectrumChanged() {
   const std::string state = std::string(audioActive ? "1" : "0") + "," + (mprisPlaying ? "1" : "0");
   (void)m_runtime->enqueueCallStrings(
       "onAudioSpectrum", joinSpectrumValues(m_audioSpectrum->values(m_audioSpectrumListenerId)), state,
-      makeScriptSnapshot()
+      makeScriptSnapshot(), /*coalesce=*/true
   );
 }
 

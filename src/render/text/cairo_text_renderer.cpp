@@ -226,6 +226,17 @@ std::size_t CairoTextRenderer::MetricsKeyHash::operator()(const MetricsKey& k) c
   return seed;
 }
 
+bool CairoTextRenderer::FontMetricsKey::operator==(const FontMetricsKey& other) const noexcept {
+  return fontWeight == other.fontWeight && sizeQ == other.sizeQ && scaleQ == other.scaleQ;
+}
+
+std::size_t CairoTextRenderer::FontMetricsKeyHash::operator()(const FontMetricsKey& k) const noexcept {
+  std::size_t seed = std::hash<std::uint32_t>{}(k.sizeQ);
+  hashCombine(seed, std::hash<std::uint16_t>{}(k.scaleQ));
+  hashCombine(seed, std::hash<int>{}(static_cast<int>(k.fontWeight)));
+  return seed;
+}
+
 // ── Lifecycle ───────────────────────────────────────────────────────────────
 
 CairoTextRenderer::CairoTextRenderer() = default;
@@ -270,6 +281,9 @@ void CairoTextRenderer::initialize(RenderBackend* backend, TextureManager* textu
 
   m_metricsCache.max_load_factor(1.0f);
   m_metricsCache.reserve(kMaxMetricsEntries + 16);
+
+  m_fontMetricsCache.max_load_factor(1.0f);
+  m_fontMetricsCache.reserve(kMaxFontMetricsEntries + 16);
 }
 
 void CairoTextRenderer::cleanup() {
@@ -303,6 +317,7 @@ void CairoTextRenderer::clearCaches() {
   m_lru.clear();
   m_cacheBytes = 0;
   m_metricsCache.clear();
+  m_fontMetricsCache.clear();
 }
 
 void CairoTextRenderer::setContentScale(float scale) {
@@ -473,6 +488,14 @@ CairoTextRenderer::TextMetrics CairoTextRenderer::measureFont(float fontSize, Fo
     return {};
   }
 
+  FontMetricsKey cacheKey;
+  cacheKey.sizeQ = quantizeSize(fontSize);
+  cacheKey.scaleQ = quantizeScale(m_contentScale);
+  cacheKey.fontWeight = fontWeight;
+  if (auto it = m_fontMetricsCache.find(cacheKey); it != m_fontMetricsCache.end()) {
+    return it->second;
+  }
+
   const float rasterSize = std::max(1.0f, fontSize * m_contentScale);
   PangoFontDescription* desc = pango_font_description_new();
   pango_font_description_set_family(desc, m_fontFamily.c_str());
@@ -506,6 +529,11 @@ CairoTextRenderer::TextMetrics CairoTextRenderer::measureFont(float fontSize, Fo
   }
 
   pango_font_description_free(desc);
+
+  if (m_fontMetricsCache.size() >= kMaxFontMetricsEntries) {
+    m_fontMetricsCache.clear();
+  }
+  m_fontMetricsCache.emplace(cacheKey, out);
   return out;
 }
 

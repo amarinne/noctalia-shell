@@ -33,8 +33,10 @@ namespace scripting {
     [[nodiscard]] bool enqueueUpdate(ScriptWidgetSnapshot snapshot);
     [[nodiscard]] bool enqueueCall(std::string functionName, ScriptWidgetSnapshot snapshot);
     [[nodiscard]] bool enqueueCallBool(std::string functionName, bool value, ScriptWidgetSnapshot snapshot);
-    [[nodiscard]] bool
-    enqueueCallStrings(std::string functionName, std::string first, std::string second, ScriptWidgetSnapshot snapshot);
+    [[nodiscard]] bool enqueueCallStrings(
+        std::string functionName, std::string first, std::string second, ScriptWidgetSnapshot snapshot,
+        bool coalesce = false
+    );
     [[nodiscard]] bool enqueueAsyncCommandResult(std::uint64_t hostId, int callbackRef, process::RunResult result);
     [[nodiscard]] bool hasOnIpc() const;
     [[nodiscard]] bool unhealthy() const;

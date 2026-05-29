@@ -110,6 +110,23 @@ private:
     std::size_t operator()(const MetricsKey& k) const noexcept;
   };
 
+  // Color- and text-independent key for measureFont(), which derives font
+  // metrics from the active family at a given size/weight/scale. measureFont()
+  // runs every frame from bar layout; each underlying pango_context_get_metrics
+  // call makes Pango accumulate internal cache structures that are never
+  // reclaimed during the run (heaptrack: top leak, ~24MB over a 30m session).
+  // Memoizing collapses ~15k calls/run down to the handful of distinct fonts.
+  struct FontMetricsKey {
+    std::uint32_t sizeQ = 0;
+    std::uint16_t scaleQ = 0;
+    FontWeight fontWeight = FontWeight::Normal;
+
+    bool operator==(const FontMetricsKey& other) const noexcept;
+  };
+  struct FontMetricsKeyHash {
+    std::size_t operator()(const FontMetricsKey& k) const noexcept;
+  };
+
   // LruList is a list of pointers into map keys — we break the otherwise
   // circular type dependency (CacheEntry ↔ CacheMap) this way. CacheKey* is
   // stable because unordered_map never moves key-value nodes under insert
@@ -140,6 +157,7 @@ private:
 
   using CacheMap = std::unordered_map<CacheKey, CacheEntry, CacheKeyHash>;
   using MetricsMap = std::unordered_map<MetricsKey, TextMetrics, MetricsKeyHash>;
+  using FontMetricsMap = std::unordered_map<FontMetricsKey, TextMetrics, FontMetricsKeyHash>;
 
   // Build a PangoLayout at the given scaled size. Caller owns the layout (g_object_unref).
   PangoLayout* buildLayout(
@@ -179,8 +197,10 @@ private:
   int m_glMaxTextureSize = 0; // lazy-queried on first rasterize
 
   MetricsMap m_metricsCache;
+  mutable FontMetricsMap m_fontMetricsCache;
 
   static constexpr std::size_t kMaxCacheEntries = 512;
   static constexpr std::size_t kMaxCacheBytes = 32 * 1024 * 1024;
   static constexpr std::size_t kMaxMetricsEntries = 1024;
+  static constexpr std::size_t kMaxFontMetricsEntries = 64;
 };

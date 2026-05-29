@@ -151,6 +151,23 @@ namespace scripting {
           return false;
         }
 
+        // Supersede an already-queued coalescing CallStrings for the same
+        // callback with the newer payload instead of appending. Bounds the queue
+        // to a single pending event per callback (e.g. onAudioSpectrum at 60Hz),
+        // so a slow script can never accumulate stale spectrum frames.
+        if (event.kind == ScriptWidgetEventKind::CallStrings && event.coalesce) {
+          const auto existing = std::find_if(queue.begin(), queue.end(), [&event](const auto& queued) {
+            return queued.kind == ScriptWidgetEventKind::CallStrings
+                && queued.coalesce
+                && queued.functionName == event.functionName;
+          });
+          if (existing != queue.end()) {
+            event.generation = generation;
+            *existing = std::move(event);
+            return true;
+          }
+        }
+
         if (event.kind == ScriptWidgetEventKind::Update) {
           const auto now = std::chrono::steady_clock::now();
           if (updateQueued || updateRunning) {
@@ -512,7 +529,7 @@ namespace scripting {
   }
 
   bool ScriptRuntime::enqueueCallStrings(
-      std::string functionName, std::string first, std::string second, ScriptWidgetSnapshot snapshot
+      std::string functionName, std::string first, std::string second, ScriptWidgetSnapshot snapshot, bool coalesce
   ) {
     ScriptWidgetEvent event;
     event.kind = ScriptWidgetEventKind::CallStrings;
@@ -521,6 +538,7 @@ namespace scripting {
     event.second = std::move(second);
     event.snapshot = std::move(snapshot);
     event.budget = kCallbackBudget;
+    event.coalesce = coalesce;
     return m_state != nullptr && m_state->enqueue(std::move(event));
   }
 
