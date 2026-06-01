@@ -2,6 +2,7 @@
 
 #include "compositors/compositor_platform.h"
 #include "core/log.h"
+#include "shell/dock/pinned_apps.h"
 #include "system/app_identity.h"
 #include "util/string_utils.h"
 #include "wayland/wayland_toplevels.h"
@@ -38,43 +39,7 @@ namespace shell::dock {
 
     lastPinnedConfig = cfg.pinned;
     entriesVersion = desktopEntriesVersion();
-    pinnedEntries.clear();
-
-    const auto& entries = desktopEntries();
-
-    for (const auto& pinnedId : cfg.pinned) {
-      const auto pinnedLower = StringUtils::toLower(pinnedId);
-      bool found = false;
-
-      for (const auto& entry : entries) {
-        if (entry.hidden || entry.noDisplay) {
-          continue;
-        }
-        // Match by entry ID (stem of the desktop file path, e.g. "firefox"),
-        // by StartupWMClass (lower), or by Name (lower).
-        const auto stemLower = StringUtils::toLower([&] {
-          const auto slash = entry.id.rfind('/');
-          const auto base = (slash == std::string::npos) ? entry.id : entry.id.substr(slash + 1);
-          const auto dot = base.rfind('.');
-          return (dot == std::string::npos) ? base : base.substr(0, dot);
-        }());
-
-        if (stemLower == pinnedLower || app_identity::desktopEntryMatchesLower(entry, pinnedLower)) {
-          pinnedEntries.push_back(entry);
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        kLog.debug("pinned app not found: {}", pinnedId);
-        DesktopEntry placeholder;
-        placeholder.id = pinnedId;
-        placeholder.name = pinnedId;
-        placeholder.nameLower = pinnedLower;
-        pinnedEntries.push_back(std::move(placeholder));
-      }
-    }
+    pinnedEntries = pinned_apps::resolveEntries(cfg.pinned);
 
     ++modelSerial;
     kLog.debug("pinned app list: {} entries", pinnedEntries.size());

@@ -11,8 +11,8 @@
 #include "render/render_context.h"
 #include "render/scene/input_area.h"
 #include "render/scene/node.h"
+#include "shell/dock/pinned_apps.h"
 #include "shell/panel/panel_manager.h"
-#include "system/app_identity.h"
 #include "system/desktop_entry.h"
 #include "ui/builders.h"
 #include "ui/controls/context_menu_popup.h"
@@ -120,44 +120,6 @@ namespace {
       style.compact = panel.launcherCompact;
     }
     return style;
-  }
-
-  // Must stay aligned with Dock::refreshPinnedAppsIfNeeded() matching rules.
-  [[nodiscard]] bool dockPinnedIdMatchesEntry(const DesktopEntry& entry, std::string_view pinnedId) {
-    if (pinnedId.empty()) {
-      return false;
-    }
-
-    const std::string pinnedLower = StringUtils::toLower(std::string(pinnedId));
-    const std::string idLower = StringUtils::toLower(entry.id);
-    if (pinnedLower == idLower) {
-      return true;
-    }
-
-    const auto slash = entry.id.rfind('/');
-    const std::string base = (slash == std::string::npos) ? entry.id : entry.id.substr(slash + 1);
-    const auto dot = base.rfind('.');
-    if (dot != std::string::npos) {
-      const std::string legacyStemLower = StringUtils::toLower(base.substr(0, dot));
-      if (pinnedLower == legacyStemLower) {
-        return true;
-      }
-    }
-
-    return app_identity::desktopEntryMatchesLower(entry, pinnedLower);
-  }
-
-  [[nodiscard]] bool isDockPinned(const ConfigService& config, const DesktopEntry& entry) {
-    for (const auto& pinned : config.config().dock.pinned) {
-      if (dockPinnedIdMatchesEntry(entry, pinned)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void removeDockPinForEntry(std::vector<std::string>& pinned, const DesktopEntry& entry) {
-    std::erase_if(pinned, [&](const std::string& pinnedId) { return dockPinnedIdMatchesEntry(entry, pinnedId); });
   }
 
   class LauncherResultRow final : public Node {
@@ -992,7 +954,8 @@ void LauncherPanel::openAppActionsMenu(std::size_t index, float anchorX, float a
   }
 
   std::vector<DesktopAction> actionsCopy = match->actions;
-  const bool dockPinned = m_config != nullptr && isDockPinned(*m_config, *match);
+  const bool dockPinned =
+      m_config != nullptr && shell::dock::pinned_apps::containsEntry(m_config->config().dock.pinned, *match);
   const bool canPinToDock = m_config != nullptr && !dockPinned;
   const bool canUnpinFromDock = m_config != nullptr && dockPinned;
 
@@ -1064,7 +1027,9 @@ void LauncherPanel::openAppActionsMenu(std::size_t index, float anchorX, float a
     LauncherResult result = base;
     result.desktopActionId.clear();
     if (entry.id == kActionPinToDock) {
-      if (m_config == nullptr || entryForPin.id.empty() || isDockPinned(*m_config, entryForPin)) {
+      if (m_config == nullptr
+          || entryForPin.id.empty()
+          || shell::dock::pinned_apps::containsEntry(m_config->config().dock.pinned, entryForPin)) {
         return;
       }
       std::vector<std::string> pinned = m_config->config().dock.pinned;
@@ -1077,7 +1042,7 @@ void LauncherPanel::openAppActionsMenu(std::size_t index, float anchorX, float a
         return;
       }
       std::vector<std::string> pinned = m_config->config().dock.pinned;
-      removeDockPinForEntry(pinned, entryForPin);
+      shell::dock::pinned_apps::removeEntry(pinned, entryForPin);
       (void)m_config->setOverride({"dock", "pinned"}, std::move(pinned));
       return;
     }

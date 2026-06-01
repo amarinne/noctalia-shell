@@ -467,6 +467,7 @@ _noctalia_sources = files(
   'src/shell/dock/dock_instance.cpp',
   'src/shell/dock/dock_items.cpp',
   'src/shell/dock/dock_model.cpp',
+  'src/shell/dock/pinned_apps.cpp',
   'src/shell/desktop/desktop_widget.cpp',
   'src/shell/desktop/desktop_widget_factory.cpp',
   'src/shell/desktop/desktop_widget_settings_registry.cpp',
@@ -953,6 +954,19 @@ app_identity_test = executable('app_identity_test',
 )
 
 test('app_identity', app_identity_test)
+
+dock_pinned_apps_test = executable('dock_pinned_apps_test',
+  sources: files(
+    'tests/dock_pinned_apps_test.cpp',
+    'src/shell/dock/pinned_apps.cpp',
+    'src/system/app_identity.cpp',
+    'src/system/desktop_entry.cpp',
+    'src/core/log.cpp',
+  ),
+  include_directories: _noctalia_inc,
+)
+
+test('dock_pinned_apps', dock_pinned_apps_test)
 
 wayland_toplevels_identity_test = executable('wayland_toplevels_identity_test',
   sources: files(
