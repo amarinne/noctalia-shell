@@ -36,13 +36,15 @@ namespace {
   // Mirror of ConfigService::formatToml so serialized output matches exactly.
   std::string formatToml(const toml::table& table) {
     std::ostringstream out;
-    out << toml::toml_formatter{table, toml::toml_formatter::default_flags & ~toml::format_flags::allow_literal_strings};
+    out << toml::toml_formatter{
+        table, toml::toml_formatter::default_flags & ~toml::format_flags::allow_literal_strings
+    };
     return out.str();
   }
 
   template <typename T>
-  void checkWriteParity(const std::string& section, const toml::table& legacyRoot, const T& value,
-                        const Schema<T>& schema) {
+  void
+  checkWriteParity(const std::string& section, const toml::table& legacyRoot, const T& value, const Schema<T>& schema) {
     const auto* legacySection = legacyRoot[section].as_table();
     if (legacySection == nullptr) {
       fail(section + ": configToToml emitted no [" + section + "] table");
@@ -56,8 +58,9 @@ namespace {
   }
 
   template <typename T>
-  void checkReadInverse(const std::string& section, const toml::table& legacyRoot, const T& expected,
-                        const Schema<T>& schema) {
+  void checkReadInverse(
+      const std::string& section, const toml::table& legacyRoot, const T& expected, const Schema<T>& schema
+  ) {
     const auto* legacySection = legacyRoot[section].as_table();
     if (legacySection == nullptr) {
       fail(section + ": configToToml emitted no [" + section + "] table");
@@ -69,6 +72,110 @@ namespace {
     if (!(roundtrip == expected)) {
       fail(section + ": read inverse did not reconstruct the original value");
     }
+  }
+
+  // A fully-specified bar with a fully-specified monitor override. Every override
+  // optional is set so the resolve-and-flatten write round-trips back into the
+  // same override on read (a partial override would come back fully resolved).
+  BarConfig makeProbeBar() {
+    BarConfig bar;
+    bar.name = "default";
+    bar.position = "bottom";
+    bar.enabled = false;
+    bar.autoHide = true;
+    bar.reserveSpace = false;
+    bar.layer = "overlay";
+    bar.thickness = 44;
+    bar.backgroundOpacity = 0.85f;
+    bar.border = colorSpecFromConfigString("#123456");
+    bar.borderWidth = 2.0f;
+    bar.radius = 18;
+    bar.radiusTopLeft = 4;
+    bar.radiusTopRight = 6;
+    bar.radiusBottomLeft = 8;
+    bar.radiusBottomRight = 10;
+    bar.marginEnds = 100;
+    bar.marginEdge = 5;
+    bar.padding = 12;
+    bar.widgetSpacing = 8;
+    bar.shadow = false;
+    bar.contactShadow = true;
+    bar.panelOverlap = 2;
+    bar.scale = 2.0f;
+    bar.fontWeight = 600;
+    bar.startWidgets = {"launcher"};
+    bar.centerWidgets = {"clock", "weather"};
+    bar.endWidgets = {"battery"};
+    bar.widgetCapsuleDefault = true;
+    bar.widgetCapsuleFill = colorSpecFromConfigString("#abcdef");
+    bar.widgetCapsuleForeground = colorSpecFromConfigString("#fedcba");
+    bar.widgetColor = colorSpecFromConfigString("#0a0b0c");
+    bar.widgetCapsulePadding = 16.0f;
+    bar.widgetCapsuleRadius = 12.0;
+    bar.widgetCapsuleOpacity = 0.9f;
+    bar.widgetCapsuleBorderSpecified = true;
+    bar.widgetCapsuleBorder = colorSpecFromConfigString("#111213");
+    BarCapsuleGroupStyle group;
+    group.id = "grp1";
+    group.members = {"clock", "weather"};
+    group.fill = colorSpecFromConfigString("#222324");
+    group.borderSpecified = true;
+    group.border = colorSpecFromConfigString("#333435");
+    group.foreground = colorSpecFromConfigString("#444546");
+    group.padding = 20.0f;
+    group.radius = 14.0f;
+    group.opacity = 0.8f;
+    bar.widgetCapsuleGroups = {group};
+
+    BarMonitorOverride ovr;
+    ovr.match = "DP-1";
+    ovr.position = "top";
+    ovr.enabled = true;
+    ovr.autoHide = false;
+    ovr.reserveSpace = true;
+    ovr.layer = "top";
+    ovr.thickness = 50;
+    ovr.backgroundOpacity = 0.7f;
+    ovr.border = colorSpecFromConfigString("#a1a2a3");
+    ovr.borderWidth = 3.0f;
+    ovr.radius = 22;
+    ovr.radiusTopLeft = 1;
+    ovr.radiusTopRight = 2;
+    ovr.radiusBottomLeft = 3;
+    ovr.radiusBottomRight = 4;
+    ovr.marginEnds = 70;
+    ovr.marginEdge = 9;
+    ovr.padding = 11;
+    ovr.widgetSpacing = 7;
+    ovr.shadow = true;
+    ovr.contactShadow = false;
+    ovr.panelOverlap = -1;
+    ovr.scale = 1.5f;
+    ovr.startWidgets = std::vector<std::string>{"tray"};
+    ovr.centerWidgets = std::vector<std::string>{"media"};
+    ovr.endWidgets = std::vector<std::string>{"volume"};
+    ovr.widgetCapsuleDefault = false;
+    ovr.widgetCapsuleFill = colorSpecFromConfigString("#b1b2b3");
+    ovr.widgetCapsuleBorderSpecified = true;
+    ovr.widgetCapsuleBorder = colorSpecFromConfigString("#c1c2c3");
+    ovr.widgetCapsuleForeground = colorSpecFromConfigString("#d1d2d3");
+    ovr.widgetColor = colorSpecFromConfigString("#e1e2e3");
+    BarCapsuleGroupStyle ogroup;
+    ogroup.id = "ogrp";
+    ogroup.members = {"volume"};
+    ogroup.fill = colorSpecFromConfigString("#f1f2f3");
+    ogroup.borderSpecified = true;
+    ogroup.border = colorSpecFromConfigString("#0f0e0d");
+    ogroup.foreground = colorSpecFromConfigString("#0c0b0a");
+    ogroup.padding = 18.0f;
+    ogroup.radius = 9.0f;
+    ogroup.opacity = 0.6f;
+    ovr.widgetCapsuleGroups = std::vector<BarCapsuleGroupStyle>{ogroup};
+    ovr.widgetCapsulePadding = 24.0;
+    ovr.widgetCapsuleRadius = 30.0;
+    ovr.widgetCapsuleOpacity = 0.5;
+    bar.monitorOverrides = {ovr};
+    return bar;
   }
 
   // Build a config whose migrated sections hold non-default values, so parity
@@ -102,7 +209,8 @@ namespace {
     c.location.latitude = 52.52;
     c.location.longitude = 13.405;
     c.notification = NotificationConfig{
-        false, false, "bottom_left", "overlay", 1.3f, 0.5f, 12, 6, {"DP-2"}, false, {"discord"}, true, {"normal", "critical"},
+        false,       false, "bottom_left",          "overlay", 1.3f, 0.5f, 12, 6, {"DP-2"}, false,
+        {"discord"}, true,  {"normal", "critical"},
     };
     c.dock.enabled = true;
     c.dock.position = "left";
@@ -179,11 +287,18 @@ namespace {
     c.shell.screenshot.pipeToCommand = true;
     c.shell.session.actions = {
         SessionPanelActionConfig{
-            "lock", true, std::nullopt, std::string("Lock"), std::string("lock"),
-            SessionActionButtonVariant::Primary, parseKeyChordSpec("Ctrl+l"),
+            "lock",
+            true,
+            std::nullopt,
+            std::string("Lock"),
+            std::string("lock"),
+            SessionActionButtonVariant::Primary,
+            parseKeyChordSpec("Ctrl+l"),
         },
-        SessionPanelActionConfig{"shutdown", false, std::nullopt, std::nullopt, std::nullopt,
-                                 SessionActionButtonVariant::Destructive, std::nullopt},
+        SessionPanelActionConfig{
+            "shutdown", false, std::nullopt, std::nullopt, std::nullopt, SessionActionButtonVariant::Destructive,
+            std::nullopt
+        },
     };
     c.theme.source = PaletteSource::Wallpaper;
     c.theme.builtinPalette = "Tokyo";
@@ -193,10 +308,20 @@ namespace {
     c.theme.templates.customColors = {{"accent", "#112233", true}, {"bg", "#000000", false}};
     c.theme.templates.userTemplates = {
         ThemeConfig::UserTemplateConfig{
-            "tmpl1", true, "/in.png", ThemeConfig::TemplateInputPathModesConfig{"/d.png", "/l.png"},
-            {"/out1", "/out2"}, "/dyn", "compareX", {{"c1", "#aabbcc"}}, "pre", "post", 3,
+            "tmpl1",
+            true,
+            "/in.png",
+            ThemeConfig::TemplateInputPathModesConfig{"/d.png", "/l.png"},
+            {"/out1", "/out2"},
+            "/dyn",
+            "compareX",
+            {{"c1", "#aabbcc"}},
+            "pre",
+            "post",
+            3,
         },
     };
+    c.bars = {makeProbeBar()};
     return c;
   }
 
@@ -237,8 +362,145 @@ namespace {
 } // namespace
 
 int main() {
+  // Captured from the pre-refactor configToToml for the fully-specified probe
+  // bar. Pins byte-identical bar serialization across the schema migration: the
+  // resolve-and-flatten monitor write and the conditional/optional fields must
+  // emit exactly these bytes.
+  const char* const kBarGolden =
+      R"(order = [ "default" ]
+
+[default]
+auto_hide = true
+background_opacity = 0.85000002384185791
+border = "#123456"
+border_width = 2.0
+capsule = true
+capsule_border = "#111213"
+capsule_fill = "#ABCDEF"
+capsule_foreground = "#FEDCBA"
+capsule_opacity = 0.89999997615814209
+capsule_padding = 16.0
+capsule_radius = 12.0
+center = [ "clock", "weather" ]
+color = "#0A0B0C"
+contact_shadow = true
+enabled = false
+end = [ "battery" ]
+font_weight = 600
+layer = "overlay"
+margin_edge = 5
+margin_ends = 100
+padding = 12
+panel_overlap = 2
+position = "bottom"
+radius = 18
+radius_bottom_left = 8
+radius_bottom_right = 10
+radius_top_left = 4
+radius_top_right = 6
+reserve_space = false
+scale = 2.0
+shadow = false
+start = [ "launcher" ]
+thickness = 44
+widget_spacing = 8
+
+    [default.monitor.DP-1]
+    auto_hide = false
+    background_opacity = 0.69999998807907104
+    border = "#A1A2A3"
+    border_width = 3.0
+    capsule = false
+    capsule_border = "#C1C2C3"
+    capsule_fill = "#B1B2B3"
+    capsule_foreground = "#D1D2D3"
+    capsule_opacity = 0.5
+    capsule_padding = 24.0
+    capsule_radius = 30.0
+    center = [ "media" ]
+    color = "#E1E2E3"
+    contact_shadow = false
+    enabled = true
+    end = [ "volume" ]
+    font_weight = 600
+    layer = "top"
+    margin_edge = 9
+    margin_ends = 70
+    match = "DP-1"
+    padding = 11
+    panel_overlap = -1
+    position = "top"
+    radius = 22
+    radius_bottom_left = 3
+    radius_bottom_right = 4
+    radius_top_left = 1
+    radius_top_right = 2
+    reserve_space = true
+    scale = 1.5
+    shadow = true
+    start = [ "tray" ]
+    thickness = 50
+    widget_spacing = 7
+
+        [[default.monitor.DP-1.capsule_group]]
+        border = "#0F0E0D"
+        fill = "#F1F2F3"
+        foreground = "#0C0B0A"
+        id = "ogrp"
+        members = [ "volume" ]
+        opacity = 0.60000002384185791
+        padding = 18.0
+        radius = 9.0
+
+    [[default.capsule_group]]
+    border = "#333435"
+    fill = "#222324"
+    foreground = "#444546"
+    id = "grp1"
+    members = [ "clock", "weather" ]
+    opacity = 0.80000001192092896
+    padding = 20.0
+    radius = 14.0)";
+
   const Config probe = makeProbe();
   const toml::table legacyRoot = config_export::configToToml(probe);
+
+  // Bar: write parity against the captured golden, plus read-inverse via the
+  // schemas (reconstructing the bar exactly as config_service does).
+  {
+    const std::string fresh = formatToml(*legacyRoot["bar"].as_table());
+    if (fresh != kBarGolden) {
+      fail(
+          "bar: serialization drifted from golden\n--- golden ---\n"
+          + std::string(kBarGolden)
+          + "\n--- fresh ---\n"
+          + fresh
+      );
+    }
+  }
+  {
+    const auto* barTbl = legacyRoot["bar"]["default"].as_table();
+    BarConfig rt;
+    rt.name = "default";
+    Diagnostics diag;
+    if (auto v = (*barTbl)["position"].value<std::string>()) {
+      rt.position = *v;
+    }
+    readInto(*barTbl, rt, barFieldsSchema(), "bar.default", diag);
+    if (const auto* monMap = (*barTbl)["monitor"].as_table()) {
+      for (const auto& [monName, monNode] : *monMap) {
+        if (const auto* monTbl = monNode.as_table()) {
+          BarMonitorOverride ovr;
+          ovr.match = std::string(monName.str());
+          readInto(*monTbl, ovr, barMonitorOverrideSchema(), "bar.default.monitor", diag);
+          rt.monitorOverrides.push_back(std::move(ovr));
+        }
+      }
+    }
+    if (!(rt == probe.bars[0])) {
+      fail("bar: read inverse did not reconstruct the original bar (incl. monitor override)");
+    }
+  }
 
   checkWriteParity("audio", legacyRoot, probe.audio, audioSchema());
   checkWriteParity("weather", legacyRoot, probe.weather, weatherSchema());

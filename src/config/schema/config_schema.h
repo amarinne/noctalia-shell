@@ -29,4 +29,18 @@ namespace noctalia::config::schema {
   const Schema<ThemeConfig>& themeSchema();
   const Schema<ShellConfig>& shellSchema();
 
+  // Bar is handled at the config root (named [bar.<name>] tables + an `order`
+  // array live on Config::bars directly, not in a section struct), so its
+  // schemas are consumed by hand-written loops in config_service/config_export
+  // rather than a single section writeTable.
+  //
+  //  - barFieldsSchema: every concrete BarConfig field EXCEPT position/name.
+  //    Used for the base bar (read + write) and the resolve-and-flatten write of
+  //    each monitor override.
+  //  - barMonitorOverrideSchema: the parallel optional fields of a monitor
+  //    override, used for READ only (overrides serialize via barFieldsSchema on
+  //    the resolved bar).
+  const Schema<BarConfig>& barFieldsSchema();
+  const Schema<BarMonitorOverride>& barMonitorOverrideSchema();
+
 } // namespace noctalia::config::schema

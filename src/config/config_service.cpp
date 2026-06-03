@@ -123,17 +123,6 @@ namespace {
     return false;
   }
 
-  [[nodiscard]] std::optional<std::string>
-  colorStringValue(const toml::table& table, std::string_view key, const std::string& context) {
-    if (!table.contains(key)) {
-      return std::nullopt;
-    }
-    if (auto value = table[key].value<std::string>()) {
-      return *value;
-    }
-    throw std::runtime_error(context + ": expected string ColorSpec");
-  }
-
   void validateWidgetColorSettingValue(
       const WidgetSettingValue& value, const std::string& context, bool allowEmpty = false
   ) {
@@ -319,56 +308,6 @@ namespace {
       return relative.string();
     }
     return path.filename().string();
-  }
-
-  std::optional<ColorSpec> optionalCapsuleBorder(const std::string& raw, std::string_view context) {
-    if (StringUtils::trim(raw).empty()) {
-      return std::nullopt;
-    }
-    return colorSpecFromConfigString(raw, context);
-  }
-
-  // Parses a `[[bar.*.capsule_group]]` array-of-tables into shared group styles. Rows without an `id` are skipped.
-  std::vector<BarCapsuleGroupStyle> readCapsuleGroupArray(const toml::array& array, const std::string& context) {
-    std::vector<BarCapsuleGroupStyle> groups;
-    for (const auto& node : array) {
-      const auto* row = node.as_table();
-      if (row == nullptr) {
-        continue;
-      }
-      auto id = (*row)["id"].value<std::string>();
-      if (!id.has_value() || StringUtils::trim(*id).empty()) {
-        continue;
-      }
-      BarCapsuleGroupStyle group;
-      group.id = StringUtils::trim(*id);
-      const std::string rowContext = context + "." + group.id;
-      if (auto* members = (*row)["members"].as_array()) {
-        group.members = readStringArray(*members);
-      }
-      if (auto fillStr = colorStringValue(*row, "fill", rowContext + ".fill")) {
-        group.fill = colorSpecFromConfigString(*fillStr, rowContext + ".fill");
-      }
-      if (row->contains("border")) {
-        group.borderSpecified = true;
-        group.border =
-            optionalCapsuleBorder(*colorStringValue(*row, "border", rowContext + ".border"), rowContext + ".border");
-      }
-      if (auto fgStr = colorStringValue(*row, "foreground", rowContext + ".foreground")) {
-        group.foreground = colorSpecFromConfigString(*fgStr, rowContext + ".foreground");
-      }
-      if (auto v = finiteDouble((*row)["padding"])) {
-        group.padding = std::clamp(static_cast<float>(*v), 0.0f, 48.0f);
-      }
-      if (auto v = finiteDouble((*row)["radius"])) {
-        group.radius = std::clamp(static_cast<float>(*v), 0.0f, 80.0f);
-      }
-      if (auto v = finiteDouble((*row)["opacity"])) {
-        group.opacity = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
-      }
-      groups.push_back(std::move(group));
-    }
-    return groups;
   }
 
 } // namespace
@@ -1216,205 +1155,26 @@ void ConfigService::parseTableInto(const toml::table& tbl, Config& config, bool 
 
       BarConfig bar;
       bar.name = std::string(barName.str());
-      if (auto v = (*barTbl)["position"].value<std::string>())
+      // position is read explicitly (the base bar always emits it; monitor
+      // overrides emit it conditionally), the rest via the shared schema.
+      if (auto v = (*barTbl)["position"].value<std::string>()) {
         bar.position = *v;
-      if (auto v = (*barTbl)["enabled"].value<bool>())
-        bar.enabled = *v;
-      if (auto v = (*barTbl)["auto_hide"].value<bool>())
-        bar.autoHide = *v;
-      if (auto v = (*barTbl)["reserve_space"].value<bool>())
-        bar.reserveSpace = *v;
-      if (auto v = (*barTbl)["layer"].value<std::string>()) {
-        if (*v == "top" || *v == "overlay") {
-          bar.layer = *v;
-        } else {
-          kLog.warn("invalid bar.{}.layer '{}'; expected top or overlay", bar.name, *v);
-        }
       }
-      if (auto v = (*barTbl)["thickness"].value<int64_t>())
-        bar.thickness = std::clamp(static_cast<std::int32_t>(*v), 10, 300);
-      if (auto v = finiteDouble((*barTbl)["background_opacity"]))
-        bar.backgroundOpacity = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
-      if (auto borderStr = colorStringValue(*barTbl, "border", "bar." + bar.name + ".border"))
-        bar.border = colorSpecFromConfigString(*borderStr, "bar." + bar.name + ".border");
-      if (auto v = finiteDouble((*barTbl)["border_width"]))
-        bar.borderWidth = std::clamp(static_cast<float>(*v), 0.0f, 20.0f);
-      if (auto v = (*barTbl)["radius"].value<int64_t>()) {
-        const auto r = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-        bar.radius = r;
-        bar.radiusTopLeft = r;
-        bar.radiusTopRight = r;
-        bar.radiusBottomLeft = r;
-        bar.radiusBottomRight = r;
-      }
-      if (auto v = (*barTbl)["radius_top_left"].value<int64_t>())
-        bar.radiusTopLeft = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-      if (auto v = (*barTbl)["radius_top_right"].value<int64_t>())
-        bar.radiusTopRight = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-      if (auto v = (*barTbl)["radius_bottom_left"].value<int64_t>())
-        bar.radiusBottomLeft = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-      if (auto v = (*barTbl)["radius_bottom_right"].value<int64_t>())
-        bar.radiusBottomRight = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-      if (auto v = (*barTbl)["margin_ends"].value<int64_t>())
-        bar.marginEnds = static_cast<std::int32_t>(*v);
-      if (auto v = (*barTbl)["margin_edge"].value<int64_t>())
-        bar.marginEdge = static_cast<std::int32_t>(*v);
-      if (auto v = (*barTbl)["padding"].value<int64_t>())
-        bar.padding = static_cast<std::int32_t>(*v);
-      if (auto v = (*barTbl)["widget_spacing"].value<int64_t>())
-        bar.widgetSpacing = static_cast<std::int32_t>(*v);
-      if (auto v = (*barTbl)["shadow"].value<bool>())
-        bar.shadow = *v;
-      if (auto v = (*barTbl)["contact_shadow"].value<bool>())
-        bar.contactShadow = *v;
-      if (auto v = (*barTbl)["panel_overlap"].value<int64_t>())
-        bar.panelOverlap = std::clamp(static_cast<std::int32_t>(*v), -2, 3);
-      if (auto v = finiteDouble((*barTbl)["scale"]))
-        bar.scale = std::clamp(static_cast<float>(*v), 0.5f, 4.0f);
-      if (auto fontWeightValue = (*barTbl)["font_weight"].value<int64_t>()) {
-        bar.fontWeight = static_cast<int>(*fontWeightValue);
-      }
-      if (auto* n = (*barTbl)["start"].as_array())
-        bar.startWidgets = readStringArray(*n);
-      if (auto* n = (*barTbl)["center"].as_array())
-        bar.centerWidgets = readStringArray(*n);
-      if (auto* n = (*barTbl)["end"].as_array())
-        bar.endWidgets = readStringArray(*n);
+      schema::readInto(*barTbl, bar, schema::barFieldsSchema(), "bar." + bar.name, schemaDiag);
 
-      if (auto v = (*barTbl)["capsule"].value<bool>()) {
-        bar.widgetCapsuleDefault = *v;
-      }
-      if (auto fillStr = colorStringValue(*barTbl, "capsule_fill", "bar." + bar.name + ".capsule_fill")) {
-        bar.widgetCapsuleFill = colorSpecFromConfigString(*fillStr, "bar." + bar.name + ".capsule_fill");
-      }
-      if (auto fgStr = colorStringValue(*barTbl, "capsule_foreground", "bar." + bar.name + ".capsule_foreground")) {
-        bar.widgetCapsuleForeground = colorSpecFromConfigString(*fgStr, "bar." + bar.name + ".capsule_foreground");
-      }
-      if (auto v = finiteDouble((*barTbl)["capsule_padding"])) {
-        bar.widgetCapsulePadding = std::clamp(static_cast<float>(*v), 0.0f, 48.0f);
-      }
-      if (auto v = finiteDouble((*barTbl)["capsule_radius"])) {
-        bar.widgetCapsuleRadius = std::clamp(*v, 0.0, 80.0);
-      }
-      if (auto v = finiteDouble((*barTbl)["capsule_opacity"])) {
-        bar.widgetCapsuleOpacity = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
-      }
-      if (barTbl->contains("capsule_border")) {
-        bar.widgetCapsuleBorderSpecified = true;
-        const std::string context = "bar." + bar.name + ".capsule_border";
-        bar.widgetCapsuleBorder = optionalCapsuleBorder(*colorStringValue(*barTbl, "capsule_border", context), context);
-      }
-      if (auto widgetColorStr = colorStringValue(*barTbl, "color", "bar." + bar.name + ".color")) {
-        bar.widgetColor = colorSpecFromConfigString(*widgetColorStr, "bar." + bar.name + ".color");
-      }
-      if (auto* n = (*barTbl)["capsule_group"].as_array()) {
-        bar.widgetCapsuleGroups = readCapsuleGroupArray(*n, "bar." + bar.name + ".capsule_group");
-      }
-
-      // Parse [bar.<name>.monitor.*] overrides — insertion order preserved by toml++
+      // Parse [bar.<name>.monitor.*] overrides — insertion order preserved by toml++.
       if (auto* monTblMap = (*barTbl)["monitor"].as_table()) {
         for (const auto& [monName, monNode] : *monTblMap) {
           auto* monTbl = monNode.as_table();
           if (monTbl == nullptr) {
             continue;
           }
-
           BarMonitorOverride ovr;
-          if (auto v = (*monTbl)["match"].value<std::string>()) {
-            ovr.match = *v;
-          } else {
-            ovr.match = std::string(monName.str()); // key is the match if not explicit
-          }
-
-          if (auto v = (*monTbl)["position"].value<std::string>())
-            ovr.position = *v;
-          if (auto v = (*monTbl)["enabled"].value<bool>())
-            ovr.enabled = *v;
-          if (auto v = (*monTbl)["auto_hide"].value<bool>())
-            ovr.autoHide = *v;
-          if (auto v = (*monTbl)["reserve_space"].value<bool>())
-            ovr.reserveSpace = *v;
-          const std::string monitorContext = "bar." + bar.name + ".monitor." + std::string(monName.str());
-          if (auto v = (*monTbl)["layer"].value<std::string>()) {
-            if (*v == "top" || *v == "overlay") {
-              ovr.layer = *v;
-            } else {
-              kLog.warn("invalid {}.layer '{}'; expected top or overlay", monitorContext, *v);
-            }
-          }
-          if (auto v = (*monTbl)["thickness"].value<int64_t>())
-            ovr.thickness = std::clamp(static_cast<std::int32_t>(*v), 10, 300);
-          if (auto v = finiteDouble((*monTbl)["background_opacity"]))
-            ovr.backgroundOpacity = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
-          if (auto borderStr = colorStringValue(*monTbl, "border", monitorContext + ".border"))
-            ovr.border = colorSpecFromConfigString(*borderStr, monitorContext + ".border");
-          if (auto v = finiteDouble((*monTbl)["border_width"]))
-            ovr.borderWidth = std::clamp(static_cast<float>(*v), 0.0f, 20.0f);
-          if (auto v = (*monTbl)["radius"].value<int64_t>())
-            ovr.radius = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-          if (auto v = (*monTbl)["radius_top_left"].value<int64_t>())
-            ovr.radiusTopLeft = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-          if (auto v = (*monTbl)["radius_top_right"].value<int64_t>())
-            ovr.radiusTopRight = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-          if (auto v = (*monTbl)["radius_bottom_left"].value<int64_t>())
-            ovr.radiusBottomLeft = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-          if (auto v = (*monTbl)["radius_bottom_right"].value<int64_t>())
-            ovr.radiusBottomRight = std::clamp(static_cast<std::int32_t>(*v), 0, 500);
-          if (auto v = (*monTbl)["margin_ends"].value<int64_t>())
-            ovr.marginEnds = static_cast<std::int32_t>(*v);
-          if (auto v = (*monTbl)["margin_edge"].value<int64_t>())
-            ovr.marginEdge = static_cast<std::int32_t>(*v);
-          if (auto v = (*monTbl)["padding"].value<int64_t>())
-            ovr.padding = static_cast<std::int32_t>(*v);
-          if (auto v = (*monTbl)["widget_spacing"].value<int64_t>())
-            ovr.widgetSpacing = static_cast<std::int32_t>(*v);
-          if (auto v = finiteDouble((*monTbl)["scale"]))
-            ovr.scale = std::clamp(static_cast<float>(*v), 0.5f, 4.0f);
-          if (auto v = (*monTbl)["shadow"].value<bool>())
-            ovr.shadow = *v;
-          if (auto v = (*monTbl)["contact_shadow"].value<bool>())
-            ovr.contactShadow = *v;
-          if (auto v = (*monTbl)["panel_overlap"].value<int64_t>())
-            ovr.panelOverlap = std::clamp(static_cast<std::int32_t>(*v), -2, 3);
-          if (auto* n = (*monTbl)["start"].as_array())
-            ovr.startWidgets = readStringArray(*n);
-          if (auto* n = (*monTbl)["center"].as_array())
-            ovr.centerWidgets = readStringArray(*n);
-          if (auto* n = (*monTbl)["end"].as_array())
-            ovr.endWidgets = readStringArray(*n);
-
-          if (auto v = (*monTbl)["capsule"].value<bool>()) {
-            ovr.widgetCapsuleDefault = *v;
-          }
-          if (auto fillStr = colorStringValue(*monTbl, "capsule_fill", monitorContext + ".capsule_fill")) {
-            ovr.widgetCapsuleFill = colorSpecFromConfigString(*fillStr, monitorContext + ".capsule_fill");
-          }
-          if (auto fgStr = colorStringValue(*monTbl, "capsule_foreground", monitorContext + ".capsule_foreground")) {
-            ovr.widgetCapsuleForeground = colorSpecFromConfigString(*fgStr, monitorContext + ".capsule_foreground");
-          }
-          if (auto v = finiteDouble((*monTbl)["capsule_padding"])) {
-            ovr.widgetCapsulePadding = std::clamp(*v, 0.0, 48.0);
-          }
-          if (auto v = finiteDouble((*monTbl)["capsule_radius"])) {
-            ovr.widgetCapsuleRadius = std::clamp(*v, 0.0, 80.0);
-          }
-          if (auto v = finiteDouble((*monTbl)["capsule_opacity"])) {
-            ovr.widgetCapsuleOpacity = std::clamp(*v, 0.0, 1.0);
-          }
-          if (monTbl->contains("capsule_border")) {
-            ovr.widgetCapsuleBorderSpecified = true;
-            ovr.widgetCapsuleBorder = optionalCapsuleBorder(
-                *colorStringValue(*monTbl, "capsule_border", monitorContext + ".capsule_border"),
-                monitorContext + ".capsule_border"
-            );
-          }
-          if (auto cStr = colorStringValue(*monTbl, "color", monitorContext + ".color")) {
-            ovr.widgetColor = colorSpecFromConfigString(*cStr, monitorContext + ".color");
-          }
-          if (auto* n = (*monTbl)["capsule_group"].as_array()) {
-            ovr.widgetCapsuleGroups = readCapsuleGroupArray(*n, monitorContext + ".capsule_group");
-          }
-
+          ovr.match = std::string(monName.str()); // key is the match unless an explicit `match` overrides it
+          schema::readInto(
+              *monTbl, ovr, schema::barMonitorOverrideSchema(),
+              "bar." + bar.name + ".monitor." + std::string(monName.str()), schemaDiag
+          );
           bar.monitorOverrides.push_back(std::move(ovr));
         }
       }

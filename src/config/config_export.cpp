@@ -61,85 +61,6 @@ namespace config_export {
       return table;
     }
 
-    toml::array capsuleGroupArray(const std::vector<BarCapsuleGroupStyle>& groups) {
-      toml::array array;
-      for (const auto& group : groups) {
-        if (group.id.empty()) {
-          continue;
-        }
-        toml::table item;
-        item.insert_or_assign("id", group.id);
-        item.insert_or_assign("members", stringArray(group.members));
-        item.insert_or_assign("fill", colorSpecToConfigString(group.fill));
-        if (group.borderSpecified) {
-          item.insert_or_assign(
-              "border", group.border.has_value() ? colorSpecToConfigString(*group.border) : std::string{}
-          );
-        }
-        if (group.foreground.has_value()) {
-          item.insert_or_assign("foreground", colorSpecToConfigString(*group.foreground));
-        }
-        item.insert_or_assign("padding", static_cast<double>(group.padding));
-        if (group.radius.has_value()) {
-          item.insert_or_assign("radius", static_cast<double>(*group.radius));
-        }
-        item.insert_or_assign("opacity", static_cast<double>(group.opacity));
-        array.push_back(std::move(item));
-      }
-      return array;
-    }
-
-    void insertBarFields(toml::table& table, const BarConfig& bar, bool includePosition) {
-      if (includePosition) {
-        table.insert_or_assign("position", bar.position);
-      }
-      table.insert_or_assign("enabled", bar.enabled);
-      table.insert_or_assign("auto_hide", bar.autoHide);
-      table.insert_or_assign("reserve_space", bar.reserveSpace);
-      table.insert_or_assign("layer", bar.layer);
-      table.insert_or_assign("thickness", static_cast<std::int64_t>(bar.thickness));
-      table.insert_or_assign("background_opacity", static_cast<double>(bar.backgroundOpacity));
-      table.insert_or_assign("border", colorSpecToConfigString(bar.border));
-      table.insert_or_assign("border_width", static_cast<double>(bar.borderWidth));
-      table.insert_or_assign("radius", static_cast<std::int64_t>(bar.radius));
-      table.insert_or_assign("radius_top_left", static_cast<std::int64_t>(bar.radiusTopLeft));
-      table.insert_or_assign("radius_top_right", static_cast<std::int64_t>(bar.radiusTopRight));
-      table.insert_or_assign("radius_bottom_left", static_cast<std::int64_t>(bar.radiusBottomLeft));
-      table.insert_or_assign("radius_bottom_right", static_cast<std::int64_t>(bar.radiusBottomRight));
-      table.insert_or_assign("margin_ends", static_cast<std::int64_t>(bar.marginEnds));
-      table.insert_or_assign("margin_edge", static_cast<std::int64_t>(bar.marginEdge));
-      table.insert_or_assign("padding", static_cast<std::int64_t>(bar.padding));
-      table.insert_or_assign("widget_spacing", static_cast<std::int64_t>(bar.widgetSpacing));
-      table.insert_or_assign("shadow", bar.shadow);
-      table.insert_or_assign("contact_shadow", bar.contactShadow);
-      table.insert_or_assign("panel_overlap", static_cast<std::int64_t>(bar.panelOverlap));
-      table.insert_or_assign("scale", static_cast<double>(bar.scale));
-      table.insert_or_assign("font_weight", static_cast<std::int64_t>(bar.fontWeight));
-      table.insert_or_assign("start", stringArray(bar.startWidgets));
-      table.insert_or_assign("center", stringArray(bar.centerWidgets));
-      table.insert_or_assign("end", stringArray(bar.endWidgets));
-      table.insert_or_assign("capsule", bar.widgetCapsuleDefault);
-      table.insert_or_assign("capsule_fill", colorSpecToConfigString(bar.widgetCapsuleFill));
-      if (bar.widgetCapsuleForeground.has_value()) {
-        table.insert_or_assign("capsule_foreground", colorSpecToConfigString(*bar.widgetCapsuleForeground));
-      }
-      if (bar.widgetColor.has_value()) {
-        table.insert_or_assign("color", colorSpecToConfigString(*bar.widgetColor));
-      }
-      table.insert_or_assign("capsule_group", capsuleGroupArray(bar.widgetCapsuleGroups));
-      table.insert_or_assign("capsule_padding", static_cast<double>(bar.widgetCapsulePadding));
-      if (bar.widgetCapsuleRadius.has_value()) {
-        table.insert_or_assign("capsule_radius", *bar.widgetCapsuleRadius);
-      }
-      table.insert_or_assign("capsule_opacity", static_cast<double>(bar.widgetCapsuleOpacity));
-      if (bar.widgetCapsuleBorderSpecified) {
-        table.insert_or_assign(
-            "capsule_border",
-            bar.widgetCapsuleBorder.has_value() ? colorSpecToConfigString(*bar.widgetCapsuleBorder) : std::string{}
-        );
-      }
-    }
-
     BarConfig applyMonitorOverride(const BarConfig& base, const BarMonitorOverride& ovr) {
       BarConfig resolved = base;
       if (ovr.position)
@@ -221,9 +142,13 @@ namespace config_export {
       return resolved;
     }
 
+    // Base bar always emits position; the concrete fields come from the schema.
+    // Each monitor override is resolved against the base and flattened through the
+    // same schema, with match + (optional) position written explicitly — the
+    // override's own optional fields are never serialized directly.
     toml::table barConfigTable(const BarConfig& bar) {
-      toml::table table;
-      insertBarFields(table, bar, true);
+      toml::table table = schema::writeTable(bar, schema::barFieldsSchema());
+      table.insert_or_assign("position", bar.position);
 
       if (!bar.monitorOverrides.empty()) {
         toml::table monitors;
@@ -231,12 +156,11 @@ namespace config_export {
           if (ovr.match.empty()) {
             continue;
           }
-          toml::table monitor = toml::table{};
+          toml::table monitor = schema::writeTable(applyMonitorOverride(bar, ovr), schema::barFieldsSchema());
           monitor.insert_or_assign("match", ovr.match);
           if (ovr.position) {
             monitor.insert_or_assign("position", *ovr.position);
           }
-          insertBarFields(monitor, applyMonitorOverride(bar, ovr), false);
           monitors.insert_or_assign(ovr.match, std::move(monitor));
         }
         table.insert_or_assign("monitor", std::move(monitors));

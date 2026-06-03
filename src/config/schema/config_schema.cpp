@@ -1099,4 +1099,397 @@ namespace noctalia::config::schema {
     return s;
   }
 
+  namespace {
+    // Clamp ranges shared by the concrete BarConfig fields and the parallel
+    // optional BarMonitorOverride fields — declared once so the two schemas can't
+    // drift apart.
+    constexpr Range<std::int64_t> kBarThicknessRange{10, 300};
+    constexpr Range<std::int64_t> kBarRadiusRange{0, 500};
+    constexpr Range<std::int64_t> kBarPanelOverlapRange{-2, 3};
+    constexpr Range<float> kBarOpacityRange{0.0f, 1.0f};
+    constexpr Range<float> kBarBorderWidthRange{0.0f, 20.0f};
+    constexpr Range<float> kBarScaleRange{0.5f, 4.0f};
+    constexpr Range<float> kBarCapsulePaddingRange{0.0f, 48.0f};
+    constexpr Range<float> kBarCapsuleRadiusRangeF{0.0f, 80.0f};
+    constexpr Range<double> kBarCapsulePaddingRangeD{0.0, 48.0};
+    constexpr Range<double> kBarCapsuleRadiusRangeD{0.0, 80.0};
+    constexpr Range<double> kBarCapsuleOpacityRangeD{0.0, 1.0};
+
+    // Concrete ColorSpec stored as a config string; always emitted. A present
+    // non-string value is a hard error (mirrors colorStringValue).
+    template <typename Struct> Field<Struct> colorField(ColorSpec Struct::* member, std::string_view key) {
+      return custom<Struct>(
+          key,
+          [member, key](const toml::table& tbl, Struct& out, std::string_view parentPath, Diagnostics&) {
+            if (!tbl.contains(key)) {
+              return;
+            }
+            auto v = tbl[key].value<std::string>();
+            if (!v) {
+              throw std::runtime_error(joinPath(parentPath, key) + ": expected string ColorSpec");
+            }
+            out.*member = colorSpecFromConfigString(*v, joinPath(parentPath, key));
+          },
+          [member, key](toml::table& tbl, const Struct& in) {
+            tbl.insert_or_assign(key, colorSpecToConfigString(in.*member));
+          }
+      );
+    }
+
+    // optional<ColorSpec>, emitted only when set, read when present. Unlike
+    // colorSpecField it does NOT treat an empty string as nullopt — it matches the
+    // legacy bar/capsule_group reads (which parse whatever string is present).
+    template <typename Struct>
+    Field<Struct> optionalColorField(std::optional<ColorSpec> Struct::* member, std::string_view key) {
+      return custom<Struct>(
+          key,
+          [member, key](const toml::table& tbl, Struct& out, std::string_view parentPath, Diagnostics&) {
+            if (!tbl.contains(key)) {
+              return;
+            }
+            auto v = tbl[key].value<std::string>();
+            if (!v) {
+              throw std::runtime_error(joinPath(parentPath, key) + ": expected string ColorSpec");
+            }
+            out.*member = colorSpecFromConfigString(*v, joinPath(parentPath, key));
+          },
+          [member, key](toml::table& tbl, const Struct& in) {
+            if ((in.*member).has_value()) {
+              tbl.insert_or_assign(key, colorSpecToConfigString(*(in.*member)));
+            }
+          }
+      );
+    }
+
+    // The capsule_border pair: a bool "specified" flag plus an optional<ColorSpec>.
+    // A present key (even empty) sets specified=true; an empty value means "no
+    // outline" (nullopt). Emitted only when specified, as the color or empty string.
+    template <typename Struct>
+    Field<Struct> capsuleBorderField(
+        std::optional<ColorSpec> Struct::* colorMember, bool Struct::* specifiedMember, std::string_view key
+    ) {
+      return custom<Struct>(
+          key,
+          [colorMember, specifiedMember,
+           key](const toml::table& tbl, Struct& out, std::string_view parentPath, Diagnostics&) {
+            if (!tbl.contains(key)) {
+              return;
+            }
+            auto v = tbl[key].value<std::string>();
+            if (!v) {
+              throw std::runtime_error(joinPath(parentPath, key) + ": expected string ColorSpec");
+            }
+            out.*specifiedMember = true;
+            if (StringUtils::trim(*v).empty()) {
+              out.*colorMember = std::nullopt;
+            } else {
+              out.*colorMember = colorSpecFromConfigString(*v, joinPath(parentPath, key));
+            }
+          },
+          [colorMember, specifiedMember, key](toml::table& tbl, const Struct& in) {
+            if (in.*specifiedMember) {
+              tbl.insert_or_assign(
+                  key, (in.*colorMember).has_value() ? colorSpecToConfigString(*(in.*colorMember)) : std::string{}
+              );
+            }
+          }
+      );
+    }
+
+    template <typename Struct>
+    Field<Struct> optionalStringField(std::optional<std::string> Struct::* member, std::string_view key) {
+      return custom<Struct>(
+          key,
+          [member, key](const toml::table& tbl, Struct& out, std::string_view, Diagnostics&) {
+            if (auto v = tbl[key].value<std::string>()) {
+              out.*member = *v;
+            }
+          },
+          [member, key](toml::table& tbl, const Struct& in) {
+            if ((in.*member).has_value()) {
+              tbl.insert_or_assign(key, *(in.*member));
+            }
+          }
+      );
+    }
+
+    template <typename Struct>
+    Field<Struct>
+    optionalStringVectorField(std::optional<std::vector<std::string>> Struct::* member, std::string_view key) {
+      return custom<Struct>(
+          key,
+          [member, key](const toml::table& tbl, Struct& out, std::string_view, Diagnostics&) {
+            if (auto* arr = tbl[key].as_array()) {
+              std::vector<std::string> values;
+              for (const auto& item : *arr) {
+                if (auto s = item.value<std::string>()) {
+                  values.push_back(*s);
+                }
+              }
+              out.*member = std::move(values);
+            }
+          },
+          [member, key](toml::table& tbl, const Struct& in) {
+            if ((in.*member).has_value()) {
+              toml::array arr;
+              for (const auto& v : *(in.*member)) {
+                arr.push_back(v);
+              }
+              tbl.insert_or_assign(key, std::move(arr));
+            }
+          }
+      );
+    }
+
+    template <typename Struct>
+    Field<Struct> optionalIntField(
+        std::optional<std::int32_t> Struct::* member, std::string_view key,
+        std::optional<Range<std::int64_t>> range = std::nullopt
+    ) {
+      return custom<Struct>(
+          key,
+          [member, key, range](const toml::table& tbl, Struct& out, std::string_view, Diagnostics&) {
+            if (auto v = tbl[key].value<std::int64_t>()) {
+              const std::int64_t value = range ? applyRange(*v, *range) : *v;
+              out.*member = static_cast<std::int32_t>(value);
+            }
+          },
+          [member, key](toml::table& tbl, const Struct& in) {
+            if ((in.*member).has_value()) {
+              tbl.insert_or_assign(key, static_cast<std::int64_t>(*(in.*member)));
+            }
+          }
+      );
+    }
+
+    template <typename Struct>
+    Field<Struct> optionalFloatField(
+        std::optional<float> Struct::* member, std::string_view key, std::optional<Range<float>> range = std::nullopt
+    ) {
+      return custom<Struct>(
+          key,
+          [member, key, range](const toml::table& tbl, Struct& out, std::string_view, Diagnostics&) {
+            if (auto v = finiteDouble(tbl[key])) {
+              float value = static_cast<float>(*v);
+              if (range) {
+                value = applyRange(value, *range);
+              }
+              out.*member = value;
+            }
+          },
+          [member, key](toml::table& tbl, const Struct& in) {
+            if ((in.*member).has_value()) {
+              tbl.insert_or_assign(key, static_cast<double>(*(in.*member)));
+            }
+          }
+      );
+    }
+
+    template <typename Struct>
+    Field<Struct> optionalDoubleField(
+        std::optional<double> Struct::* member, std::string_view key, std::optional<Range<double>> range = std::nullopt
+    ) {
+      return custom<Struct>(
+          key,
+          [member, key, range](const toml::table& tbl, Struct& out, std::string_view, Diagnostics&) {
+            if (auto v = finiteDouble(tbl[key])) {
+              out.*member = range ? applyRange(*v, *range) : *v;
+            }
+          },
+          [member, key](toml::table& tbl, const Struct& in) {
+            if ((in.*member).has_value()) {
+              tbl.insert_or_assign(key, *(in.*member));
+            }
+          }
+      );
+    }
+
+    const Schema<BarCapsuleGroupStyle>& barCapsuleGroupSchema() {
+      static const Schema<BarCapsuleGroupStyle> s = {
+          // id is trimmed; empty-id rows are dropped by the consuming keep predicate.
+          custom<BarCapsuleGroupStyle>(
+              "id",
+              [](const toml::table& tbl, BarCapsuleGroupStyle& out, std::string_view, Diagnostics&) {
+                if (auto v = tbl["id"].value<std::string>()) {
+                  out.id = StringUtils::trim(*v);
+                }
+              },
+              [](toml::table& tbl, const BarCapsuleGroupStyle& in) { tbl.insert_or_assign("id", in.id); }
+          ),
+          field(&BarCapsuleGroupStyle::members, "members"),
+          colorField(&BarCapsuleGroupStyle::fill, "fill"),
+          capsuleBorderField(&BarCapsuleGroupStyle::border, &BarCapsuleGroupStyle::borderSpecified, "border"),
+          optionalColorField(&BarCapsuleGroupStyle::foreground, "foreground"),
+          field(&BarCapsuleGroupStyle::padding, "padding", kBarCapsulePaddingRange),
+          optionalFloatField(&BarCapsuleGroupStyle::radius, "radius", kBarCapsuleRadiusRangeF),
+          field(&BarCapsuleGroupStyle::opacity, "opacity", kBarOpacityRange),
+      };
+      return s;
+    }
+
+    // layer accepts top|overlay (concrete string member); anything else warns.
+    Field<BarConfig> barLayerField() {
+      return custom<BarConfig>(
+          "layer",
+          [](const toml::table& tbl, BarConfig& out, std::string_view parentPath, Diagnostics& diag) {
+            if (auto v = tbl["layer"].value<std::string>()) {
+              if (*v == "top" || *v == "overlay") {
+                out.layer = *v;
+              } else {
+                diag.warn(joinPath(parentPath, "layer"), "expected top or overlay, got \"" + *v + "\"");
+              }
+            }
+          },
+          [](toml::table& tbl, const BarConfig& in) { tbl.insert_or_assign("layer", in.layer); }
+      );
+    }
+
+    // radius seeds all four corners; per-corner keys below override it.
+    Field<BarConfig> barRadiusField() {
+      return custom<BarConfig>(
+          "radius",
+          [](const toml::table& tbl, BarConfig& out, std::string_view, Diagnostics&) {
+            if (auto v = tbl["radius"].value<std::int64_t>()) {
+              const auto r = static_cast<std::int32_t>(std::clamp<std::int64_t>(*v, 0, 500));
+              out.radius = r;
+              out.radiusTopLeft = r;
+              out.radiusTopRight = r;
+              out.radiusBottomLeft = r;
+              out.radiusBottomRight = r;
+            }
+          },
+          [](toml::table& tbl, const BarConfig& in) {
+            tbl.insert_or_assign("radius", static_cast<std::int64_t>(in.radius));
+          }
+      );
+    }
+  } // namespace
+
+  const Schema<BarConfig>& barFieldsSchema() {
+    static const Schema<BarConfig> s = {
+        field(&BarConfig::enabled, "enabled"),
+        field(&BarConfig::autoHide, "auto_hide"),
+        field(&BarConfig::reserveSpace, "reserve_space"),
+        barLayerField(),
+        field(&BarConfig::thickness, "thickness", kBarThicknessRange),
+        field(&BarConfig::backgroundOpacity, "background_opacity", kBarOpacityRange),
+        colorField(&BarConfig::border, "border"),
+        field(&BarConfig::borderWidth, "border_width", kBarBorderWidthRange),
+        barRadiusField(),
+        field(&BarConfig::radiusTopLeft, "radius_top_left", kBarRadiusRange),
+        field(&BarConfig::radiusTopRight, "radius_top_right", kBarRadiusRange),
+        field(&BarConfig::radiusBottomLeft, "radius_bottom_left", kBarRadiusRange),
+        field(&BarConfig::radiusBottomRight, "radius_bottom_right", kBarRadiusRange),
+        field(&BarConfig::marginEnds, "margin_ends"),
+        field(&BarConfig::marginEdge, "margin_edge"),
+        field(&BarConfig::padding, "padding"),
+        field(&BarConfig::widgetSpacing, "widget_spacing"),
+        field(&BarConfig::shadow, "shadow"),
+        field(&BarConfig::contactShadow, "contact_shadow"),
+        field(&BarConfig::panelOverlap, "panel_overlap", kBarPanelOverlapRange),
+        field(&BarConfig::scale, "scale", kBarScaleRange),
+        field(&BarConfig::fontWeight, "font_weight"),
+        field(&BarConfig::startWidgets, "start"),
+        field(&BarConfig::centerWidgets, "center"),
+        field(&BarConfig::endWidgets, "end"),
+        field(&BarConfig::widgetCapsuleDefault, "capsule"),
+        colorField(&BarConfig::widgetCapsuleFill, "capsule_fill"),
+        optionalColorField(&BarConfig::widgetCapsuleForeground, "capsule_foreground"),
+        optionalColorField(&BarConfig::widgetColor, "color"),
+        arrayOf<BarConfig, BarCapsuleGroupStyle>(
+            &BarConfig::widgetCapsuleGroups, "capsule_group", barCapsuleGroupSchema(),
+            [](const BarCapsuleGroupStyle& g) { return !g.id.empty(); }
+        ),
+        field(&BarConfig::widgetCapsulePadding, "capsule_padding", kBarCapsulePaddingRange),
+        optionalDoubleField(&BarConfig::widgetCapsuleRadius, "capsule_radius", kBarCapsuleRadiusRangeD),
+        field(&BarConfig::widgetCapsuleOpacity, "capsule_opacity", kBarOpacityRange),
+        capsuleBorderField(&BarConfig::widgetCapsuleBorder, &BarConfig::widgetCapsuleBorderSpecified, "capsule_border"),
+    };
+    return s;
+  }
+
+  const Schema<BarMonitorOverride>& barMonitorOverrideSchema() {
+    static const Schema<BarMonitorOverride> s = {
+        field(&BarMonitorOverride::match, "match"),
+        optionalStringField(&BarMonitorOverride::position, "position"),
+        optionalBoolField(&BarMonitorOverride::enabled, "enabled"),
+        optionalBoolField(&BarMonitorOverride::autoHide, "auto_hide"),
+        optionalBoolField(&BarMonitorOverride::reserveSpace, "reserve_space"),
+        // layer accepts top|overlay; anything else warns and leaves it unset.
+        custom<BarMonitorOverride>(
+            "layer",
+            [](const toml::table& tbl, BarMonitorOverride& out, std::string_view parentPath, Diagnostics& diag) {
+              if (auto v = tbl["layer"].value<std::string>()) {
+                if (*v == "top" || *v == "overlay") {
+                  out.layer = *v;
+                } else {
+                  diag.warn(joinPath(parentPath, "layer"), "expected top or overlay, got \"" + *v + "\"");
+                }
+              }
+            },
+            [](toml::table& tbl, const BarMonitorOverride& in) {
+              if (in.layer.has_value()) {
+                tbl.insert_or_assign("layer", *in.layer);
+              }
+            }
+        ),
+        optionalIntField(&BarMonitorOverride::thickness, "thickness", kBarThicknessRange),
+        optionalFloatField(&BarMonitorOverride::backgroundOpacity, "background_opacity", kBarOpacityRange),
+        optionalColorField(&BarMonitorOverride::border, "border"),
+        optionalFloatField(&BarMonitorOverride::borderWidth, "border_width", kBarBorderWidthRange),
+        optionalIntField(&BarMonitorOverride::radius, "radius", kBarRadiusRange),
+        optionalIntField(&BarMonitorOverride::radiusTopLeft, "radius_top_left", kBarRadiusRange),
+        optionalIntField(&BarMonitorOverride::radiusTopRight, "radius_top_right", kBarRadiusRange),
+        optionalIntField(&BarMonitorOverride::radiusBottomLeft, "radius_bottom_left", kBarRadiusRange),
+        optionalIntField(&BarMonitorOverride::radiusBottomRight, "radius_bottom_right", kBarRadiusRange),
+        optionalIntField(&BarMonitorOverride::marginEnds, "margin_ends"),
+        optionalIntField(&BarMonitorOverride::marginEdge, "margin_edge"),
+        optionalIntField(&BarMonitorOverride::padding, "padding"),
+        optionalIntField(&BarMonitorOverride::widgetSpacing, "widget_spacing"),
+        optionalFloatField(&BarMonitorOverride::scale, "scale", kBarScaleRange),
+        optionalBoolField(&BarMonitorOverride::shadow, "shadow"),
+        optionalBoolField(&BarMonitorOverride::contactShadow, "contact_shadow"),
+        optionalIntField(&BarMonitorOverride::panelOverlap, "panel_overlap", kBarPanelOverlapRange),
+        optionalStringVectorField(&BarMonitorOverride::startWidgets, "start"),
+        optionalStringVectorField(&BarMonitorOverride::centerWidgets, "center"),
+        optionalStringVectorField(&BarMonitorOverride::endWidgets, "end"),
+        optionalBoolField(&BarMonitorOverride::widgetCapsuleDefault, "capsule"),
+        optionalColorField(&BarMonitorOverride::widgetCapsuleFill, "capsule_fill"),
+        optionalColorField(&BarMonitorOverride::widgetCapsuleForeground, "capsule_foreground"),
+        optionalColorField(&BarMonitorOverride::widgetColor, "color"),
+        optionalDoubleField(&BarMonitorOverride::widgetCapsulePadding, "capsule_padding", kBarCapsulePaddingRangeD),
+        optionalDoubleField(&BarMonitorOverride::widgetCapsuleRadius, "capsule_radius", kBarCapsuleRadiusRangeD),
+        optionalDoubleField(&BarMonitorOverride::widgetCapsuleOpacity, "capsule_opacity", kBarCapsuleOpacityRangeD),
+        capsuleBorderField(
+            &BarMonitorOverride::widgetCapsuleBorder, &BarMonitorOverride::widgetCapsuleBorderSpecified,
+            "capsule_border"
+        ),
+        // capsule_group: read-only here (overrides serialize via the resolved bar).
+        custom<BarMonitorOverride>(
+            "capsule_group",
+            [](const toml::table& tbl, BarMonitorOverride& out, std::string_view parentPath, Diagnostics& diag) {
+              const auto* arr = tbl["capsule_group"].as_array();
+              if (arr == nullptr) {
+                return;
+              }
+              std::vector<BarCapsuleGroupStyle> groups;
+              for (const auto& node : *arr) {
+                const auto* sub = node.as_table();
+                if (sub == nullptr) {
+                  continue;
+                }
+                BarCapsuleGroupStyle g{};
+                readInto(*sub, g, barCapsuleGroupSchema(), joinPath(parentPath, "capsule_group"), diag);
+                if (!g.id.empty()) {
+                  groups.push_back(std::move(g));
+                }
+              }
+              out.widgetCapsuleGroups = std::move(groups);
+            },
+            [](toml::table&, const BarMonitorOverride&) {}
+        ),
+    };
+    return s;
+  }
+
 } // namespace noctalia::config::schema
