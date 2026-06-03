@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config/config_types.h"
-#include "shell/surface_shadow.h"
+#include "shell/surface/shadow.h"
 #include "wayland/popup_surface.h"
 
 #include <cstdint>

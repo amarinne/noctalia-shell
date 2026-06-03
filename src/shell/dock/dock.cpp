@@ -14,7 +14,7 @@
 #include "shell/dock/dock_items.h"
 #include "shell/dock/dock_model.h"
 #include "shell/panel/panel_manager.h"
-#include "shell/surface_shadow.h"
+#include "shell/surface/shadow.h"
 #include "shell/tooltip/tooltip_manager.h"
 #include "system/app_identity.h"
 #include "system/desktop_entry.h"

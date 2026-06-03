@@ -1,4 +1,4 @@
-#include "shell/surface_shadow.h"
+#include "shell/surface/shadow.h"
 
 #include "render/core/color.h"
 

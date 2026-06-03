@@ -13,7 +13,7 @@
 #include "notification/notification_manager.h"
 #include "render/render_context.h"
 #include "render/scene/input_area.h"
-#include "shell/surface_edge_inset.h"
+#include "shell/surface/edge_inset.h"
 #include "ui/builders.h"
 #include "ui/palette.h"
 #include "ui/style.h"

@@ -20,7 +20,7 @@
 #include "shell/bar/widgets/clock_widget.h"
 #include "shell/bar/widgets/control_center_widget.h"
 #include "shell/bar/widgets/custom_button_widget.h"
-#include "shell/battery_warning_monitor.h"
+#include "system/battery_warning_monitor.h"
 #ifndef NDEBUG
 #include "shell/bar/widgets/debug_indicator_widget.h"
 #endif

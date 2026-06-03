@@ -9,7 +9,7 @@
 #include "ipc/ipc_service.h"
 #include "render/render_context.h"
 #include "shell/control_center/control_center_panel.h"
-#include "shell/surface_shadow.h"
+#include "shell/surface/shadow.h"
 #include "shell/tooltip/tooltip_manager.h"
 #include "ui/controls/box.h"
 #include "ui/controls/context_menu_popup.h"

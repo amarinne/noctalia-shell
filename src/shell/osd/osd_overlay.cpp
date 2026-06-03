@@ -7,7 +7,7 @@
 #include "core/ui_phase.h"
 #include "render/render_context.h"
 #include "render/scene/node.h"
-#include "shell/surface_edge_inset.h"
+#include "shell/surface/edge_inset.h"
 #include "ui/builders.h"
 #include "ui/palette.h"
 #include "ui/style.h"

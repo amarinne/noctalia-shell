@@ -9,7 +9,7 @@
 #include "render/render_context.h"
 #include "render/scene/node.h"
 #include "shell/dock/dock_geometry.h"
-#include "shell/surface_shadow.h"
+#include "shell/surface/shadow.h"
 #include "system/desktop_entry.h"
 #include "ui/controls/context_menu.h"
 #include "ui/style.h"

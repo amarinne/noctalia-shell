@@ -1,4 +1,4 @@
-#include "shell/battery_warning_monitor.h"
+#include "system/battery_warning_monitor.h"
 
 #include "dbus/upower/upower_service.h"
 #include "i18n/i18n.h"

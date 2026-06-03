@@ -14,7 +14,7 @@
 #include "shell/bar/widget.h"
 #include "shell/bar/widgets/scripted_widget.h"
 #include "shell/panel/panel_manager.h"
-#include "shell/surface_shadow.h"
+#include "shell/surface/shadow.h"
 #include "shell/tooltip/tooltip_manager.h"
 #include "system/gamma_service.h"
 #include "system/system_monitor_service.h"
