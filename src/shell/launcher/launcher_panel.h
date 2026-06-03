@@ -4,6 +4,7 @@
 #include "launcher/usage_tracker.h"
 #include "shell/panel/panel.h"
 #include "system/icon_resolver.h"
+#include "ui/signal.h"
 
 #include <cstddef>
 #include <memory>
@@ -62,6 +63,7 @@ private:
   void setCategoryFilterVisible(bool visible);
   void applyActiveCategory();
   void syncLauncherListStyle();
+  void refreshLauncherAppIconColorization();
   void updateLauncherGridMetrics(Renderer& renderer);
 
   std::vector<std::unique_ptr<LauncherProvider>> m_providers;
@@ -91,4 +93,5 @@ private:
   ConfigService* m_config = nullptr;
   AsyncTextureCache* m_asyncTextures = nullptr;
   std::unique_ptr<ContextMenuPopup> m_actionsMenu;
+  Signal<>::ScopedConnection m_appIconColorizeConn;
 };

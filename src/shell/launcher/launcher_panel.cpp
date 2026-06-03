@@ -14,9 +14,11 @@
 #include "shell/dock/pinned_apps.h"
 #include "shell/panel/panel_manager.h"
 #include "system/desktop_entry.h"
+#include "ui/app_icon_colorization.h"
 #include "ui/builders.h"
 #include "ui/controls/context_menu_popup.h"
 #include "ui/palette.h"
+#include "ui/signal.h"
 #include "ui/style.h"
 #include "util/fuzzy_match.h"
 #include "util/string_utils.h"
@@ -70,6 +72,7 @@ namespace {
     float scale = 1.0f;
     bool showIcons = true;
     bool compact = false;
+    std::optional<ColorSpec> appIconColorizeTint;
   };
 
   [[nodiscard]] float launcherIconSize(const LauncherListStyle& style) {
@@ -118,6 +121,7 @@ namespace {
       const auto& panel = config->config().shell.panel;
       style.showIcons = panel.launcherShowIcons;
       style.compact = panel.launcherCompact;
+      style.appIconColorizeTint = effectiveShellAppIconColorizationTint(config->config().shell);
     }
     return style;
   }
@@ -279,6 +283,8 @@ namespace {
         m_glyph->setVisible(false);
         return false;
       }
+
+      m_image->setAppIconColorization(m_style.appIconColorizeTint);
 
       bool ready = false;
       if (m_asyncTextures != nullptr) {
@@ -496,7 +502,17 @@ void LauncherPanel::create() {
     root()->setAnimationManager(m_animations);
   }
 
+  m_appIconColorizeConn = shellAppIconColorizationChanged().connect([this]() { refreshLauncherAppIconColorization(); });
+
   syncLauncherListStyle();
+}
+
+void LauncherPanel::refreshLauncherAppIconColorization() {
+  if (m_adapter == nullptr || m_grid == nullptr) {
+    return;
+  }
+  m_adapter->setListStyle(launcherListStyleFrom(m_config, contentScale()));
+  m_grid->notifyDataChanged();
 }
 
 void LauncherPanel::syncLauncherListStyle() {
