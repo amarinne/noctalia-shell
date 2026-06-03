@@ -878,7 +878,7 @@ namespace noctalia::config::schema {
       return s;
     }
 
-    // NOTE: legacy configToToml never emitted [shell.screenshot] (read-only gap);
+    // NOTE: the serializer previously never emitted [shell.screenshot] (read-only gap);
     // including it here fixes the export, mirroring the calendar gap-fix.
     const Schema<ShellConfig::ScreenshotConfig>& shellScreenshotSchema() {
       static const Schema<ShellConfig::ScreenshotConfig> s = {

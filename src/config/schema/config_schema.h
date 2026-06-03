@@ -4,8 +4,8 @@
 #include "config/schema/field.h"
 
 // Per-section field schemas: the single source of truth for reading, writing,
-// and validating each config section. Field order matches the legacy
-// configToToml emission order so serialization stays byte-identical.
+// and validating each config section. Field order is the config_export::serialize
+// emission order.
 namespace noctalia::config::schema {
 
   const Schema<AudioConfig>& audioSchema();

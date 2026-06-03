@@ -1,12 +1,12 @@
 // Round-trip + golden tests for the declarative config schema.
 //
-// The schema is now the single source for both serialize (configToToml →
-// writeTable) and parse (parseTableInto → readInto), so there is no legacy code
+// The schema is now the single source for both serialize (config_export::serialize →
+// writeTable) and parse (parseConfigTable → readInto), so there is no legacy code
 // to compare against. What still earns its keep:
 //   - read inverse — readInto(writeTable(x)) == x for every section: the schema's
 //                    read and write are mutual inverses (catches a field whose read
 //                    key != write key, or a lossy codec).
-//   - bar golden   — configToToml(probe)["bar"] stays byte-identical to a captured
+//   - bar golden   — config_export::serialize(probe)["bar"] stays byte-identical to a captured
 //                    reference (locks the resolve-and-flatten monitor-override emit).
 //   - clamp goldens — pin parse-time range behavior.
 
@@ -41,7 +41,7 @@ namespace {
     return out.str();
   }
 
-  // readInto(writeTable(x)) must reconstruct x. `serialized` is configToToml(probe),
+  // readInto(writeTable(x)) must reconstruct x. `serialized` is config_export::serialize(probe),
   // whose section emit IS writeTable(section), so this exercises the real schema
   // round-trip via the actual serializer.
   template <typename T>
@@ -50,7 +50,7 @@ namespace {
   ) {
     const auto* sectionTbl = serialized[section].as_table();
     if (sectionTbl == nullptr) {
-      fail(section + ": configToToml emitted no [" + section + "] table");
+      fail(section + ": config_export::serialize emitted no [" + section + "] table");
       return;
     }
     T roundtrip{};
@@ -349,7 +349,7 @@ namespace {
 } // namespace
 
 int main() {
-  // Captured from the pre-refactor configToToml for the fully-specified probe
+  // Captured from the pre-refactor config_export::serialize for the fully-specified probe
   // bar. Pins byte-identical bar serialization across the schema migration: the
   // resolve-and-flatten monitor write and the conditional/optional fields must
   // emit exactly these bytes.
@@ -450,7 +450,7 @@ widget_spacing = 8
     radius = 14.0)";
 
   const Config probe = makeProbe();
-  const toml::table serialized = config_export::configToToml(probe);
+  const toml::table serialized = config_export::serialize(probe);
 
   // Bar: write parity against the captured golden, plus read-inverse via the
   // schemas (reconstructing the bar exactly as config_service does).
