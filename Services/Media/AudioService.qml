@@ -164,6 +164,28 @@ Singleton {
   }
 
   readonly property real stepVolume: Settings.data.audio.volumeStep / 100.0
+  property string volumeAccelKey: ""
+  property int volumeAccelCount: 0
+  property double volumeAccelLastMs: 0
+
+  function acceleratedVolumeStep(key: string): real {
+    const now = Date.now();
+    if (volumeAccelKey === key && now - volumeAccelLastMs < 300) {
+      volumeAccelCount += 1;
+    } else {
+      volumeAccelKey = key;
+      volumeAccelCount = 1;
+    }
+    volumeAccelLastMs = now;
+
+    if (volumeAccelCount >= 18)
+      return 0.08;
+    if (volumeAccelCount >= 10)
+      return 0.06;
+    if (volumeAccelCount >= 5)
+      return 0.04;
+    return 0.02;
+  }
 
   // Filtered device nodes (non-stream sinks and sources)
   readonly property var deviceNodes: Pipewire.ready ? Pipewire.nodes.values.reduce((acc, node) => {
@@ -999,7 +1021,7 @@ Singleton {
       volumeAtMaximum();
       return;
     }
-    setVolume(Math.min(root.maxVolume, volume + stepVolume));
+    setVolume(Math.min(root.maxVolume, volume + acceleratedVolumeStep("output-up")));
   }
 
   function decreaseVolume() {
@@ -1010,7 +1032,7 @@ Singleton {
       volumeAtMinimum();
       return;
     }
-    setVolume(Math.max(0, volume - stepVolume));
+    setVolume(Math.max(0, volume - acceleratedVolumeStep("output-down")));
   }
 
   function setVolume(newVolume: real) {
@@ -1107,14 +1129,14 @@ Singleton {
     if (inputVolume >= root.maxVolume) {
       return;
     }
-    setInputVolume(Math.min(root.maxVolume, inputVolume + stepVolume));
+    setInputVolume(Math.min(root.maxVolume, inputVolume + acceleratedVolumeStep("input-up")));
   }
 
   function decreaseInputVolume() {
     if (!Pipewire.ready || (!source?.audio && !wpctlAvailable)) {
       return;
     }
-    setInputVolume(Math.max(0, inputVolume - stepVolume));
+    setInputVolume(Math.max(0, inputVolume - acceleratedVolumeStep("input-down")));
   }
 
   function setInputVolume(newVolume: real) {

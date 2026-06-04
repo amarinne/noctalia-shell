@@ -35,6 +35,8 @@ Singleton {
   property string trackArtist: currentPlayer ? (currentPlayer.trackArtist || "") : ""
   property string trackAlbum: currentPlayer ? (currentPlayer.trackAlbum || "") : ""
   property string trackArtUrl: currentPlayer ? (currentPlayer.trackArtUrl || "") : ""
+  signal trackSnapshotChanged(string title, string artist, string album, string artUrl, string playerIdentity)
+  property string lastTrackSnapshotKey: ""
   property real trackLength: currentPlayer ? ((currentPlayer.length < infiniteTrackLength) ? currentPlayer.length : 0) : 0
   property bool canPlay: currentPlayer ? currentPlayer.canPlay : false
   property bool canPause: currentPlayer ? currentPlayer.canPause : false
@@ -44,6 +46,32 @@ Singleton {
   property string positionString: formatTime(currentPosition)
   property string lengthString: formatTime(trackLength)
   property real infiniteTrackLength: 922337203685
+
+  Timer {
+    id: trackSnapshotTimer
+    interval: 600
+    repeat: false
+    onTriggered: {
+      if (!root.trackTitle || !root.isPlaying)
+        return;
+
+      var key = root.playerIdentity + "\n" + root.trackTitle + "\n" + root.trackArtist + "\n" + root.trackAlbum + "\n" + root.trackArtUrl;
+      if (key === root.lastTrackSnapshotKey)
+        return;
+
+      root.lastTrackSnapshotKey = key;
+      root.trackSnapshotChanged(root.trackTitle, root.trackArtist, root.trackAlbum, root.trackArtUrl, root.playerIdentity);
+    }
+  }
+
+  onTrackTitleChanged: trackSnapshotTimer.restart()
+  onTrackArtistChanged: trackSnapshotTimer.restart()
+  onTrackAlbumChanged: trackSnapshotTimer.restart()
+  onTrackArtUrlChanged: trackSnapshotTimer.restart()
+  onIsPlayingChanged: {
+    if (isPlaying)
+      trackSnapshotTimer.restart();
+  }
 
   Component.onCompleted: {
     updateCurrentPlayer();

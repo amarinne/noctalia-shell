@@ -12,6 +12,28 @@ Singleton {
   readonly property list<Monitor> monitors: variants.instances
   property bool appleDisplayPresent: false
   property list<var> availableBacklightDevices: []
+  property string brightnessAccelKey: ""
+  property int brightnessAccelCount: 0
+  property double brightnessAccelLastMs: 0
+
+  function acceleratedBrightnessStep(key: string): real {
+    const now = Date.now();
+    if (brightnessAccelKey === key && now - brightnessAccelLastMs < 300) {
+      brightnessAccelCount += 1;
+    } else {
+      brightnessAccelKey = key;
+      brightnessAccelCount = 1;
+    }
+    brightnessAccelLastMs = now;
+
+    if (brightnessAccelCount >= 18)
+      return 0.08;
+    if (brightnessAccelCount >= 10)
+      return 0.06;
+    if (brightnessAccelCount >= 5)
+      return 0.04;
+    return 0.02;
+  }
 
   function getMonitorForScreen(screen: ShellScreen): var {
     return monitors.find(m => m.modelData === screen);
@@ -33,11 +55,13 @@ Singleton {
 
   // Global helpers for IPC and shortcuts
   function increaseBrightness(): void {
-    monitors.forEach(m => m.increaseBrightness());
+    const step = acceleratedBrightnessStep("up");
+    monitors.forEach(m => m.increaseBrightness(step));
   }
 
   function decreaseBrightness(): void {
-    monitors.forEach(m => m.decreaseBrightness());
+    const step = acceleratedBrightnessStep("down");
+    monitors.forEach(m => m.decreaseBrightness(step));
   }
 
   function setBrightness(value: real): void {
@@ -467,14 +491,16 @@ Singleton {
       timer.start();
     }
 
-    function increaseBrightness(): void {
+    function increaseBrightness(step): void {
+      const actualStep = step === undefined ? stepSize : step;
       const value = !isNaN(monitor.queuedBrightness) ? monitor.queuedBrightness : monitor.brightness;
-      setBrightnessDebounced(value + stepSize);
+      setBrightnessDebounced(value + actualStep);
     }
 
-    function decreaseBrightness(): void {
+    function decreaseBrightness(step): void {
+      const actualStep = step === undefined ? stepSize : step;
       const value = !isNaN(monitor.queuedBrightness) ? monitor.queuedBrightness : monitor.brightness;
-      setBrightnessDebounced(value - stepSize);
+      setBrightnessDebounced(value - actualStep);
     }
 
     function setBrightness(value: real): void {

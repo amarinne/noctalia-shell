@@ -317,18 +317,14 @@ Variants {
     Connections {
       target: MediaService
 
-      function onTrackTitleChanged() {
+      function onTrackSnapshotChanged(title, artist, album, artUrl, playerIdentity) {
         // Skip browser-based players (youtube in brave/chrome/firefox etc.)
-        var identity = MediaService.playerIdentity.toLowerCase();
+        var identity = playerIdentity.toLowerCase();
         if (/brave|chrome|chromium|firefox|electron/.test(identity))
           return;
 
-        if (MediaService.trackTitle && MediaService.isPlaying) {
-          var text = MediaService.trackArtist
-            ? MediaService.trackTitle + " — " + MediaService.trackArtist
-            : MediaService.trackTitle;
-          ToastService.showNotice("", text, "music");
-        }
+        var text = artist ? title + " — " + artist : title;
+        ToastService.showNotice("", text, "music");
       }
     }
 
