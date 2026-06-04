@@ -210,6 +210,61 @@ namespace noctalia::theme {
       };
     }
 
+    std::string colorSchemeValue(const ThemeConfig& theme) {
+      switch (theme.source) {
+      case PaletteSource::Builtin:
+        return theme.builtinPalette;
+      case PaletteSource::Wallpaper:
+        return theme.wallpaperScheme;
+      case PaletteSource::Community:
+        return theme.communityPalette;
+      case PaletteSource::Custom:
+        return theme.customPalette;
+      }
+      return theme.builtinPalette;
+    }
+
+    std::string formatColorSchemeLine(const ThemeConfig& theme) {
+      std::string out(enumToKey(kPaletteSources, theme.source));
+      out.push_back(' ');
+      out += colorSchemeValue(theme);
+      out.push_back('\n');
+      return out;
+    }
+
+    bool parseColorSchemeSetArgs(
+        std::string_view args, PaletteSource& sourceOut, std::string& valueOut, std::string& errorOut
+    ) {
+      const auto tokens = StringUtils::splitWhitespace(args);
+      if (tokens.size() < 2) {
+        errorOut = "error: expected <builtin|wallpaper|community|custom> <name-or-scheme>\n";
+        return false;
+      }
+
+      const auto source = enumFromKey(kPaletteSources, tokens.front());
+      if (!source.has_value()) {
+        errorOut = "error: unknown palette source (expected builtin, wallpaper, community, or custom)\n";
+        return false;
+      }
+
+      std::string value;
+      for (std::size_t i = 1; i < tokens.size(); ++i) {
+        if (i > 1) {
+          value.push_back(' ');
+        }
+        value += tokens[i];
+      }
+      value = StringUtils::trim(value);
+      if (value.empty()) {
+        errorOut = "error: palette or scheme name required\n";
+        return false;
+      }
+
+      sourceOut = *source;
+      valueOut = std::move(value);
+      return true;
+    }
+
   } // namespace
 
   ThemeService::ThemeService(ConfigService& config, HttpClient& httpClient)
@@ -578,19 +633,28 @@ namespace noctalia::theme {
         "theme-mode-set <dark|light|auto>", "Set theme mode and persist to settings.toml"
     );
     ipc.registerHandler(
-        "theme-wallpaper-scheme-set",
+        "color-scheme-get",
+        [this](const std::string&) -> std::string { return formatColorSchemeLine(m_config.config().theme); },
+        "color-scheme-get",
+        "Print active color scheme: <source> <name> (source is builtin, wallpaper, community, or custom)"
+    );
+    ipc.registerHandler(
+        "color-scheme-set",
         [this](const std::string& args) -> std::string {
-          const std::string scheme = StringUtils::trim(args);
-          if (scheme.empty()) {
-            return "error: scheme name required\n";
+          PaletteSource source = PaletteSource::Builtin;
+          std::string value;
+          std::string error;
+          if (!parseColorSchemeSetArgs(args, source, value, error)) {
+            return error;
           }
-          if (!m_config.setThemeWallpaperScheme(scheme)) {
-            return "error: unknown scheme or settings not writable (see docs for valid names)\n";
+          if (!m_config.setThemeColorScheme(source, value)) {
+            return "error: unknown scheme/palette or settings not writable\n";
           }
           return "ok\n";
         },
-        "theme-wallpaper-scheme-set <scheme>",
-        "Set wallpaper palette generation scheme ([theme].wallpaper_scheme), e.g. m3-content or vibrant"
+        "color-scheme-set <source> <name>",
+        "Set palette source and selection in settings.toml (builtin name, wallpaper generator scheme, community id, or "
+        "custom scheme folder name)"
     );
   }
 

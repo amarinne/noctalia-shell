@@ -4,6 +4,8 @@
 #include "core/key_chord.h"
 #include "core/log.h"
 #include "shell/settings/widget_settings_registry.h"
+#include "theme/builtin_palettes.h"
+#include "theme/custom_palettes.h"
 #include "theme/scheme.h"
 #include "util/file_utils.h"
 #include "util/string_utils.h"
@@ -645,18 +647,53 @@ void ConfigService::setThemeMode(ThemeMode mode) {
   fireReloadCallbacks();
 }
 
-bool ConfigService::setThemeWallpaperScheme(std::string_view schemeRaw) {
+bool ConfigService::setThemeColorScheme(PaletteSource source, std::string_view valueRaw) {
   if (m_overridesPath.empty()) {
     return false;
   }
 
-  const std::string scheme = StringUtils::trim(std::string(schemeRaw));
-  if (scheme.empty() || !noctalia::theme::schemeFromString(scheme)) {
+  const std::string value = StringUtils::trim(std::string(valueRaw));
+  if (value.empty()) {
     return false;
   }
 
+  switch (source) {
+  case PaletteSource::Builtin:
+    if (noctalia::theme::findBuiltinPalette(value) == nullptr) {
+      return false;
+    }
+    break;
+  case PaletteSource::Wallpaper:
+    if (!noctalia::theme::schemeFromString(value)) {
+      return false;
+    }
+    break;
+  case PaletteSource::Community:
+    break;
+  case PaletteSource::Custom:
+    if (!std::filesystem::exists(noctalia::theme::customPalettePath(value))) {
+      return false;
+    }
+    break;
+  }
+
   auto* themeTbl = ensureTable(m_overridesTable, "theme");
-  themeTbl->insert_or_assign("wallpaper_scheme", scheme);
+  themeTbl->insert_or_assign("source", std::string(enumToKey(kPaletteSources, source)));
+
+  switch (source) {
+  case PaletteSource::Builtin:
+    themeTbl->insert_or_assign("builtin", value);
+    break;
+  case PaletteSource::Wallpaper:
+    themeTbl->insert_or_assign("wallpaper_scheme", value);
+    break;
+  case PaletteSource::Community:
+    themeTbl->insert_or_assign("community_palette", value);
+    break;
+  case PaletteSource::Custom:
+    themeTbl->insert_or_assign("custom_palette", value);
+    break;
+  }
 
   if (!writeOverridesToFile()) {
     kLog.warn("failed to write {}", m_overridesPath);
