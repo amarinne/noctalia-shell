@@ -340,8 +340,17 @@ Singleton {
       title = title + " " + name;
     }
 
-    // Only 'showNotice' supports custom icons
-    ToastService.showNotice(title, desc, icon, 6000);
+    // Only 'showNotice' supports custom icons.
+    // Keep the critical 5% battery alert visible longer than regular warnings.
+    ToastService.showNotice(title, desc, icon, level === "critical" ? 10000 : 6000);
+  }
+
+  Timer {
+    id: initialBatteryCheckTimer
+    interval: 3000
+    repeat: false
+    running: true
+    onTriggered: checkDevice(primaryDevice)
   }
 
   Instantiator {
