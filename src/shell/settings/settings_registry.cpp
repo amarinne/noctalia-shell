@@ -653,10 +653,14 @@ namespace settings {
     entries.push_back(makeEntry(
         "wallpaper", "automation", tr("settings.schema.wallpaper.automation-interval.label"),
         tr("settings.schema.wallpaper.automation-interval.description"),
-        {"wallpaper", "automation", "interval_minutes"},
-        sliderFor(
-            cfg.wallpaper.automation.intervalMinutes, noctalia::config::schema::kWallpaperAutomationIntervalRange, true
-        ),
+        {"wallpaper", "automation", "interval_seconds"},
+        StepperSetting{
+            .value = cfg.wallpaper.automation.intervalSeconds,
+            .minValue = static_cast<int>(noctalia::config::schema::kWallpaperAutomationIntervalRange.min.value()),
+            .maxValue = static_cast<int>(noctalia::config::schema::kWallpaperAutomationIntervalRange.max.value()),
+            .step = static_cast<int>(noctalia::config::schema::kWallpaperAutomationIntervalRange.step.value()),
+            .valueSuffix = "s",
+        },
         "rotate slideshow"
     ));
     entries.push_back(makeEntry(

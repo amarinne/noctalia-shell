@@ -431,7 +431,7 @@ namespace noctalia::config::schema {
     const Schema<WallpaperAutomationConfig>& wallpaperAutomationSchema() {
       static const Schema<WallpaperAutomationConfig> s = {
           field(&WallpaperAutomationConfig::enabled, "enabled"),
-          field(&WallpaperAutomationConfig::intervalMinutes, "interval_minutes", kWallpaperAutomationIntervalRange),
+          field(&WallpaperAutomationConfig::intervalSeconds, "interval_seconds", kWallpaperAutomationIntervalRange),
           // order accepts case-insensitive random|alphabetical.
           custom<WallpaperAutomationConfig>(
               "order",

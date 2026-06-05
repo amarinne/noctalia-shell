@@ -21,7 +21,7 @@ namespace noctalia::config::schema {
   // Battery / wallpaper.
   inline constexpr Range<std::int64_t> kBatteryWarningThresholdRange{0, 100, 1};
   inline constexpr Range<float> kWallpaperTransitionDurationRange{100.0f, 30000.0f, 100.0f};
-  inline constexpr Range<std::int64_t> kWallpaperAutomationIntervalRange{0, 1440, 1};
+  inline constexpr Range<std::int64_t> kWallpaperAutomationIntervalRange{1, 86400, 1};
 
   // Dock.
   inline constexpr Range<std::int64_t> kDockIconSizeRange{16, 128, 1};

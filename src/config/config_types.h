@@ -345,7 +345,7 @@ struct WallpaperAutomationConfig {
   };
 
   bool enabled = false;
-  std::int32_t intervalMinutes = 0; // 0 = disabled
+  std::int32_t intervalSeconds = 1800;
   Order order = Order::Random;
   bool recursive = true;
 

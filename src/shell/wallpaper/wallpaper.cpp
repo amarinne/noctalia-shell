@@ -162,6 +162,21 @@ namespace {
     return candidates[(idx + 1) % candidates.size()];
   }
 
+  std::string pickAutomationWallpaperPath(
+      const WallpaperAutomationConfig& automation, std::vector<std::string> candidates, const std::string& currentPath
+  ) {
+    return automation.order == WallpaperAutomationConfig::Order::Alphabetical
+        ? pickAlphabeticalWallpaperPath(std::move(candidates), currentPath)
+        : pickRandomWallpaperPath(candidates, currentPath);
+  }
+
+  bool wallpaperOutputEnabled(const WallpaperConfig& config, const WaylandOutput& output) {
+    if (const auto* ovr = wallpaper::findWallpaperMonitorOverride(config, output); ovr != nullptr && ovr->enabled) {
+      return *ovr->enabled;
+    }
+    return true;
+  }
+
   constexpr Logger kLog("wallpaper");
 
   Color resolveWallpaperFillColor(const WallpaperConfig& config, const WaylandOutput& output) {
@@ -263,6 +278,9 @@ bool Wallpaper::initialize(
   resetAutomationState();
   m_wallpaperEnabled = true;
   m_lastWallpaperConfig = m_config->config().wallpaper;
+  applyStartupAutomation(
+      std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()
+  );
   syncInstances();
   return true;
 }
@@ -374,12 +392,12 @@ void Wallpaper::onSecondTick() {
   }
 
   using namespace std::chrono;
-  const auto minuteStamp = duration_cast<minutes>(system_clock::now().time_since_epoch()).count();
-  if (minuteStamp == m_lastAutomationMinuteStamp) {
+  const auto secondStamp = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+  if (secondStamp == m_lastAutomationSecondStamp) {
     return;
   }
-  m_lastAutomationMinuteStamp = minuteStamp;
-  runAutomation(minuteStamp);
+  m_lastAutomationSecondStamp = secondStamp;
+  runAutomation(secondStamp);
 }
 
 void Wallpaper::registerIpc(IpcService& ipc) {
@@ -563,19 +581,91 @@ void Wallpaper::syncInstances() {
 }
 
 void Wallpaper::resetAutomationState() {
-  m_lastAutomationMinuteStamp = -1;
-  m_lastAutomationSwitchMinute = -1;
+  m_lastAutomationSecondStamp = -1;
+  m_lastAutomationSwitchSecond = -1;
 }
 
-void Wallpaper::runAutomation(std::int64_t minuteStamp) {
+void Wallpaper::applyStartupAutomation(std::int64_t secondStamp) {
   const auto& wallpaper = m_config->config().wallpaper;
   const auto& automation = wallpaper.automation;
-  if (!automation.enabled || automation.intervalMinutes <= 0 || m_instances.empty()) {
+  if (!automation.enabled || m_wayland == nullptr) {
     return;
   }
 
-  if (m_lastAutomationSwitchMinute >= 0
-      && (minuteStamp - m_lastAutomationSwitchMinute) < static_cast<std::int64_t>(automation.intervalMinutes)) {
+  const auto& outputs = m_wayland->outputs();
+  const ThemeMode mode = m_config->config().theme.mode;
+  bool attempted = false;
+
+  ConfigService::WallpaperBatch batch(*m_config);
+
+  if (wallpaper.perMonitorDirectories) {
+    for (const auto& output : outputs) {
+      if (!output.done || output.connectorName.empty() || !wallpaperOutputEnabled(wallpaper, output)) {
+        continue;
+      }
+
+      attempted = true;
+      std::vector<std::string> candidates;
+      collectWallpaperCandidates(
+          wallpaper::resolveWallpaperDirectory(wallpaper, output, mode), automation.recursive, candidates
+      );
+      if (candidates.empty()) {
+        continue;
+      }
+
+      const std::string currentPath = m_config->getWallpaperPath(output.connectorName);
+      const std::string picked = pickAutomationWallpaperPath(automation, std::move(candidates), currentPath);
+      if (picked.empty() || picked == currentPath) {
+        continue;
+      }
+
+      m_config->setWallpaperPath(output.connectorName, picked);
+      kLog.info("startup automation set {} → {}", output.connectorName, picked);
+    }
+  } else {
+    for (const auto& output : outputs) {
+      if (output.done && !output.connectorName.empty() && wallpaperOutputEnabled(wallpaper, output)) {
+        attempted = true;
+        break;
+      }
+    }
+
+    if (attempted) {
+      std::vector<std::string> candidates;
+      collectWallpaperCandidates(
+          wallpaper::resolveGlobalWallpaperDirectory(wallpaper, mode), automation.recursive, candidates
+      );
+      if (!candidates.empty()) {
+        const std::string currentDefault = m_config->getDefaultWallpaperPath();
+        const std::string picked = pickAutomationWallpaperPath(automation, std::move(candidates), currentDefault);
+        if (!picked.empty()) {
+          for (const auto& output : outputs) {
+            if (output.done && !output.connectorName.empty() && wallpaperOutputEnabled(wallpaper, output)) {
+              m_config->setWallpaperPath(output.connectorName, picked);
+            }
+          }
+          m_config->setWallpaperPath(std::nullopt, picked);
+          kLog.info("startup automation set all outputs → {}", picked);
+        }
+      }
+    }
+  }
+
+  if (attempted) {
+    m_lastAutomationSecondStamp = secondStamp;
+    m_lastAutomationSwitchSecond = secondStamp;
+  }
+}
+
+void Wallpaper::runAutomation(std::int64_t secondStamp) {
+  const auto& wallpaper = m_config->config().wallpaper;
+  const auto& automation = wallpaper.automation;
+  if (!automation.enabled || m_instances.empty()) {
+    return;
+  }
+
+  if (m_lastAutomationSwitchSecond >= 0
+      && (secondStamp - m_lastAutomationSwitchSecond) < static_cast<std::int64_t>(automation.intervalSeconds)) {
     return;
   }
 
@@ -605,9 +695,7 @@ void Wallpaper::runAutomation(std::int64_t minuteStamp) {
         continue;
       }
       const std::string currentPath = m_config->getWallpaperPath(inst->connectorName);
-      const std::string picked = automation.order == WallpaperAutomationConfig::Order::Alphabetical
-          ? pickAlphabeticalWallpaperPath(candidates, currentPath)
-          : pickRandomWallpaperPath(candidates, currentPath);
+      const std::string picked = pickAutomationWallpaperPath(automation, std::move(candidates), currentPath);
       if (picked.empty() || picked == currentPath) {
         continue;
       }
@@ -620,9 +708,7 @@ void Wallpaper::runAutomation(std::int64_t minuteStamp) {
     collectWallpaperCandidates(dir, automation.recursive, candidates);
     if (!candidates.empty()) {
       const std::string currentDefault = m_config->getDefaultWallpaperPath();
-      const std::string picked = automation.order == WallpaperAutomationConfig::Order::Alphabetical
-          ? pickAlphabeticalWallpaperPath(candidates, currentDefault)
-          : pickRandomWallpaperPath(candidates, currentDefault);
+      const std::string picked = pickAutomationWallpaperPath(automation, std::move(candidates), currentDefault);
       if (!picked.empty()) {
         for (const auto& inst : m_instances) {
           if (!inst->connectorName.empty()) {
@@ -634,7 +720,7 @@ void Wallpaper::runAutomation(std::int64_t minuteStamp) {
       }
     }
   }
-  m_lastAutomationSwitchMinute = minuteStamp;
+  m_lastAutomationSwitchSecond = secondStamp;
 }
 
 bool Wallpaper::switchToRandomWallpaper(std::optional<std::string_view> connector) {

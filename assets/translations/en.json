@@ -602,6 +602,22 @@
     "launcher": "Launcher"
   },
   "osd": {
+    "dnd": {
+      "on": "DND On",
+      "off": "DND Off"
+    },
+    "caffeine": {
+      "on": "Caffeine On",
+      "off": "Caffeine Off"
+    },
+    "wifi": {
+      "on": "Wi-Fi On",
+      "off": "Wi-Fi Off"
+    },
+    "bluetooth": {
+      "on": "Bluetooth On",
+      "off": "Bluetooth Off"
+    },
     "lock-keys": {
       "caps-on": "Caps Lock On",
       "caps-off": "Caps Lock Off",
@@ -629,22 +645,10 @@
     },
     "internal": {
       "dbus-disabled": "DBus notifications disabled",
-      "dnd": "Do Not Disturb",
-      "dnd-enabled": "Do Not Disturb enabled",
-      "dnd-disabled": "Do Not Disturb disabled",
       "battery": "Battery",
       "battery-device": "Battery device",
       "battery-low-title": "Battery low",
       "battery-low-body": "{device}: {percent}% remaining",
-      "network": "Network",
-      "wifi-enabled": "Wi-Fi is on",
-      "wifi-disabled": "Wi-Fi is off",
-      "caffeine": "Caffeine",
-      "caffeine-enabled": "Caffeine enabled",
-      "caffeine-disabled": "Caffeine disabled",
-      "bluetooth": "Bluetooth",
-      "bluetooth-enabled": "Bluetooth is on",
-      "bluetooth-disabled": "Bluetooth is off",
       "session-bus-unavailable": "Session bus unavailable",
       "mpris-disabled": "MPRIS disabled",
       "keybind-app": "Noctalia",
@@ -652,9 +656,6 @@
       "keybind-invalid-super": "The Super/Windows key cannot be used in shell keybinds.",
       "keybind-invalid-printable": "Printable keys (letters, numbers, symbols) require a modifier such as Ctrl or Alt.",
       "keybind-invalid-modifier": "This shortcut accepts a single key without modifiers.",
-      "power-profiles": "Power profiles",
-      "power-profile-title": "Power mode",
-      "power-profile-body": "Switched to: {profile}",
       "desktop-widgets-editor": "Widget editor",
       "desktop-widgets-editor-enabled": "Desktop widget editor is on. Switch to an empty workspace to see the editor overlay.",
       "lockscreen-widgets-editor": "Lockscreen widget editor",
@@ -2265,7 +2266,7 @@
         },
         "automation-interval": {
           "label": "Rotation Interval",
-          "description": "Minutes between wallpaper changes (0 disables)"
+          "description": "Seconds between wallpaper changes"
         },
         "automation-order": {
           "label": "Order",
