@@ -2163,6 +2163,11 @@
           "label": "Tint Intensity",
           "description": "Surface-color tint over the lock screen background"
         },
+        "wallpaper": {
+          "label": "Wallpaper",
+          "description": "Custom image for the lock screen background. Leave empty to use the desktop wallpaper.",
+          "placeholder": "Use desktop wallpaper"
+        },
         "widgets": {
           "label": "Lockscreen Widgets",
           "description": "Show configurable widgets on the lock screen"

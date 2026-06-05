@@ -10,6 +10,7 @@
 #include "shell/control_center/shortcut_registry.h"
 #include "shell/settings/color_spec_picker.h"
 #include "shell/settings/font_weight_catalog.h"
+#include "shell/wallpaper/wallpaper_paths.h"
 #include "theme/builtin_palettes.h"
 #include "theme/builtin_templates.h"
 #include "ui/app_icon_colorization.h"
@@ -1064,6 +1065,23 @@ namespace settings {
         tr("settings.schema.lockscreen.tint-intensity.description"), {"lockscreen", "tint_intensity"},
         sliderFor(cfg.lockscreen.tintIntensity, noctalia::config::schema::kUnitRange, false), "lock screen tint"
     ));
+    {
+      const SettingVisibility lockscreenWallpaperOn{{"lockscreen", "blurred_desktop"}, {"false"}};
+      auto e = makeEntry(
+          "security", "lock-screen", tr("settings.schema.lockscreen.wallpaper.label"),
+          tr("settings.schema.lockscreen.wallpaper.description"), {"lockscreen", "wallpaper"},
+          TextSetting{
+              .value = cfg.lockscreen.wallpaper,
+              .placeholder = tr("settings.schema.lockscreen.wallpaper.placeholder"),
+              .browseMode = TextSettingBrowseMode::OpenFile,
+              .browseFileExtensions = {".png", ".jpg", ".jpeg", ".webp", ".svg", ".bmp", ".gif"},
+              .browseFallbackDirectory = wallpaper::resolveGlobalWallpaperDirectory(cfg.wallpaper, cfg.theme.mode),
+          },
+          "lock screen background image custom"
+      );
+      e.visibleWhen = lockscreenWallpaperOn;
+      entries.push_back(std::move(e));
+    }
     entries.push_back(makeEntry(
         "security", "lock-screen", tr("settings.schema.lockscreen.widgets.label"),
         tr("settings.schema.lockscreen.widgets.description"), {"lockscreen_widgets", "enabled"},
