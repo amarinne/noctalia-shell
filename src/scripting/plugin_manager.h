@@ -56,10 +56,10 @@ namespace scripting {
     // Add (or replace) a source and refresh.
     void addSource(const PluginSourceConfig& source);
 
-    // Pull a git source's latest revision off-thread, then re-scan on the main
-    // thread. The post-update min_noctalia guard rolls the whole source back to its
-    // pre-pull revision if the new revision would make any enabled plugin from it
-    // incompatible. No-op for path / unknown sources.
+    // Fetch a git source off-thread, check the new catalog's min_noctalia for every
+    // enabled plugin, and fast-forward only if all are compatible — otherwise the
+    // update is skipped (nothing is applied). Re-scans on the main thread. No-op for
+    // path / unknown sources.
     void update(std::string sourceName);
 
     // Remove a source: delete its git clone, disable its plugins, drop it from
@@ -76,10 +76,6 @@ namespace scripting {
     // cloned) source — heals a wiped clone or a restored config. Returns whether
     // anything was materialized. No network when nothing is missing.
     bool ensureEnabledMaterialized(const PluginsConfig& plugins) const;
-    void applyUpdate(
-        const std::filesystem::path& root, const std::string& sourceName, const std::string& preRev,
-        const std::string& postRev, bool pullOk, const std::string& err
-    );
 
     ConfigService& m_config;
     PluginsConfig m_lastApplied;

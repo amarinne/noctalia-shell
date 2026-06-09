@@ -41,14 +41,18 @@ namespace scripting::plugin_git {
   bool available() { return process::commandExists("git"); }
 
   GitResult cloneBlobless(const std::string& url, const std::filesystem::path& dest) {
+    // Blobless but NOT shallow: full commit/tree history (still tiny — no file
+    // blobs until needed), so later fetch + fast-forward work normally. A `--depth 1`
+    // shallow clone grafts fetched commits as disjoint roots ("unrelated histories").
     return run(
-        {"git", "clone", "--filter=blob:none", "--no-checkout", "--depth", "1", url, dest.string()}, kNetworkTimeout,
-        kProgressCap
+        {"git", "clone", "--filter=blob:none", "--no-checkout", url, dest.string()}, kNetworkTimeout, kProgressCap
     );
   }
 
-  GitResult showFile(const std::filesystem::path& dest, std::string_view repoPath) {
-    return run({"git", "-C", dest.string(), "show", "HEAD:" + std::string(repoPath)}, kLocalTimeout, kFileCap);
+  GitResult showFile(const std::filesystem::path& dest, std::string_view repoPath, std::string_view rev) {
+    return run(
+        {"git", "-C", dest.string(), "show", std::string(rev) + ":" + std::string(repoPath)}, kLocalTimeout, kFileCap
+    );
   }
 
   GitResult sparseAdd(const std::filesystem::path& dest, std::string_view subdir) {
@@ -69,18 +73,25 @@ namespace scripting::plugin_git {
     );
   }
 
-  GitResult pull(const std::filesystem::path& dest) {
-    return run({"git", "-C", dest.string(), "pull", "--ff-only"}, kNetworkTimeout, kProgressCap);
+  GitResult fetch(const std::filesystem::path& dest) {
+    // Updates remote-tracking refs + FETCH_HEAD without touching the working tree.
+    return run({"git", "-C", dest.string(), "fetch", "origin"}, kNetworkTimeout, kProgressCap);
+  }
+
+  GitResult remoteHead(const std::filesystem::path& dest) {
+    auto r = run({"git", "-C", dest.string(), "rev-parse", "FETCH_HEAD"}, kLocalTimeout, kProgressCap);
+    r.out = trimTrailingNewline(std::move(r.out));
+    return r;
+  }
+
+  GitResult fastForward(const std::filesystem::path& dest, std::string_view rev) {
+    return run({"git", "-C", dest.string(), "merge", "--ff-only", std::string(rev)}, kNetworkTimeout, kProgressCap);
   }
 
   GitResult headRevision(const std::filesystem::path& dest) {
     auto r = run({"git", "-C", dest.string(), "rev-parse", "HEAD"}, kLocalTimeout, kProgressCap);
     r.out = trimTrailingNewline(std::move(r.out));
     return r;
-  }
-
-  GitResult resetHard(const std::filesystem::path& dest, std::string_view rev) {
-    return run({"git", "-C", dest.string(), "reset", "--hard", std::string(rev)}, kLocalTimeout, kProgressCap);
   }
 
   bool hasPath(const std::filesystem::path& dest, std::string_view repoPath) {

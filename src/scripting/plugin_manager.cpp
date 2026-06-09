@@ -225,55 +225,58 @@ namespace scripting {
     if (!std::filesystem::exists(root / ".git", ec)) {
       return; // nothing cloned yet
     }
+    // Snapshot the enabled set for the worker (config is read on the main thread only).
+    std::unordered_set<std::string> enabled(
+        m_config.config().plugins.enabled.begin(), m_config.config().plugins.enabled.end()
+    );
 
-    // Pull off-thread (network), then apply on the main thread. `this` is an
-    // Application member, so it outlives the worker.
-    std::thread([this, root, sourceName = std::move(sourceName)]() mutable {
-      const auto preRev = plugin_git::headRevision(root);
-      const auto pulled = plugin_git::pull(root);
-      const auto postRev = plugin_git::headRevision(root);
-      DeferredCall::callLater([this, root, sourceName = std::move(sourceName), pre = preRev.out, post = postRev.out,
-                               ok = static_cast<bool>(pulled),
-                               err = pulled.err]() mutable { applyUpdate(root, sourceName, pre, post, ok, err); });
-    }).detach();
-  }
-
-  void PluginManager::applyUpdate(
-      const std::filesystem::path& root, const std::string& sourceName, const std::string& preRev,
-      const std::string& postRev, bool pullOk, const std::string& err
-  ) {
-    if (!pullOk) {
-      kLog.warn("update '{}': pull failed: {}", sourceName, err);
-      return;
-    }
-    if (postRev.empty() || preRev == postRev) {
-      kLog.info("source '{}' already up to date", sourceName);
-      return;
-    }
-
-    // Post-update compatibility guard: if the new revision raises an enabled
-    // plugin's min_noctalia above the running version, roll the whole source back
-    // and keep the last working revision rather than break it.
-    for (const auto& id : m_config.config().plugins.enabled) {
-      const std::filesystem::path manifestPath = root / pluginSubdir(id) / "plugin.toml";
-      std::error_code ec;
-      if (!std::filesystem::exists(manifestPath, ec)) {
-        continue; // not materialized from this source
-      }
-      std::string error;
-      const auto manifest = parsePluginManifest(manifestPath, &error);
-      if (manifest.has_value() && !noctalia::version::atLeast(noctalia::build_info::version(), manifest->minNoctalia)) {
-        kLog.warn(
-            "update '{}' withheld: '{}' requires noctalia >= {} (running {}) — keeping {}", sourceName, id,
-            manifest->minNoctalia, noctalia::build_info::version(), preRev
-        );
-        (void)plugin_git::resetHard(root, preRev);
+    // The whole git sequence runs off-thread; only the final registry rescan marshals
+    // back to the main thread. `this` is an Application member, so it outlives the worker.
+    std::thread([root, sourceName = std::move(sourceName), enabled = std::move(enabled)]() mutable {
+      const auto fetched = plugin_git::fetch(root);
+      if (!fetched) {
+        DeferredCall::callLater([sourceName, err = fetched.err]() {
+          kLog.warn("update '{}': fetch failed: {}", sourceName, err);
+        });
         return;
       }
-    }
+      const std::string newRev = plugin_git::remoteHead(root).out;
+      const std::string curRev = plugin_git::headRevision(root).out;
+      if (newRev.empty() || newRev == curRev) {
+        DeferredCall::callLater([sourceName]() { kLog.info("source '{}' already up to date", sourceName); });
+        return;
+      }
 
-    kLog.info("updated source '{}' {} -> {}", sourceName, preRev, postRev);
-    PluginRegistry::instance().scan(); // re-parse manifests from the updated working tree
+      // Compatibility guard BEFORE applying: read the *new* catalog at the fetched
+      // revision (no working-tree change) and check every enabled plugin's
+      // min_noctalia. If one would require a newer Noctalia, skip the update — nothing
+      // is applied, so there is nothing to undo.
+      if (const auto catalog = plugin_git::showFile(root, "catalog.toml", newRev); catalog) {
+        for (const auto& entry : parseCatalogToml(catalog.out)) {
+          if (enabled.contains(entry.id)
+              && !entry.minNoctalia.empty()
+              && !noctalia::version::atLeast(noctalia::build_info::version(), entry.minNoctalia)) {
+            DeferredCall::callLater([sourceName, id = entry.id, min = entry.minNoctalia]() {
+              kLog.warn(
+                  "update '{}' withheld: '{}' requires noctalia >= {} (running {})", sourceName, id, min,
+                  noctalia::build_info::version()
+              );
+            });
+            return;
+          }
+        }
+      }
+
+      const auto applied = plugin_git::fastForward(root, newRev);
+      DeferredCall::callLater([sourceName, ok = static_cast<bool>(applied), err = applied.err, newRev]() {
+        if (!ok) {
+          kLog.warn("update '{}': apply failed: {}", sourceName, err);
+          return;
+        }
+        kLog.info("updated source '{}' -> {}", sourceName, newRev);
+        PluginRegistry::instance().scan(); // re-parse manifests; live .luau changes hot-reload via file watch
+      });
+    }).detach();
   }
 
   void PluginManager::removeSource(std::string sourceName) {

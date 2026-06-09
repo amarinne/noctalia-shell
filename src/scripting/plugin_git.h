@@ -28,25 +28,30 @@ namespace scripting {
 
     [[nodiscard]] bool available();
 
-    // Blobless, no-checkout, depth-1 clone of `url` into `dest`.
+    // Blobless, no-checkout clone of `url` into `dest` (full history, no file blobs).
     [[nodiscard]] GitResult cloneBlobless(const std::string& url, const std::filesystem::path& dest);
 
-    // `git -C dest show HEAD:<repoPath>` — lazily fetches one blob. out = file body.
-    [[nodiscard]] GitResult showFile(const std::filesystem::path& dest, std::string_view repoPath);
+    // `git -C dest show <rev>:<repoPath>` — lazily fetches one blob. out = file body.
+    // `rev` defaults to HEAD; pass FETCH_HEAD to inspect a fetched-but-unapplied revision.
+    [[nodiscard]] GitResult
+    showFile(const std::filesystem::path& dest, std::string_view repoPath, std::string_view rev = "HEAD");
 
     // Cone sparse-checkout: materialize `subdir` in the working tree. First call
     // on a fresh clone sets the cone + checks out HEAD; later calls add to it.
     [[nodiscard]] GitResult sparseAdd(const std::filesystem::path& dest, std::string_view subdir);
 
-    // `git -C dest pull --ff-only` — re-fetches only changed blobs.
-    [[nodiscard]] GitResult pull(const std::filesystem::path& dest);
+    // `git -C dest fetch origin` — update remote-tracking refs + FETCH_HEAD; the
+    // working tree is untouched, so the new revision can be inspected before applying.
+    [[nodiscard]] GitResult fetch(const std::filesystem::path& dest);
+
+    // `git -C dest rev-parse FETCH_HEAD` — out = the just-fetched revision (trimmed).
+    [[nodiscard]] GitResult remoteHead(const std::filesystem::path& dest);
+
+    // `git -C dest merge --ff-only <rev>` — apply a fetched revision to the working tree.
+    [[nodiscard]] GitResult fastForward(const std::filesystem::path& dest, std::string_view rev);
 
     // `git -C dest rev-parse HEAD` — out = commit sha (trimmed).
     [[nodiscard]] GitResult headRevision(const std::filesystem::path& dest);
-
-    // `git -C dest reset --hard <rev>` — revert the source to a known revision
-    // (the post-update compatibility guard's rollback).
-    [[nodiscard]] GitResult resetHard(const std::filesystem::path& dest, std::string_view rev);
 
     // `git -C dest cat-file -e HEAD:<repoPath>` — true if the path exists in HEAD
     // (tree metadata only, no blob fetch). Used to confirm a source actually ships
