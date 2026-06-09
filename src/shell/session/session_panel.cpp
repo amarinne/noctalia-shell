@@ -67,7 +67,7 @@ namespace {
       return "suspend";
     }
     if (action == "lock_and_suspend") {
-      return "lock";
+      return "suspend";
     }
     if (action == "reboot") {
       return "reboot";

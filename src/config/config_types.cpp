@@ -66,7 +66,7 @@ std::vector<SessionPanelActionConfig> defaultSessionPanelActions() {
           KeyChord{XKB_KEY_2, 0}
       },
       SessionPanelActionConfig{
-          "suspend", true, std::nullopt, std::nullopt, std::nullopt, SessionActionButtonVariant::Default,
+          "lock_and_suspend", true, std::nullopt, std::nullopt, std::nullopt, SessionActionButtonVariant::Default,
           KeyChord{XKB_KEY_3, 0}
       },
       SessionPanelActionConfig{
