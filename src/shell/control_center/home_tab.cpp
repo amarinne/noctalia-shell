@@ -905,6 +905,7 @@ void HomeTab::onClose() {
   m_mediaButton = nullptr;
   m_weatherButton = nullptr;
   m_loadedAvatarPath.clear();
+  m_loadedAvatarSize = 0;
   m_wallpaperBg = nullptr;
   m_wallpaperGradient = nullptr;
   m_mediaTrack = nullptr;
@@ -997,13 +998,18 @@ void HomeTab::sync(Renderer& renderer) {
 
   if (m_userAvatar != nullptr && m_config != nullptr) {
     const std::string avatarPath = shell::resolvedAvatarPath(m_accounts, m_config->config());
-    if (avatarPath != m_loadedAvatarPath) {
+    const int avatarSize = static_cast<int>(std::round(m_userAvatar->width()));
+    if (avatarPath != m_loadedAvatarPath || avatarSize != m_loadedAvatarSize) {
       if (avatarPath.empty()) {
         m_userAvatar->clear(renderer);
       } else {
-        m_userAvatar->setSourceFile(renderer, avatarPath, static_cast<int>(std::round(m_userAvatar->width())), true);
+        // Decode at the avatar's final on-screen size with no mipmaps: layout grows the
+        // avatar to match the user text block, and trilinear mipmap sampling softens an
+        // image displayed near 1:1. Both made the avatar look blurry.
+        m_userAvatar->setSourceFile(renderer, avatarPath, avatarSize, false);
       }
       m_loadedAvatarPath = avatarPath;
+      m_loadedAvatarSize = avatarSize;
     }
   }
 

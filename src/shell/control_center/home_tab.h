@@ -100,6 +100,7 @@ private:
   Button* m_mediaButton = nullptr;
   Button* m_weatherButton = nullptr;
   std::string m_loadedAvatarPath;
+  int m_loadedAvatarSize = 0;
 
   Image* m_wallpaperBg = nullptr;
   Box* m_wallpaperGradient = nullptr;
