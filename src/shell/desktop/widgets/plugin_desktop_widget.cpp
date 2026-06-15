@@ -128,7 +128,10 @@ void PluginDesktopWidget::onFrameTick(float deltaMs, Renderer& renderer) {
   requestRedraw(); // keep the frame loop alive while animating
 }
 
-PluginDesktopWidget::DispatchResult PluginDesktopWidget::dispatchIpc(std::string_view event, std::string_view payload) {
+PluginDesktopWidget::DispatchResult PluginDesktopWidget::dispatchIpc(
+    std::string_view event, std::string_view payload, const scripting::ScriptSnapshot& snapshot
+) {
+  (void)snapshot;
   if (m_runtime == nullptr) {
     return DispatchResult::MissingHost;
   }

@@ -498,7 +498,9 @@ void PluginWidget::luaSetVisible(bool visible) {
   m_dirty = true;
 }
 
-PluginWidget::DispatchResult PluginWidget::dispatchIpc(std::string_view event, std::string_view payload) {
+PluginWidget::DispatchResult
+PluginWidget::dispatchIpc(std::string_view event, std::string_view payload, const scripting::ScriptSnapshot& snapshot) {
+  (void)snapshot;
   if (!m_runtime) {
     return DispatchResult::MissingHost;
   }
