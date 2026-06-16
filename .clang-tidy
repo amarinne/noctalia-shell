@@ -1,6 +1,7 @@
 Checks: >-
   -clang-diagnostic-*,
   modernize-make-unique,
+  modernize-min-max-use-initializer-list,
   modernize-raw-string-literal,
   modernize-use-emplace,
   modernize-use-scoped-lock,
