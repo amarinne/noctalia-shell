@@ -699,6 +699,16 @@ namespace {
 
 namespace process {
 
+  std::optional<std::string> resolvePrivilegeEscalator() {
+    if (commandExists("run0")) {
+      return "run0";
+    }
+    if (commandExists("pkexec")) {
+      return "pkexec";
+    }
+    return std::nullopt;
+  }
+
   bool commandExists(const char* name) {
     if (name == nullptr || name[0] == '\0') {
       return false;

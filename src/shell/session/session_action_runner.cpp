@@ -96,6 +96,40 @@ namespace {
     return false;
   }
 
+  [[nodiscard]] bool launchFirstAvailableLogged(
+      std::string_view action, std::initializer_list<std::initializer_list<const char*>> commands
+  ) {
+    bool attempted = false;
+    for (const auto& command : commands) {
+      if (command.size() == 0) {
+        continue;
+      }
+      const char* executable = *command.begin();
+      if (executable == nullptr || executable[0] == '\0') {
+        continue;
+      }
+      if (!process::commandExists(executable)) {
+        kLog.debug("{}: {} not found", action, executable);
+        continue;
+      }
+
+      attempted = true;
+      const std::string label = commandLabel(command);
+      if (process::launchFirstAvailable({command})) {
+        kLog.info("{}: {} launched", action, label);
+        return true;
+      }
+      kLog.warn("{}: {} failed to launch", action, label);
+    }
+
+    if (!attempted) {
+      kLog.warn("{}: no supported command found", action);
+    } else {
+      kLog.warn("{}: all command methods failed", action);
+    }
+    return false;
+  }
+
   [[nodiscard]] bool runSuspendBlocking() {
     logActionContext("suspend");
     return runCheckedSessionCommand(
@@ -103,13 +137,37 @@ namespace {
         {
             {"systemctl", "suspend"},
             {"loginctl", "suspend"},
+            {"pm-suspend"},
+            {"zzz"},
+            {"pkexec", "pm-suspend"},
+            {"run0", "pm-suspend"},
+            {"pkexec", "sh", "-c", "echo mem > /sys/power/state"},
+            {"run0", "sh", "-c", "echo mem > /sys/power/state"},
+            {"sudo", "-n", "pm-suspend"},
+            {"sudo", "-n", "zzz"},
+            {"sudo", "-n", "sh", "-c", "echo mem > /sys/power/state"},
         }
     );
   }
 
   [[nodiscard]] bool launchSuspendDetached() {
     logActionContext("suspend");
-    return process::launchFirstAvailable({{"systemctl", "suspend"}, {"loginctl", "suspend"}});
+    return launchFirstAvailableLogged(
+        "suspend",
+        {
+            {"systemctl", "suspend"},
+            {"loginctl", "suspend"},
+            {"pm-suspend"},
+            {"zzz"},
+            {"pkexec", "pm-suspend"},
+            {"run0", "pm-suspend"},
+            {"pkexec", "sh", "-c", "echo mem > /sys/power/state"},
+            {"run0", "sh", "-c", "echo mem > /sys/power/state"},
+            {"sudo", "-n", "pm-suspend"},
+            {"sudo", "-n", "zzz"},
+            {"sudo", "-n", "sh", "-c", "echo mem > /sys/power/state"},
+        }
+    );
   }
 
   [[nodiscard]] bool doReboot() {
@@ -122,6 +180,9 @@ namespace {
             {"reboot"},
             {"/sbin/reboot"},
             {"/usr/sbin/reboot"},
+            {"pkexec", "reboot"},
+            {"run0", "reboot"},
+            {"sudo", "-n", "reboot"},
         }
     );
   }
@@ -136,6 +197,9 @@ namespace {
             {"poweroff"},
             {"/sbin/poweroff"},
             {"/usr/sbin/poweroff"},
+            {"pkexec", "poweroff"},
+            {"run0", "poweroff"},
+            {"sudo", "-n", "poweroff"},
         }
     );
   }

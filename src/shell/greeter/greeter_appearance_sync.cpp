@@ -146,17 +146,6 @@ namespace {
     );
   }
 
-  // Prefer run0: pkexec often stays on PATH without the setuid wrapper (e.g. NixOS).
-  [[nodiscard]] std::string resolvePrivilegeEscalator() {
-    if (process::commandExists("run0")) {
-      return "run0";
-    }
-    if (process::commandExists("pkexec")) {
-      return "pkexec";
-    }
-    return {};
-  }
-
   [[nodiscard]] std::filesystem::path makeStagingDirectory() {
     const char* runtimeDir = std::getenv("XDG_RUNTIME_DIR");
     const std::filesystem::path base = runtimeDir != nullptr && runtimeDir[0] != '\0'
@@ -345,7 +334,7 @@ namespace greeter {
   bool appearanceSyncAvailable() {
     return programExists(kGreeterName, {"/usr/bin/noctalia-greeter", "/usr/local/bin/noctalia-greeter"})
         && !findApplyHelper().empty()
-        && !resolvePrivilegeEscalator().empty();
+        && process::resolvePrivilegeEscalator().has_value();
   }
 
   bool syncAppearanceToGreeterAsync(
@@ -365,7 +354,7 @@ namespace greeter {
       finish(false);
       return false;
     }
-    const std::string escalator = resolvePrivilegeEscalator();
+    const std::string escalator = process::resolvePrivilegeEscalator().value_or(std::string{});
     if (escalator.empty()) {
       kLog.warn("no privilege escalator available (pkexec or run0)");
       finish(false);
