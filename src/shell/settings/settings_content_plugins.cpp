@@ -244,6 +244,13 @@ namespace settings {
       return {};
     }
 
+    std::vector<std::string> valueAsStringList(const WidgetSettingValue& value) {
+      if (const auto* v = std::get_if<std::vector<std::string>>(&value)) {
+        return *v;
+      }
+      return {};
+    }
+
     bool valueAsBool(const WidgetSettingValue& value) {
       if (const auto* b = std::get_if<bool>(&value)) {
         return *b;
@@ -361,6 +368,8 @@ namespace settings {
         pickerSetting.allowCustomColor = spec.allowCustomColor;
         return factory.makeColorSpecPicker(pickerSetting, path);
       }
+      case WidgetControlKind::StringList:
+        return nullptr;
       case WidgetControlKind::String:
       case WidgetControlKind::File:
       case WidgetControlKind::Folder:
@@ -398,7 +407,11 @@ namespace settings {
           .searchText = {},
           .visibleWhen = std::nullopt,
       };
-      factory.makeRow(body, entry, pluginSettingControl(factory, spec, value, path));
+      if (spec.control == WidgetControlKind::StringList) {
+        factory.makeListBlock(body, entry, ListSetting{.items = valueAsStringList(value)});
+      } else {
+        factory.makeRow(body, entry, pluginSettingControl(factory, spec, value, path));
+      }
       rendered = true;
     }
     if (!rendered) {

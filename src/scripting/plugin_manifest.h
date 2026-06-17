@@ -19,6 +19,7 @@ namespace scripting {
     Int,
     Double,
     String,
+    StringList,
     File,
     Folder,
     Glyph,
@@ -46,6 +47,7 @@ namespace scripting {
     bool boolDefault = false;
     double numberDefault = 0.0;
     std::string stringDefault;
+    std::vector<std::string> stringListDefault;
 
     std::optional<double> minValue;
     std::optional<double> maxValue;

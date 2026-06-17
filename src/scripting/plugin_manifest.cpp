@@ -66,6 +66,9 @@ namespace scripting {
       if (type == "double" || type == "number" || type == "float") {
         return ManifestFieldType::Double;
       }
+      if (type == "string_list") {
+        return ManifestFieldType::StringList;
+      }
       if (type == "select" || type == "enum") {
         return ManifestFieldType::Select;
       }
@@ -119,6 +122,15 @@ namespace scripting {
           out.numberDefault = static_cast<double>(*i);
         } else {
           out.numberDefault = node.value<double>().value_or(0.0);
+        }
+        break;
+      case ManifestFieldType::StringList:
+        if (const auto* values = node.as_array()) {
+          for (const auto& valueNode : *values) {
+            if (auto value = valueNode.value<std::string>()) {
+              out.stringListDefault.push_back(*value);
+            }
+          }
         }
         break;
       default:
@@ -262,6 +274,8 @@ namespace scripting {
       return WidgetSettingValue{static_cast<std::int64_t>(numberDefault)};
     case ManifestFieldType::Double:
       return WidgetSettingValue{numberDefault};
+    case ManifestFieldType::StringList:
+      return WidgetSettingValue{stringListDefault};
     default:
       return WidgetSettingValue{stringDefault};
     }

@@ -976,6 +976,10 @@ namespace settings {
         spec.control = WidgetControlKind::Double;
         spec.schema.defaultValue = field.numberDefault;
         break;
+      case scripting::ManifestFieldType::StringList:
+        spec.control = WidgetControlKind::StringList;
+        spec.schema.defaultValue = field.stringListDefault;
+        break;
       case scripting::ManifestFieldType::File:
         spec.control = WidgetControlKind::File;
         spec.schema.defaultValue = field.stringDefault;

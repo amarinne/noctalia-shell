@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace {
@@ -118,6 +119,43 @@ int main() {
     if (!entry.launcherCategories.empty()) {
       ok = expectEq(entry.launcherCategories.front().label, "Languages", "category label should parse") && ok;
       ok = expectEq(entry.launcherCategories.front().glyph, "world", "category glyph should parse") && ok;
+    }
+  }
+
+  const auto listManifestPath = root / "string-list/plugin.toml";
+  ok = writeText(
+           listManifestPath,
+           "id = \"me/string-list\"\n"
+           "name = \"String List\"\n"
+           "min_noctalia = \"5.0.0\"\n"
+           "[[widget]]\n"
+           "id = \"list\"\n"
+           "entry = \"list.luau\"\n"
+           "[[widget.setting]]\n"
+           "key = \"paths\"\n"
+           "type = \"string_list\"\n"
+           "default = [\"/dev/input/by-id/a\", \"/dev/input/by-path/b\"]\n"
+       )
+      && ok;
+  error.clear();
+  const auto listManifest = scripting::parsePluginManifest(listManifestPath, &error);
+  ok = expect(listManifest.has_value(), error.empty() ? "failed to parse string-list manifest" : error.c_str()) && ok;
+  if (listManifest.has_value() && expect(listManifest->entries.size() == 1, "one string-list entry expected")) {
+    const auto& settings = listManifest->entries.front().settings;
+    ok = expect(settings.size() == 1, "one string-list setting expected") && ok;
+    if (!settings.empty()) {
+      ok = expect(settings.front().type == scripting::ManifestFieldType::StringList, "setting should be StringList")
+          && ok;
+      const auto defaultValue = settings.front().defaultValue();
+      const auto* values = std::get_if<std::vector<std::string>>(&defaultValue);
+      ok = expect(values != nullptr, "string-list default should be a vector") && ok;
+      if (values != nullptr) {
+        ok = expect(values->size() == 2, "string-list default size") && ok;
+        if (values->size() == 2) {
+          ok = expectEq((*values)[0], "/dev/input/by-id/a", "first string-list default") && ok;
+          ok = expectEq((*values)[1], "/dev/input/by-path/b", "second string-list default") && ok;
+        }
+      }
     }
   }
 
