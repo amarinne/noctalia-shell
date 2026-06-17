@@ -26,8 +26,7 @@ DesktopButtonWidget::DesktopButtonWidget(
     std::optional<ColorSpec> labelColor, ColorSpec hoverBackground
 )
     : m_glyph(std::move(glyph)), m_label(std::move(label)), m_command(std::move(command)), m_variant(variant),
-      m_labelColor(std::move(labelColor)), m_hoverBackground(std::move(hoverBackground)),
-      m_showBackground(showBackground) {}
+      m_labelColor(labelColor), m_hoverBackground(hoverBackground), m_showBackground(showBackground) {}
 
 void DesktopButtonWidget::create() {
   auto rootNode = std::make_unique<Node>();

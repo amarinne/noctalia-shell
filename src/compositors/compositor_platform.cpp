@@ -384,8 +384,8 @@ namespace {
         return workspace.id;
       }
     }
-    const bool numeric = !rawKey.empty()
-        && std::all_of(rawKey.begin(), rawKey.end(), [](unsigned char ch) { return std::isdigit(ch) != 0; });
+    const bool numeric =
+        !rawKey.empty() && std::ranges::all_of(rawKey, [](unsigned char ch) { return std::isdigit(ch) != 0; });
     if (numeric) {
       const auto value = std::stoul(rawKey);
       for (const auto& workspace : workspaces) {

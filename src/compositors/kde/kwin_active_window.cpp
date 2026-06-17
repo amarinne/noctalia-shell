@@ -453,7 +453,7 @@ for (const window of workspace.windowList()) {{
 
     const std::string label = std::format("noctalia-activate-{}", ++m_transientScriptSerial);
     if (!runTransientScript(script, label)) {
-      kLog.warn("failed to activate kde window class=\"{}\" title=\"{}\"", appId, title);
+      kLog.warn(R"(failed to activate kde window class="{}" title="{}")", appId, title);
     }
   }
 
