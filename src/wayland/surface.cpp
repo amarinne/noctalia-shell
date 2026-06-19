@@ -1001,7 +1001,10 @@ void Surface::processQueuedFrameWork() {
       );
     }
 
-    if (m_frameTickCallback) {
+    // Frame-tick callbacks make the surface's render target current and do GL
+    // work. Skip them until the target is ready; on wlroots compositors the
+    // surface can be configured a frame before its EGL surface exists.
+    if (m_frameTickCallback && ensureRenderTargetReady()) {
       const float callbackMs = elapsedMs([this, deltaMs] { m_frameTickCallback(deltaMs); });
       recordSurfaceProfileEvent(*this, SurfaceProfileEvent::FrameTick, callbackMs);
       logSlowSurfaceOperation(
