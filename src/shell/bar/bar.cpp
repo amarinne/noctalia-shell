@@ -31,12 +31,10 @@
 
 #include <algorithm>
 #include <cerrno>
-#include <charconv>
 #include <cmath>
 #include <linux/input-event-codes.h>
 #include <optional>
 #include <ranges>
-#include <system_error>
 #include <unordered_set>
 #include <wayland-client-core.h>
 
@@ -44,9 +42,6 @@ namespace {
 
   constexpr std::int32_t kAutoHideTriggerPx = 3;
   constexpr float kAutoHideSlideExtraPx = 4.0f;
-  constexpr std::uint32_t kAttachedPanelResizeTestDefaultExtent = 360;
-  constexpr std::uint32_t kAttachedPanelResizeTestMaxExtent = 4096;
-  constexpr float kAttachedPanelResizeTestCycleHoldMs = 1800.0f;
 
   [[nodiscard]] FontWeight parseWidgetLabelFontWeight(const WidgetConfig& config, FontWeight fallback) {
     const auto it = config.settings.find("font_weight");
@@ -527,30 +522,6 @@ namespace {
         static_cast<int>(barVisual.x), static_cast<int>(barVisual.y), static_cast<int>(barVisual.width),
         static_cast<int>(barVisual.height)
     };
-  }
-
-  [[nodiscard]] std::optional<InputRect>
-  attachedPanelResizeTestRect(const BarConfig& cfg, const ShellConfig::ShadowConfig& shadow, int surfW, int surfH) {
-    const auto base = computeBarSurfaceSpec(cfg, shadow);
-    if (surfW <= 0 || surfH <= 0) {
-      return std::nullopt;
-    }
-
-    if (cfg.position == "left" || cfg.position == "right") {
-      const int baseW = static_cast<int>(base.surfaceWidth);
-      const int extraW = surfW - baseW;
-      if (extraW <= 0) {
-        return std::nullopt;
-      }
-      return InputRect{cfg.position == "right" ? 0 : baseW, 0, extraW, surfH};
-    }
-
-    const int baseH = static_cast<int>(base.surfaceHeight);
-    const int extraH = surfH - baseH;
-    if (extraH <= 0) {
-      return std::nullopt;
-    }
-    return InputRect{0, cfg.position == "bottom" ? 0 : baseH, surfW, extraH};
   }
 
   std::pair<float, float> computeAutoHideHiddenDelta(
@@ -1992,17 +1963,6 @@ void Bar::syncBarAutoHideInputRegion(BarInstance& instance) const {
     instance.surface->setInputRegion({});
     return;
   }
-  if (instance.attachedPanelResizeTestOpen) {
-    std::vector<InputRect> regions{
-        barContentInputRegion(instance.barConfig, m_config->config().shell.shadow, surfW, surfH)
-    };
-    if (auto panelRect = attachedPanelResizeTestRect(instance.barConfig, m_config->config().shell.shadow, surfW, surfH);
-        panelRect.has_value()) {
-      regions.push_back(*panelRect);
-    }
-    instance.surface->setInputRegion(regions);
-    return;
-  }
   if (instance.barConfig.autoHide) {
     const bool fullSurface = instance.pointerInside || instance.attachedPopupCount > 0 || instance.hideOpacity > 0.5f;
     instance.surface->setInputRegion(barAutoHideSurfaceInputRegion(instance.barConfig, surfW, surfH, fullSurface));
@@ -2195,26 +2155,6 @@ void Bar::buildScene(BarInstance& instance, std::uint32_t width, std::uint32_t h
     }
     // Note: shadow is inserted before bar sections so it renders below them (z=-1 is set below).
 
-    instance.attachedPanelResizeTestRect = static_cast<Box*>(instance.slideRoot->addChild(
-        ui::box({
-            .visible = false,
-            .participatesInLayout = false,
-            .configure = [](Box& panel) {
-              panel.setHitTestVisible(false);
-              panel.setStyle(
-                  RoundedRectStyle{
-                      .fill = rgba(0.10f, 0.68f, 1.0f, 0.72f),
-                      .border = rgba(1.0f, 1.0f, 1.0f, 0.92f),
-                      .fillMode = FillMode::Solid,
-                      .radius = 0.0f,
-                      .softness = 0.0f,
-                      .borderWidth = 2.0f,
-                  }
-              );
-            },
-        })
-    ));
-
     auto contentClip = std::make_unique<Node>();
     contentClip->setClipChildren(true);
     instance.contentClip = instance.slideRoot->addChild(std::move(contentClip));
@@ -2307,17 +2247,6 @@ void Bar::buildScene(BarInstance& instance, std::uint32_t width, std::uint32_t h
   }
 
   applyBarShadowStyle(instance, shadowConfig, w, h);
-
-  if (instance.attachedPanelResizeTestRect != nullptr) {
-    const auto rect = attachedPanelResizeTestRect(
-        instance.barConfig, shadowConfig, static_cast<int>(std::lround(w)), static_cast<int>(std::lround(h))
-    );
-    instance.attachedPanelResizeTestRect->setVisible(instance.attachedPanelResizeTestOpen && rect.has_value());
-    if (rect.has_value()) {
-      instance.attachedPanelResizeTestRect->setPosition(static_cast<float>(rect->x), static_cast<float>(rect->y));
-      instance.attachedPanelResizeTestRect->setSize(static_cast<float>(rect->width), static_cast<float>(rect->height));
-    }
-  }
 
   layoutBarSections(instance, *renderer, barAreaW, barAreaH, padding, isVertical);
 
@@ -2807,17 +2736,6 @@ namespace {
     return std::nullopt;
   }
 
-  [[nodiscard]] std::optional<std::uint32_t> parseAttachedPanelResizeTestSize(std::string_view value) {
-    std::uint32_t parsed = 0;
-    const char* begin = value.data();
-    const char* end = begin + value.size();
-    const auto [ptr, ec] = std::from_chars(begin, end, parsed);
-    if (ec != std::errc{} || ptr != end || parsed == 0 || parsed > kAttachedPanelResizeTestMaxExtent) {
-      return std::nullopt;
-    }
-    return parsed;
-  }
-
 } // namespace
 
 std::string Bar::showBarIpc(std::string_view args) {
@@ -3011,162 +2929,6 @@ std::string Bar::setBarAutoHideIpc(std::string_view args) {
   return "ok\n";
 }
 
-std::uint32_t Bar::attachedPanelResizeTestMaxExtent(const BarInstance& instance) const {
-  if (m_config == nullptr) {
-    return 0;
-  }
-
-  const auto base = computeBarSurfaceSpec(instance.barConfig, m_config->config().shell.shadow);
-  const bool isVertical = (instance.barConfig.position == "left" || instance.barConfig.position == "right");
-  const std::uint32_t baseAxis = isVertical ? base.surfaceWidth : base.surfaceHeight;
-  std::uint32_t outputAxis = 0;
-  if (m_platform != nullptr) {
-    const auto& outputs = m_platform->outputs();
-    const auto it = std::ranges::find_if(outputs, [&instance](const WaylandOutput& output) {
-      return output.output == instance.output;
-    });
-    if (it != outputs.end()) {
-      const auto logicalAxis = isVertical ? it->logicalWidth : it->logicalHeight;
-      if (logicalAxis > 0) {
-        outputAxis = static_cast<std::uint32_t>(logicalAxis);
-      }
-    }
-  }
-  if (outputAxis <= baseAxis) {
-    return kAttachedPanelResizeTestMaxExtent;
-  }
-  return std::min(kAttachedPanelResizeTestMaxExtent, outputAxis - baseAxis);
-}
-
-void Bar::setAttachedPanelResizeTestOpen(BarInstance& instance, bool open, std::uint32_t extent) {
-  if (m_config == nullptr || instance.surface == nullptr) {
-    return;
-  }
-
-  instance.animations.cancelForOwner(&instance.attachedPanelResizeTestOpen);
-  instance.attachedPanelResizeTestOpen = open;
-  instance.attachedPanelResizeTestExtent = open ? extent : 0;
-
-  const auto base = computeBarSurfaceSpec(instance.barConfig, m_config->config().shell.shadow);
-  const bool isVertical = (instance.barConfig.position == "left" || instance.barConfig.position == "right");
-  std::uint32_t targetWidth = base.surfaceWidth;
-  std::uint32_t targetHeight = base.surfaceHeight;
-  if (open) {
-    if (isVertical) {
-      targetWidth += extent;
-    } else {
-      targetHeight += extent;
-    }
-  }
-
-  instance.surface->requestSize(targetWidth, targetHeight);
-  syncBarAutoHideInputRegion(instance);
-  syncBarSurfaceChrome(instance);
-  instance.surface->requestLayout();
-  instance.surface->requestRedraw();
-}
-
-std::string Bar::attachedPanelResizeTestIpc(std::string_view args) {
-  if (m_config == nullptr) {
-    return "error: config service not initialized\n";
-  }
-
-  auto parts = StringUtils::splitWhitespace(StringUtils::trim(args));
-  if (parts.empty()) {
-    return "error: usage: bar-attached-resize-test <open|close|cycle> [bar-name] [monitor-selector] [size=<px>]\n";
-  }
-
-  std::uint32_t extent = kAttachedPanelResizeTestDefaultExtent;
-  bool explicitSize = false;
-  if (parts.back().starts_with("size=")) {
-    explicitSize = true;
-    const std::string_view rawSize(parts.back().data() + 5, parts.back().size() - 5);
-    const auto parsed = parseAttachedPanelResizeTestSize(rawSize);
-    if (!parsed.has_value()) {
-      return "error: size must be an integer from 1 to 4096 pixels\n";
-    }
-    extent = *parsed;
-    parts.pop_back();
-  }
-
-  if (parts.empty() || parts.size() > 3) {
-    return "error: usage: bar-attached-resize-test <open|close|cycle> [bar-name] [monitor-selector] [size=<px>]\n";
-  }
-
-  const std::string action = parts[0];
-  if (action != "open" && action != "close" && action != "cycle") {
-    return "error: action must be one of: open, close, cycle\n";
-  }
-  if (action == "close" && explicitSize) {
-    return "error: size=<px> is only valid with open or cycle\n";
-  }
-
-  std::optional<std::string_view> barName;
-  std::optional<std::string_view> monitorSelector;
-  if (parts.size() >= 2) {
-    barName = parts[1];
-  }
-  if (parts.size() >= 3) {
-    monitorSelector = parts[2];
-  }
-
-  std::vector<BarInstance*> targets;
-  if (const auto collectError = collectBarIpcInstances(barName, monitorSelector, targets)) {
-    return *collectError;
-  }
-
-  if (action != "close") {
-    std::uint32_t maxExtent = kAttachedPanelResizeTestMaxExtent;
-    for (const BarInstance* instance : targets) {
-      if (instance == nullptr) {
-        continue;
-      }
-      maxExtent = std::min(maxExtent, attachedPanelResizeTestMaxExtent(*instance));
-    }
-    if (extent > maxExtent) {
-      return "error: size="
-          + std::to_string(extent)
-          + " exceeds available inner-axis space for at least one target (max "
-          + std::to_string(maxExtent)
-          + ")\n";
-    }
-  }
-
-  if (action == "close") {
-    for (BarInstance* instance : targets) {
-      if (instance != nullptr) {
-        setAttachedPanelResizeTestOpen(*instance, false, 0);
-      }
-    }
-    return "ok: attached panel resize test closed on " + std::to_string(targets.size()) + " bar instance(s)\n";
-  }
-
-  for (BarInstance* instance : targets) {
-    if (instance == nullptr) {
-      continue;
-    }
-    setAttachedPanelResizeTestOpen(*instance, true, extent);
-    if (action == "cycle") {
-      instance->animations.animateTimer(
-          0.0f, 1.0f, kAttachedPanelResizeTestCycleHoldMs, Easing::Linear, [](float) {},
-          [this, instance] { setAttachedPanelResizeTestOpen(*instance, false, 0); },
-          &instance->attachedPanelResizeTestOpen
-      );
-      if (instance->surface != nullptr) {
-        instance->surface->requestRedraw();
-      }
-    }
-  }
-
-  return "ok: attached panel resize test "
-      + action
-      + " on "
-      + std::to_string(targets.size())
-      + " bar instance(s), size="
-      + std::to_string(extent)
-      + "\n";
-}
-
 void Bar::registerIpc(IpcService& ipc) {
   ipc.registerHandler(
       "bar-show", [this](const std::string& args) -> std::string { return showBarIpc(args); },
@@ -3186,12 +2948,5 @@ void Bar::registerIpc(IpcService& ipc) {
   ipc.registerHandler(
       "bar-auto-hide-set", [this](const std::string& args) -> std::string { return setBarAutoHideIpc(args); },
       "bar-auto-hide-set <on|off|true|false|1|0> [bar-name] [monitor-selector]", "Set auto-hide state for a bar"
-  );
-
-  ipc.registerHandler(
-      "bar-attached-resize-test",
-      [this](const std::string& args) -> std::string { return attachedPanelResizeTestIpc(args); },
-      "bar-attached-resize-test <open|close|cycle> [bar-name] [monitor-selector] [size=<px>]",
-      "Exercise live bar-surface resize for attached-panel validation", IpcService::HandlerVisibility::Hidden
   );
 }
