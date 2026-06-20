@@ -10,8 +10,15 @@
 /// can anchor against the same reserved edge the compositor places the bar on.
 [[nodiscard]] inline std::int32_t
 reservedBarExclusiveZone(const BarConfig& barConfig, const ShellConfig::ShadowConfig& shadowConfig) {
-  const auto sb = shell::surface_shadow::bleed(barConfig.shadow, shadowConfig);
   const std::int32_t mEdge = barConfig.marginEdge;
+  // Auto-hide folds the edge margin into the surface as a gutter and sets the
+  // layer margin to 0, so the compositor adds no margin to the exclusive zone.
+  // The zone must then cover the full edge gap itself (thickness + edge margin);
+  // the edge-side shadow is allowed to bleed beyond, matching the layer-margin path.
+  if (barConfig.autoHide && mEdge > 0) {
+    return barConfig.thickness + mEdge;
+  }
+  const auto sb = shell::surface_shadow::bleed(barConfig.shadow, shadowConfig);
   if (barConfig.position == "bottom") {
     return barConfig.thickness + std::min(mEdge, sb.down);
   }
