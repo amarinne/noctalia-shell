@@ -376,11 +376,9 @@ std::unique_ptr<Widget> WidgetFactory::create(
       config.activeColor = wc->getColorSpec("active_color", config.activeColor, "widget." + name + ".active_color");
       config.inactiveColor =
           wc->getColorSpec("inactive_color", config.inactiveColor, "widget." + name + ".inactive_color");
-      config.micFilterRegex = wc->getString("mic_filter_regex", "");
-      config.camFilterRegex = wc->getString("cam_filter_regex", "");
     }
 
-    auto widget = std::make_unique<PrivacyWidget>(m_audio, std::move(config));
+    auto widget = std::make_unique<PrivacyWidget>(m_audio, &m_configService, config);
     widget->setContentScale(contentScale);
     return widget;
   }

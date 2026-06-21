@@ -1,5 +1,6 @@
 #include "shell/bar/widgets/privacy_widget.h"
 
+#include "config/config_service.h"
 #include "core/log.h"
 #include "i18n/i18n.h"
 #include "pipewire/pipewire_service.h"
@@ -53,10 +54,8 @@ namespace {
 
 } // namespace
 
-PrivacyWidget::PrivacyWidget(PipeWireService* pipewire, PrivacyWidgetConfig config)
-    : m_pipewire(pipewire), m_config(std::move(config)),
-      m_micFilter(compileFilter("mic_filter_regex", m_config.micFilterRegex)),
-      m_camFilter(compileFilter("cam_filter_regex", m_config.camFilterRegex)) {
+PrivacyWidget::PrivacyWidget(PipeWireService* pipewire, ConfigService* configService, PrivacyWidgetConfig config)
+    : m_pipewire(pipewire), m_configService(configService), m_config(config) {
   m_config.iconSpacing = std::clamp(m_config.iconSpacing, 0, 48);
 }
 
@@ -196,8 +195,25 @@ void PrivacyWidget::syncState() {
   requestRedraw();
 }
 
+void PrivacyWidget::refreshFilters() const {
+  const std::string micPattern =
+      m_configService != nullptr ? m_configService->config().shell.privacy.micFilterRegex : std::string{};
+  const std::string camPattern =
+      m_configService != nullptr ? m_configService->config().shell.privacy.camFilterRegex : std::string{};
+
+  if (micPattern != m_micFilterPattern) {
+    m_micFilterPattern = micPattern;
+    m_micFilter = compileFilter("shell.privacy.mic_filter_regex", m_micFilterPattern);
+  }
+  if (camPattern != m_camFilterPattern) {
+    m_camFilterPattern = camPattern;
+    m_camFilter = compileFilter("shell.privacy.cam_filter_regex", m_camFilterPattern);
+  }
+}
+
 PrivacyWidget::Snapshot PrivacyWidget::snapshot() const {
   Snapshot out;
+  refreshFilters();
 
   if (m_pipewire != nullptr) {
     const PrivacyState& state = m_pipewire->privacyState();

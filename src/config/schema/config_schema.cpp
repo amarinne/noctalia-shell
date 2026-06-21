@@ -1175,6 +1175,14 @@ namespace noctalia::config::schema {
       return s;
     }
 
+    const Schema<ShellConfig::PrivacyConfig>& shellPrivacySchema() {
+      static const Schema<ShellConfig::PrivacyConfig> s = {
+          field(&ShellConfig::PrivacyConfig::micFilterRegex, "mic_filter_regex"),
+          field(&ShellConfig::PrivacyConfig::camFilterRegex, "cam_filter_regex"),
+      };
+      return s;
+    }
+
     // command/label/glyph are stored trimmed-or-nullopt but always emitted (value_or("")).
     Field<SessionPanelActionConfig>
     sessionOptionalString(std::optional<std::string> SessionPanelActionConfig::* member, std::string_view key) {
@@ -1291,6 +1299,7 @@ namespace noctalia::config::schema {
         subTable(&ShellConfig::screenCorners, "screen_corners", shellScreenCornersSchema()),
         subTable(&ShellConfig::mpris, "mpris", shellMprisSchema()),
         subTable(&ShellConfig::screenshot, "screenshot", shellScreenshotSchema()),
+        subTable(&ShellConfig::privacy, "privacy", shellPrivacySchema()),
         subTable(&ShellConfig::session, "session", shellSessionSchema()),
     };
     return s;

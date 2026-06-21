@@ -843,6 +843,13 @@ struct ShellConfig {
     bool operator==(const ScreenshotConfig&) const = default;
   };
 
+  struct PrivacyConfig {
+    std::string micFilterRegex;
+    std::string camFilterRegex;
+
+    bool operator==(const PrivacyConfig&) const = default;
+  };
+
   float uiScale = 1.0f;
   float cornerRadiusScale = 1.0f;
   std::string fontFamily = "sans-serif";
@@ -880,6 +887,7 @@ struct ShellConfig {
   ScreenCornersConfig screenCorners;
   MprisConfig mpris;
   ScreenshotConfig screenshot;
+  PrivacyConfig privacy;
   ShellSessionConfig session;
 
   bool operator==(const ShellConfig&) const = default;

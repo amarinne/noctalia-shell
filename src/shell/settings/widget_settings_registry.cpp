@@ -756,8 +756,6 @@ namespace settings {
       add(intSpec("icon_spacing", 4, 0.0, 48.0, 1.0));
       add(colorSpec("active_color", "primary"));
       add(colorSpec("inactive_color", "outline"));
-      add(stringSpec("mic_filter_regex"));
-      add(stringSpec("cam_filter_regex"));
     } else if (type == "session") {
       add(glyphSpec("glyph", "shutdown"));
     } else if (type == "settings") {

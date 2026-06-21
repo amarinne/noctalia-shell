@@ -2319,6 +2319,14 @@
           "description": "Enable the built-in authentication agent",
           "label": "Polkit Agent"
         },
+        "privacy-cam-filter-regex": {
+          "description": "Regex for camera apps to ignore in privacy indicators and OSDs",
+          "label": "Camera Filter Regex"
+        },
+        "privacy-mic-filter-regex": {
+          "description": "Regex for microphone apps to ignore in privacy indicators and OSDs",
+          "label": "Microphone Filter Regex"
+        },
         "screen-time-enabled": {
           "description": "Track per-app usage and show it in Control Center",
           "label": "Screen Time"

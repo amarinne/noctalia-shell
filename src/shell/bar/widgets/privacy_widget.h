@@ -10,6 +10,7 @@
 #include <vector>
 
 class Glyph;
+class ConfigService;
 class InputArea;
 class PipeWireService;
 class Renderer;
@@ -19,13 +20,11 @@ struct PrivacyWidgetConfig {
   int iconSpacing = 4;
   ColorSpec activeColor = colorSpecFromRole(ColorRole::Primary);
   ColorSpec inactiveColor = colorSpecFromRole(ColorRole::Outline);
-  std::string micFilterRegex;
-  std::string camFilterRegex;
 };
 
 class PrivacyWidget : public Widget {
 public:
-  PrivacyWidget(PipeWireService* pipewire, PrivacyWidgetConfig config);
+  PrivacyWidget(PipeWireService* pipewire, ConfigService* configService, PrivacyWidgetConfig config);
 
   void create() override;
 
@@ -48,14 +47,18 @@ private:
   void doLayout(Renderer& renderer, float containerWidth, float containerHeight) override;
   void doUpdate(Renderer& renderer) override;
   void syncState();
+  void refreshFilters() const;
   [[nodiscard]] Snapshot snapshot() const;
   [[nodiscard]] std::vector<TooltipRow> buildTooltipRows() const;
   [[nodiscard]] bool matchesFilter(const std::optional<std::regex>& filter, const std::string& value) const;
 
   PipeWireService* m_pipewire = nullptr;
+  ConfigService* m_configService = nullptr;
   PrivacyWidgetConfig m_config;
-  std::optional<std::regex> m_micFilter;
-  std::optional<std::regex> m_camFilter;
+  mutable std::string m_micFilterPattern;
+  mutable std::string m_camFilterPattern;
+  mutable std::optional<std::regex> m_micFilter;
+  mutable std::optional<std::regex> m_camFilter;
 
   InputArea* m_area = nullptr;
   Glyph* m_micGlyph = nullptr;

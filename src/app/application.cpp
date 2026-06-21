@@ -1724,6 +1724,16 @@ void Application::initUi() {
   m_keyboardLayoutOsd.prime(m_compositorPlatform);
   m_mediaOsd.bindOverlay(m_osdOverlay);
   m_privacyOsd.bindOverlay(m_osdOverlay);
+  m_privacyOsd.configure(m_configService.config());
+  m_configService.addReloadCallback(
+      [this]() {
+        if (m_configService.lastChange().shell) {
+          m_privacyOsd.onConfigReload(m_configService.config(), m_pipewireService.get());
+          m_bar.refresh();
+        }
+      },
+      "privacy-filters"
+  );
   m_screenCorners.initialize(m_wayland, &m_configService, &m_renderContext);
   m_screenCorners.onConfigReload();
 
