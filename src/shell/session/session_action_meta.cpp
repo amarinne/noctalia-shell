@@ -100,9 +100,6 @@ namespace session_action {
       if (row.action != action) {
         continue;
       }
-      if (!row.enabled) {
-        return std::nullopt;
-      }
       return row;
     }
     return defaultBuiltinAction(action);
