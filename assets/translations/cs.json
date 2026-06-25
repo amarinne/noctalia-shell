@@ -29,12 +29,20 @@
   "bar": {
     "screenshot": {
       "choose-display": "Vyberte displej",
+      "confirm-region": "Enter nebo Space pro zachycení · Esc pro zrušení · označit tažením",
       "fullscreen": "Celá obrazovka",
       "region": "Vybrat oblast"
     },
     "widgets": {
       "active-window": {
         "no-active-window": "Žádné aktivní okno"
+      },
+      "bluetooth": {
+        "connected": "Připojeno"
+      },
+      "brightness": {
+        "brightness": "Jas",
+        "display": "Displej"
       },
       "lock-keys": {
         "caps": "Caps",
@@ -49,7 +57,27 @@
         "playing": "Přehrává se"
       },
       "network": {
-        "wired": "Drátové"
+        "active": "Aktivní",
+        "connected": "Připojeno",
+        "connecting": "Připojování",
+        "download": "Stahování",
+        "interface": "Rozhraní",
+        "ip": "IP",
+        "network": "Síť",
+        "networks": "Sítě",
+        "networks-count": "{count} síť",
+        "networks-count-plural": "{count} sítí",
+        "no": "Ne",
+        "not-connected": "Nepřipojeno",
+        "off": "Vypnuto",
+        "on": "Zapnuto",
+        "scanning": "Skenování",
+        "signal": "Signál",
+        "upload": "Nahrávání",
+        "vpn": "VPN",
+        "wifi": "Wi-Fi",
+        "wired": "Drátové",
+        "yes": "Ano"
       },
       "privacy": {
         "camera": "Kamera",
@@ -59,6 +87,24 @@
       "scripted": {
         "reload-failed": "Znovunačtení skriptu selhalo",
         "reloaded": "Skript znovu načten"
+      },
+      "sysmon": {
+        "cpu": "CPU",
+        "cpu-temp": "Teplota CPU",
+        "disk": "Disk",
+        "download": "Stahování",
+        "gpu-temp": "Teplota GPU",
+        "gpu-usage": "Využití GPU",
+        "gpu-vram": "GPU VRAM",
+        "ram": "RAM",
+        "swap": "Swap",
+        "system": "Systém",
+        "upload": "Nahrávání"
+      },
+      "volume": {
+        "device": "Zařízení",
+        "mic": "Mikrofon",
+        "volume": "Hlasitost"
       },
       "weather": {
         "default": "Počasí",
@@ -120,6 +166,7 @@
       "application-volumes": "Hlasitost aplikací",
       "choose-effects-profile": "Vyberte profil",
       "effects-profile": "Efekty",
+      "input-device-prefix": "Vstup:",
       "no-application-audio": "Žádný zvuk z aplikací",
       "no-application-audio-body": "Momentálně nejsou k dispozici žádné přehrávací streamy aplikací.",
       "no-input-devices": "Žádná vstupní zařízení",
@@ -128,6 +175,7 @@
       "no-output-devices": "Žádná výstupní zařízení",
       "no-output-devices-body": "Momentálně nejsou k dispozici žádné výstupní cíle přehrávání.",
       "no-output-selected": "Není vybráno žádné výstupní zařízení",
+      "output-device-prefix": "Výstup:",
       "unavailable-body": "PipeWire není aktivní.",
       "unavailable-title": "Zvuk není k dispozici"
     },
@@ -217,6 +265,9 @@
       "wired-connection": "Drátové připojení"
     },
     "notifications": {
+      "clear-all": "Smazat všechny oznámení",
+      "dnd-off": "Vypnout režim Nerušit",
+      "dnd-on": "Zapnout režim Nerušit",
       "empty-body": "Zde se zobrazí nedávná oznámení.",
       "empty-title": "Žádná oznámení",
       "filter": {
@@ -228,6 +279,17 @@
       "filter-empty-body": "Žádná oznámení neodpovídají tomuto filtru.",
       "filter-empty-title": "Nic zde není",
       "untitled": "Oznámení bez názvu"
+    },
+    "power": {
+      "battery": "Baterie",
+      "design-capacity": "Z originální kapacity",
+      "health": "Zdraví baterie",
+      "performance-inhibited": "Výkon nedostupný",
+      "peripherals": "Připojená zařízení",
+      "power-profile": "Profil výkonu",
+      "time-to-empty": "Zbývá {time}",
+      "time-to-full": "{time} do úplného nabití",
+      "unknown-device": "Neznámé zařízení"
     },
     "screen-time": {
       "disabled": "Sledování času u obrazovky je vypnuté. Povolte jej v Nastavení pro zaznamenávání použití aplikací.",
@@ -301,6 +363,7 @@
       "media": "Média",
       "network": "Síť",
       "notifications": "Oznámení",
+      "power": "Napájení",
       "screen-time": "Čas u obrazovky",
       "system": "Systém",
       "weather": "Počasí"
@@ -372,13 +435,18 @@
         "command": "Příkaz",
         "custom-color": "Vlastní…",
         "description": "Popis",
+        "display": "Zobrazení",
+        "display-gauge": "Gauge",
+        "display-graph": "Graf",
         "fade-when-idle": "Při nečinnosti ztlumit",
         "font-family": "Písmo",
         "font-family-default": "Výchozí systémové",
         "forecast-days": "Dny předpovědi",
         "format": "Formát",
+        "gauge-layout": "Rozložení Gauge",
         "glyph": "Symbol",
         "hide-when-no-media": "Skrýt, když se nic nepřehrává",
+        "highlight-color": "Barva zvýraznění",
         "horizontal": "Vodorovné",
         "hover-background": "Pozadí při najetí",
         "hover-foreground": "Popředí při najetí",
@@ -388,6 +456,7 @@
         "input-radius": "Zaoblení vstupu",
         "interface": "Rozhraní",
         "label": "Popisek",
+        "label-min-width": "Min. šířka popisu",
         "layout": "Rozvržení",
         "mirrored": "Zrcadlené",
         "opacity": "Průhlednost",
@@ -568,6 +637,8 @@
     },
     "internal": {
       "battery": "Baterie",
+      "battery-critical-body": "{device}: {percent}% – počítač se brzy vypne",
+      "battery-critical-title": "Baterie kriticky vybitá",
       "battery-device": "Zařízení na baterii",
       "battery-low-body": "{device}: zbývá {percent} %",
       "battery-low-title": "Nízký stav baterie",

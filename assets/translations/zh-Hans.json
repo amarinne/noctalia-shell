@@ -656,7 +656,12 @@
       "desktop-widgets-editor": "桌面小组件编辑器",
       "desktop-widgets-editor-enabled": "桌面小组件编辑器已开启。请切换到空的工作区查看编辑器图层。",
       "greeter-sync": "Noctalia Greeter",
+      "greeter-sync-pending": "正在等待管理员授权以写入 greeter 配置。",
+      "greeter-sync-pending-console": "正在等待管理员授权。请在 Noctalia 的 Polkit 提示、TTY 或控制台中确认，或手动运行 pkexec。",
+      "greeter-sync-pending-manual": "同步文件已就绪。请在终端运行：pkexec noctalia-greeter-apply-appearance \"$XDG_RUNTIME_DIR/noctalia-greeter-sync\" 或设置 shell.greeter_sync.privilege_command（例如 ghostty -e pkexec）后重新同步。",
       "greeter-sync-success": "外观已同步。更改将在下次登录时生效。",
+      "greeter-sync-timeout": "Greeter 同步仍在等待管理员授权。请检查 TTY 或控制台中的 Polkit 提示，在“安全”设置中启用 Polkit 代理，或手动运行 pkexec。",
+      "greeter-sync-timeout-manual": "Greeter 同步仍需要管理员授权。请在终端运行：pkexec noctalia-greeter-apply-appearance \"$XDG_RUNTIME_DIR/noctalia-greeter-sync\"",
       "keybind-app": "Noctalia",
       "keybind-invalid-modifier": "此快捷键仅接受不带修饰键的单键。",
       "keybind-invalid-printable": "字母、数字和符号键需要配合 Ctrl 或 Alt 等修饰键使用。",
@@ -668,6 +673,8 @@
       "lockscreen-widgets-editor-blocked-locked": "请在编辑锁屏小组件之前解锁会话。",
       "lockscreen-widgets-editor-enabled": "锁屏小组件编辑器已开启。请在预览层上排列小组件，随后锁定会话以验证布局。",
       "mpris-disabled": "MPRIS 已禁用",
+      "polkit-agent": "Polkit 代理",
+      "polkit-no-session": "Polkit 代理需要 logind、elogind 或 XDG_SESSION_ID。在仅使用 seatd 的环境中无法注册图形化认证提示。请使用终端 pkexec 完成 greeter 同步，或安装 elogind 以支持会话内认证。",
       "screen-time-reset": "屏幕使用时间",
       "screen-time-reset-success": "使用记录已清除。",
       "session-bus-unavailable": "会话总线不可用",
@@ -842,7 +849,7 @@
         "delete-confirm-title": "删除 \"{name}\"？",
         "label": "屏幕：{name}",
         "management": "屏幕设置",
-        "match-placeholder": "屏幕标识（如 \"DP-1\"）",
+        "match-placeholder": "屏幕标识（例如 \"DP-1\"）",
         "new": "新建屏幕设置",
         "rename": "重命名",
         "rename-save": "保存"
@@ -947,6 +954,8 @@
       "reset-page": "部分设置重置失败。",
       "support-report": "诊断报告保存失败。",
       "sync-greeter": "无法将外观同步至 Noctalia Greeter。",
+      "sync-greeter-timeout": "Greeter 同步仍在等待管理员授权。请检查 TTY 或控制台中的 Polkit 提示，在“安全”设置中启用 Polkit 代理，或手动运行 pkexec。",
+      "sync-greeter-timeout-manual": "Greeter 同步仍需要管理员授权。请在终端运行：pkexec noctalia-greeter-apply-appearance \"$XDG_RUNTIME_DIR/noctalia-greeter-sync\"",
       "widget": {
         "rename": "无法重命名此命名小组件。"
       },
@@ -1035,6 +1044,7 @@
         "osd": "OSD",
         "overview": "概览",
         "pinned-apps": "固定应用",
+        "polkit": "Polkit",
         "power": "电源",
         "privacy-security": "隐私与安全",
         "profile": "个人资料",
@@ -1249,7 +1259,7 @@
         },
         "placement": {
           "description": "将面板附着于状态栏，或在状态栏边缘附近浮动",
-          "label": "显示位置"
+          "label": "显示模式"
         },
         "position": {
           "description": "当面板浮动时的屏幕位置",
@@ -1780,6 +1790,14 @@
           "description": "向右移动焦点或选中项",
           "label": "向右导航"
         },
+        "tab-next": {
+          "description": "将焦点移动到下一个面板或控件组",
+          "label": "切换到下一个面板"
+        },
+        "tab-previous": {
+          "description": "将焦点移动到上一个面板或控件组",
+          "label": "切换到上一个面板"
+        },
         "up": {
           "description": "向上移动焦点或选中项",
           "label": "向上导航"
@@ -1970,23 +1988,27 @@
         },
         "placement-clipboard": {
           "description": "选择剪贴板是附着于状态栏，还是在指定屏幕位置浮动",
-          "label": "显示位置"
+          "label": "显示模式"
         },
         "placement-control-center": {
           "description": "选择控制中心是附着于状态栏，还是在指定屏幕位置浮动",
-          "label": "显示位置"
+          "label": "显示模式"
         },
         "placement-launcher": {
           "description": "选择启动器是附着于状态栏，还是在指定屏幕位置浮动",
-          "label": "显示位置"
+          "label": "显示模式"
+        },
+        "placement-polkit": {
+          "description": "选择 polkit 提示是附着于状态栏，还是在指定屏幕位置浮动",
+          "label": "显示模式"
         },
         "placement-session": {
           "description": "选择会话菜单是附着于状态栏，还是在指定屏幕位置浮动",
-          "label": "显示位置"
+          "label": "显示模式"
         },
         "placement-wallpaper": {
           "description": "选择壁纸选择器是附着于状态栏，还是在指定屏幕位置浮动",
-          "label": "显示位置"
+          "label": "显示模式"
         },
         "position-clipboard": {
           "description": "剪贴板在屏幕上浮动的位置；选择“跟随状态栏”可使其保持在状态栏附近",
@@ -1998,6 +2020,10 @@
         },
         "position-launcher": {
           "description": "启动器在屏幕上浮动的位置；选择“跟随状态栏”可使其保持在状态栏附近",
+          "label": "屏幕位置"
+        },
+        "position-polkit": {
+          "description": "polkit 提示在屏幕上浮动的位置；选择“跟随状态栏”可使其保持在状态栏附近",
           "label": "屏幕位置"
         },
         "position-session": {
@@ -2263,6 +2289,10 @@
         "date-format": {
           "description": "Shell UI 默认日期格式",
           "label": "日期格式"
+        },
+        "greeter-sync-privilege-command": {
+          "description": "用于替代 pkexec/run0 执行 greeter 同步。应用路径与暂存目录将自动追加。例如：ghostty -e pkexec",
+          "label": "Greeter 同步提权命令"
         },
         "launch-apps-as-systemd-services": {
           "description": "将应用程序作为独立的 systemd 服务启动，避免与 Noctalia 共享同一 cgroup",

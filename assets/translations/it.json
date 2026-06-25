@@ -1780,6 +1780,14 @@
           "description": "Sposta focus o selezione a destra",
           "label": "Naviga a destra"
         },
+        "tab-next": {
+          "description": "Sposta il focus sul riquadro o control group successivo",
+          "label": "Focus sul pannello successivo"
+        },
+        "tab-previous": {
+          "description": "Sposta il focus sul riquadro o control group precedente",
+          "label": "Focus sul pannello precedente"
+        },
         "up": {
           "description": "Sposta focus o selezione su di una riga",
           "label": "Naviga su"
@@ -1969,7 +1977,7 @@
           "label": "Apri vicino al click"
         },
         "placement-clipboard": {
-          "description": "Scegli se gli appunti si attaccano alla barra, fluttuano vicino a essa o si aprono centrati",
+          "description": "Scegli se il pannello appunti si attacca alla barra, fluttua vicino a essa o si apre centrato",
           "label": "Posizionamento"
         },
         "placement-control-center": {
@@ -2012,7 +2020,7 @@
           "description": "Proietta l'ombra globale della superficie dalle superfici pannello"
         },
         "transparency-mode": {
-          "description": "Stile vetro del pannello, incluse opacità dei pannelli flottanti/centrati e traslucenza delle schede",
+          "description": "Stile vetro del pannello, incluse opacità dei pannelli flottanti e traslucenza delle schede",
           "label": "Trasparenza"
         }
       },

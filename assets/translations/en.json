@@ -662,8 +662,6 @@
       "greeter-sync-success": "Appearance synced. Changes apply on the next login screen.",
       "greeter-sync-timeout": "Greeter sync is still waiting for administrator approval. Check a TTY or console for a polkit prompt, enable the polkit agent in Security settings, or run pkexec manually.",
       "greeter-sync-timeout-manual": "Greeter sync still needs administrator approval. Run in a terminal: pkexec noctalia-greeter-apply-appearance \"$XDG_RUNTIME_DIR/noctalia-greeter-sync\"",
-      "polkit-agent": "Polkit Agent",
-      "polkit-no-session": "Polkit agent needs logind, elogind, or XDG_SESSION_ID. On seatd-only setups it cannot register for graphical prompts. Use terminal pkexec for greeter sync, or install elogind for in-session authentication.",
       "keybind-app": "Noctalia",
       "keybind-invalid-modifier": "This shortcut accepts a single key without modifiers.",
       "keybind-invalid-printable": "Printable keys (letters, numbers, symbols) require a modifier such as Ctrl or Alt.",
@@ -675,6 +673,8 @@
       "lockscreen-widgets-editor-blocked-locked": "Unlock the session before editing lockscreen widgets.",
       "lockscreen-widgets-editor-enabled": "Lockscreen widget editor is on. Arrange widgets on the preview overlay, then lock the session to verify the layout.",
       "mpris-disabled": "MPRIS disabled",
+      "polkit-agent": "Polkit Agent",
+      "polkit-no-session": "Polkit agent needs logind, elogind, or XDG_SESSION_ID. On seatd-only setups it cannot register for graphical prompts. Use terminal pkexec for greeter sync, or install elogind for in-session authentication.",
       "screen-time-reset": "Screen Time",
       "screen-time-reset-success": "Usage history cleared.",
       "session-bus-unavailable": "Session bus unavailable",
@@ -1044,8 +1044,8 @@
         "osd": "OSD",
         "overview": "Overview",
         "pinned-apps": "Pinned Apps",
-        "power": "Power",
         "polkit": "Polkit",
+        "power": "Power",
         "privacy-security": "Privacy & Security",
         "profile": "Profile",
         "screen-corners": "Screen Corners",
@@ -1998,12 +1998,12 @@
           "description": "Choose whether the launcher attaches to the bar or floats at a chosen screen position",
           "label": "Placement"
         },
-        "placement-session": {
-          "description": "Choose whether the session menu attaches to the bar or floats at a chosen screen position",
-          "label": "Placement"
-        },
         "placement-polkit": {
           "description": "Choose whether the polkit prompt attaches to the bar or floats at a chosen screen position",
+          "label": "Placement"
+        },
+        "placement-session": {
+          "description": "Choose whether the session menu attaches to the bar or floats at a chosen screen position",
           "label": "Placement"
         },
         "placement-wallpaper": {
@@ -2022,12 +2022,12 @@
           "description": "Where the launcher floats on screen — Follow Bar keeps it near the bar",
           "label": "Position"
         },
-        "position-session": {
-          "description": "Where the session menu floats on screen — Follow Bar keeps it near the bar",
-          "label": "Position"
-        },
         "position-polkit": {
           "description": "Where the polkit prompt floats on screen — Follow Bar keeps it near the bar",
+          "label": "Position"
+        },
+        "position-session": {
+          "description": "Where the session menu floats on screen — Follow Bar keeps it near the bar",
           "label": "Position"
         },
         "position-wallpaper": {
@@ -2290,6 +2290,10 @@
           "description": "Default date format for shell UI without its own setting",
           "label": "Date Format"
         },
+        "greeter-sync-privilege-command": {
+          "description": "Replace pkexec/run0 for greeter Sync Now. The apply helper path and staging directory are appended automatically. Example: ghostty -e pkexec",
+          "label": "Greeter Sync Privilege Command"
+        },
         "launch-apps-as-systemd-services": {
           "description": "Launches applications in separate systemd services so they don't share Noctalia's cgroup",
           "label": "Launch Apps as systemd Services"
@@ -2399,12 +2403,8 @@
           "label": "Password Style"
         },
         "polkit-agent": {
-          "description": "Show polkit password prompts in Noctalia. Requires logind, elogind, or XDG_SESSION_ID; seatd alone is not enough.",
+          "description": "Enable the built-in authentication agent",
           "label": "Polkit Agent"
-        },
-        "greeter-sync-privilege-command": {
-          "description": "Replace pkexec/run0 for greeter Sync Now. The apply helper path and staging directory are appended automatically. Example: ghostty -e pkexec",
-          "label": "Greeter Sync Privilege Command"
         },
         "privacy-cam-filter-regex": {
           "description": "Regex for camera apps to ignore in privacy indicators and OSDs",
@@ -2463,7 +2463,7 @@
         },
         "sync-greeter": {
           "button": "Sync Now",
-          "description": "Copy the current wallpaper, colors, and session actions to Noctalia Greeter. Requires administrator approval through polkit. On seatd without logind, run the pkexec command shown in the notification.",
+          "description": "Copy the current wallpaper and colors to Noctalia Greeter (requires administrator approval)",
           "label": "Noctalia Greeter"
         },
         "telemetry": {
