@@ -369,7 +369,7 @@
       "weather": "Weather"
     },
     "weather": {
-      "configure-location": "Set [weather].address or enable auto_locate",
+      "configure-location": "Set your address or enable auto-locate",
       "data-unavailable": "Weather data unavailable",
       "details": {
         "elevation": "Elevation",
