@@ -14,6 +14,7 @@
 #include <cctype>
 #include <cmath>
 #include <linux/input-event-codes.h>
+#include <sstream>
 #include <utility>
 #include <wayland-client-protocol.h>
 
@@ -37,6 +38,36 @@ namespace {
   [[nodiscard]] bool isNumericLabel(std::string_view label) {
     return !label.empty()
         && std::ranges::all_of(label, [](char c) { return std::isdigit(static_cast<unsigned char>(c)); });
+  }
+
+  [[nodiscard]] std::string appInitial(std::string appId) {
+    if (appId.empty()) {
+      return {};
+    }
+
+    const auto stripSuffix = [](std::string& value, std::string_view suffix) {
+      if (value.size() >= suffix.size() && value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        value.resize(value.size() - suffix.size());
+      }
+    };
+
+    stripSuffix(appId, ".desktop");
+    if (const auto slash = appId.find_last_of('/'); slash != std::string::npos && slash + 1 < appId.size()) {
+      appId.erase(0, slash + 1);
+    }
+    if (const auto dot = appId.find_last_of('.'); dot != std::string::npos && dot + 1 < appId.size()) {
+      appId.erase(0, dot + 1);
+    }
+    if (const auto dash = appId.find_first_of("-_ "); dash != std::string::npos && dash > 0) {
+      appId.resize(dash);
+    }
+
+    for (const char c : appId) {
+      if (std::isalnum(static_cast<unsigned char>(c)) != 0) {
+        return std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+      }
+    }
+    return {};
   }
 } // namespace
 
@@ -113,6 +144,7 @@ void WorkspacesWidget::syncWidgetVisibility(bool showWidget) {
 
 void WorkspacesWidget::doUpdate(Renderer& renderer) {
   auto current = m_platform.workspaces(m_output);
+  auto currentAppsByWorkspace = m_platform.appIdsByWorkspace(m_output);
 
   if (!m_cachedState.empty() && !current.empty() && !std::ranges::any_of(current, [](const Workspace& ws) {
         return ws.active;
@@ -126,6 +158,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
   if (!showWidget) {
     if (!m_cachedState.empty() || !m_items.empty()) {
       m_cachedState.clear();
+      m_cachedAppsByWorkspace.clear();
       m_rebuildPending = true;
       if (root() != nullptr) {
         root()->markLayoutDirty();
@@ -140,6 +173,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
 
   bool structuralChange = current.size() != m_cachedState.size();
   bool activeChange = false;
+  bool appsChange = currentAppsByWorkspace != m_cachedAppsByWorkspace;
   if (!structuralChange) {
     for (std::size_t i = 0; i < current.size(); ++i) {
       const auto& a = current[i];
@@ -157,7 +191,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
     }
   }
 
-  if (!structuralChange && !activeChange) {
+  if (!structuralChange && !activeChange && !appsChange) {
     return;
   }
 
@@ -176,6 +210,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
         }
     );
   }
+  m_cachedAppsByWorkspace = std::move(currentAppsByWorkspace);
 
   if (structuralChange) {
     m_rebuildPending = true;
@@ -204,7 +239,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   std::vector<std::string> labels;
   labels.reserve(workspaces.size());
   for (std::size_t i = 0; i < workspaces.size(); ++i) {
-    labels.push_back(workspaceLabel(workspaces[i], i));
+    labels.push_back(workspaceAppsLabel(workspaces[i], i));
   }
 
   // Measure text and compute per-slot widths along the bar main axis.
@@ -221,7 +256,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   for (std::size_t i = 0; i < workspaces.size(); ++i) {
     auto& slot = slots[i];
     slot.label = labels[i];
-    slot.showLabel = shouldShowWorkspaceLabel(workspaces[i], labels[i]);
+    slot.showLabel = shouldShowWorkspaceLabel(workspaces[i], labels[i]) || isWorkspaceAppsLabel(workspaces[i], i, labels[i]);
 
     if (slot.showLabel) {
       const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, workspaces[i].active);
@@ -418,7 +453,7 @@ void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t in
 
   auto& item = m_items[index];
   const auto& workspace = m_cachedState[index];
-  const std::string label = workspaceLabel(workspace, index);
+  const std::string label = workspaceAppsLabel(workspace, index);
   const float labelFontSize = Style::fontSizeMini * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const float baseSize = std::round(pillHeight);
@@ -426,7 +461,7 @@ void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t in
   const FontWeight configuredFontWeight = labelFontWeight();
 
   item.label = label;
-  item.showLabel = shouldShowWorkspaceLabel(workspace, label);
+  item.showLabel = shouldShowWorkspaceLabel(workspace, label) || isWorkspaceAppsLabel(workspace, index, label);
 
   if (isWorkspaceHidden(workspace)) {
     item.inactiveWidth = 0.0f;
@@ -672,6 +707,60 @@ std::string WorkspacesWidget::workspaceLabel(const Workspace& workspace, std::si
     return label;
   }
   return {};
+}
+
+std::string WorkspacesWidget::workspaceKey(const Workspace& workspace, std::size_t displayIndex) const {
+  if (workspace.index > 0) {
+    return std::to_string(workspace.index);
+  }
+  if (const auto numericId = numericWorkspaceId(workspace); numericId.has_value()) {
+    return std::to_string(*numericId);
+  }
+  if (!workspace.id.empty()) {
+    return workspace.id;
+  }
+  if (!workspace.name.empty()) {
+    return workspace.name;
+  }
+  return std::to_string(displayIndex + 1);
+}
+
+std::string WorkspacesWidget::workspaceAppsLabel(const Workspace& workspace, std::size_t displayIndex) const {
+  const auto appsIt = m_cachedAppsByWorkspace.find(workspaceKey(workspace, displayIndex));
+  if (appsIt == m_cachedAppsByWorkspace.end() || appsIt->second.empty()) {
+    return workspaceLabel(workspace, displayIndex);
+  }
+
+  std::ostringstream label;
+  std::size_t shown = 0;
+  for (const auto& appId : appsIt->second) {
+    if (shown >= 4) {
+      label << '+';
+      break;
+    }
+    const std::string initial = appInitial(appId);
+    if (initial.empty()) {
+      continue;
+    }
+    if (shown > 0) {
+      label << ' ';
+    }
+    label << initial;
+    ++shown;
+  }
+
+  const std::string appsLabel = label.str();
+  return appsLabel.empty() ? workspaceLabel(workspace, displayIndex) : appsLabel;
+}
+
+bool WorkspacesWidget::isWorkspaceAppsLabel(const Workspace& workspace, std::size_t displayIndex,
+                                            std::string_view label) const {
+  const auto appsIt = m_cachedAppsByWorkspace.find(workspaceKey(workspace, displayIndex));
+  if (appsIt == m_cachedAppsByWorkspace.end() || appsIt->second.empty() || label.empty()) {
+    return false;
+  }
+
+  return label == workspaceAppsLabel(workspace, displayIndex);
 }
 
 std::optional<std::size_t> WorkspacesWidget::numericWorkspaceId(const Workspace& workspace) {

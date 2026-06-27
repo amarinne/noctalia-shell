@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 class Box;
@@ -59,6 +60,10 @@ private:
 
   [[nodiscard]] static std::optional<std::size_t> numericWorkspaceId(const Workspace& workspace);
   [[nodiscard]] std::string workspaceLabel(const Workspace& workspace, std::size_t displayIndex) const;
+  [[nodiscard]] std::string workspaceKey(const Workspace& workspace, std::size_t displayIndex) const;
+  [[nodiscard]] std::string workspaceAppsLabel(const Workspace& workspace, std::size_t displayIndex) const;
+  [[nodiscard]] bool isWorkspaceAppsLabel(const Workspace& workspace, std::size_t displayIndex,
+                                          std::string_view label) const;
   [[nodiscard]] bool shouldShowWorkspaceLabel(const Workspace& workspace, std::string_view label) const noexcept;
   [[nodiscard]] DisplayMode effectiveDisplayMode() const noexcept;
   [[nodiscard]] bool isWorkspaceHidden(const Workspace& workspace) const noexcept;
@@ -101,6 +106,7 @@ private:
   bool m_minimal = false;
   Node* m_container = nullptr;
   std::vector<Workspace> m_cachedState;
+  std::unordered_map<std::string, std::vector<std::string>> m_cachedAppsByWorkspace;
   std::vector<Item> m_items;
   bool m_rebuildPending = true;
   std::uint64_t m_textMetricsGeneration = 0;
