@@ -928,6 +928,7 @@ namespace ui {
 
     if (desired.type == "select") {
       auto* select = static_cast<Select*>(node);
+      const std::string* onChangeProp = strProp(desired, "onChange");
       if (const std::vector<std::string>* options = strArrayProp(desired, "options")) {
         select->setOptions(*options);
         slot.lastScalar.reset(); // re-apply the selection against the new option set
@@ -935,7 +936,7 @@ namespace ui {
       if (const double* index = numProp(desired, "selectedIndex")) {
         if (!slot.lastScalar.has_value() || *slot.lastScalar != *index) {
           slot.lastScalar = *index;
-          select->setSelectedIndex(static_cast<std::size_t>(std::max(0.0, *index)));
+          select->setSelectedIndexSilently(static_cast<std::size_t>(std::max(0.0, *index)));
         }
       }
       if (const bool* enabled = boolProp(desired, "enabled")) {
@@ -944,9 +945,8 @@ namespace ui {
       if (const std::string* placeholder = strProp(desired, "placeholder")) {
         select->setPlaceholder(*placeholder);
       }
-      if (const std::string* onChange = strProp(desired, "onChange");
-          onChange != nullptr && *onChange != slot.callbackName) {
-        slot.callbackName = *onChange;
+      if (onChangeProp != nullptr && *onChangeProp != slot.callbackName) {
+        slot.callbackName = *onChangeProp;
         select->setOnSelectionChanged([this, name = slot.callbackName](std::size_t idx, std::string_view text) {
           if (m_sink) {
             m_sink(ControlCallback{name, std::format("{}", idx), std::string(text)});

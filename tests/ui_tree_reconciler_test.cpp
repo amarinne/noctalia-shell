@@ -29,13 +29,15 @@ namespace {
   // by image/graph nodes, which this test does not exercise.
   class StubRenderer : public Renderer {
   public:
-    TextMetrics measureText(std::string_view text, float fontSize, FontWeight, float, int, TextAlign,
-                            std::string_view, TextEllipsize) override {
+    TextMetrics measureText(
+        std::string_view text, float fontSize, FontWeight, float, int, TextAlign, std::string_view, TextEllipsize
+    ) override {
       return TextMetrics{.width = static_cast<float>(text.size()) * fontSize * 0.5f, .bottom = fontSize};
     }
     TextMetrics measureFont(float fontSize, FontWeight) override { return TextMetrics{.bottom = fontSize}; }
-    void measureTextCursorStops(std::string_view, float, const std::vector<std::size_t>&, std::vector<float>&,
-                                FontWeight) override {}
+    void measureTextCursorStops(
+        std::string_view, float, const std::vector<std::size_t>&, std::vector<float>&, FontWeight
+    ) override {}
     TextMetrics measureGlyph(char32_t, float fontSize) override {
       return TextMetrics{.width = fontSize, .bottom = fontSize};
     }
@@ -137,9 +139,11 @@ int main() {
     std::swap(tree.children[0], tree.children[1]);
     ok = expect(reconciler.reconcile(host, tree, renderer), "reorder reports structure change") && ok;
     if (row != nullptr) {
-      ok = expect(row->children()[0].get() == second && row->children()[1].get() == first,
-                  "keyed children reuse instances across reorder") &&
-           ok;
+      ok = expect(
+               row->children()[0].get() == second && row->children()[1].get() == first,
+               "keyed children reuse instances across reorder"
+           )
+          && ok;
     }
   }
 
@@ -268,9 +272,59 @@ int main() {
       auto* sld = dynamic_cast<Slider*>(column->children()[1].get());
       ok = expect(sld != nullptr && sld->value() == 3.0 && sld->maxValue() == 10.0, "slider range+value applied") && ok;
       auto* sel = dynamic_cast<Select*>(column->children()[2].get());
-      ok = expect(sel != nullptr && sel->selectedIndex() == 2 && sel->selectedText() == "blue",
-                  "select options+index applied") &&
-           ok;
+      ok = expect(
+               sel != nullptr && sel->selectedIndex() == 2 && sel->selectedText() == "blue",
+               "select options+index applied"
+           )
+          && ok;
+    }
+  }
+
+  // Select callbacks report the host's 0-based option index and selected text.
+  {
+    ui::UiTreeReconciler reconciler;
+    Flex host;
+    std::string callbackName;
+    std::string callbackIndex;
+    std::string callbackText;
+    reconciler.setCallbackSink([&](const ui::UiTreeReconciler::ControlCallback& cb) {
+      callbackName = cb.fn;
+      callbackIndex = cb.arg1;
+      callbackText = cb.arg2;
+    });
+
+    ui::UiTreeNode tree = makeNode("column");
+    ui::UiTreeNode select = makeNode("select");
+    select.key = "target";
+    select.props.emplace("options", std::vector<std::string>{"All outputs", "DP-1", "DP-2"});
+    select.props.emplace("selectedIndex", 0.0);
+    select.props.emplace("onChange", std::string("onOutputChange"));
+    tree.children.push_back(select);
+
+    (void)reconciler.reconcile(host, tree, renderer);
+    auto* column = dynamic_cast<Flex*>(host.children().front().get());
+    auto* sel = column != nullptr ? dynamic_cast<Select*>(column->children()[0].get()) : nullptr;
+    ok = expect(sel != nullptr, "select callback control built") && ok;
+    if (sel != nullptr) {
+      sel->setSelectedIndex(1);
+      ok = expect(callbackName == "onOutputChange", "select callback name fired") && ok;
+      ok = expect(callbackIndex == "1", "select callback reports selected index") && ok;
+      ok = expect(callbackText == "DP-1", "select callback reports selected text") && ok;
+
+      callbackName.clear();
+      callbackIndex.clear();
+      callbackText.clear();
+      tree.children[0].props["selectedIndex"] = 0.0;
+      (void)reconciler.reconcile(host, tree, renderer);
+      ok = expect(
+               sel->selectedIndex() == 0 && sel->selectedText() == "All outputs", "select controlled index re-applied"
+           )
+          && ok;
+      ok = expect(
+               callbackName.empty() && callbackIndex.empty() && callbackText.empty(),
+               "select controlled sync does not fire callback"
+           )
+          && ok;
     }
   }
 

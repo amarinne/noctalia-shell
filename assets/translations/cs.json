@@ -235,7 +235,6 @@
       "unknown": "neznámé",
       "uptime": "Doba běhu – {uptime}",
       "weather": {
-        "configure-location": "Přidejte [weather].address nebo povolte auto_locate.",
         "data-unavailable": "Údaje o počasí nejsou k dispozici.",
         "disabled": "Počasí je v konfiguraci vypnuto.",
         "fetching": "Načítání předpovědi…"
@@ -369,7 +368,6 @@
       "weather": "Počasí"
     },
     "weather": {
-      "configure-location": "Nastavte [weather].address nebo povolte auto_locate",
       "data-unavailable": "Údaje o počasí nejsou k dispozici",
       "details": {
         "elevation": "Nadmořská výška",
@@ -388,6 +386,8 @@
         "temperature": "10 / 4 °C"
       },
       "location-unavailable": "Poloha není k dispozici",
+      "no-location-body": "Claude responded: Přidej svou adresu nebo povol automatické určení polohy v nastavení Polohy.Přidej svou adresu nebo povol automatické určení polohy v nastavení Polohy.",
+      "no-location-title": "Žádná poloha nenastavena",
       "refreshing": "Obnovování počasí…",
       "waiting": "Čekání na údaje o počasí"
     }
@@ -706,6 +706,10 @@
       "num-on": "Num Lock zapnut",
       "scroll-off": "Scroll Lock vypnut",
       "scroll-on": "Scroll Lock zapnut"
+    },
+    "nightlight": {
+      "forced": "Vždy zapnuto",
+      "off": "Night Light vypnutý"
     },
     "wifi": {
       "off": "Wi‑Fi vypnuta",

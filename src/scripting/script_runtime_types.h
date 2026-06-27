@@ -55,6 +55,7 @@ namespace scripting {
     std::string glyph;
     std::string icon;
     std::string badge;
+    std::string category;
     std::string presentation;
     std::optional<std::string> query;
     double score = 0.0;

@@ -283,7 +283,10 @@ namespace {
   // launcher.setResults(query, results) — replaces this provider's result set.
   // `query` echoes the text passed to onQuery so late async results map back to the
   // right query. Each result is a table { id, title, subtitle?, glyph?, icon?,
-  // badge?, presentation?, score? }. An empty array clears the provider's results.
+  // badge?, category?, presentation?, score? }. `category` matches a label
+  // declared by a [[launcher_provider.category]] manifest entry, letting the
+  // launcher's category filter bar narrow this provider's results. An empty
+  // array clears the provider's results.
   int luau_launcher_setResults(lua_State* L) {
     size_t queryLen = 0;
     const char* query = luaL_checklstring(L, 1, &queryLen);
@@ -307,6 +310,7 @@ namespace {
         result.glyph = tableOptionalStringField(L, row, "glyph");
         result.icon = tableOptionalStringField(L, row, "icon");
         result.badge = tableOptionalStringField(L, row, "badge");
+        result.category = tableOptionalStringField(L, row, "category");
         result.presentation = tableOptionalStringField(L, row, "presentation");
         result.query = tableStringField(L, row, "query");
         lua_getfield(L, row, "score");

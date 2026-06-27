@@ -235,7 +235,6 @@
       "unknown": "ukjent",
       "uptime": "Oppetid - {uptime}",
       "weather": {
-        "configure-location": "Legg til [weather].address eller slå på auto_locate.",
         "data-unavailable": "Vẽrdata utilgjengeleg",
         "disabled": "Vêr er avslege i tilmåtinga.",
         "fetching": "Hentar varsel ..."
@@ -369,7 +368,6 @@
       "weather": "Vẽr"
     },
     "weather": {
-      "configure-location": "Set [weather].address eller slå på auto_locate",
       "data-unavailable": "Vêrdata utilgjengeleg",
       "details": {
         "elevation": "Høgd",

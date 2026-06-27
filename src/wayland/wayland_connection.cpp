@@ -749,27 +749,31 @@ void WaylandConnection::handleGlobal(
 
 void WaylandConnection::handleGlobalRemove(void* data, wl_registry* /*registry*/, std::uint32_t name) {
   auto* self = static_cast<WaylandConnection*>(data);
-  const auto sizeBefore = self->m_outputs.size();
-  std::erase_if(self->m_outputs, [self, name](const WaylandOutput& output) {
-    if (output.name != name) {
-      return false;
+  auto it = std::ranges::find_if(self->m_outputs, [name](const WaylandOutput& output) { return output.name == name; });
+  if (it == self->m_outputs.end()) {
+    return;
+  }
+
+  // Detach the entry from m_outputs before running any callbacks: m_outputRemovedCallback runs
+  // shell code that reads m_outputs (and may re-enter Wayland dispatch), so the container must be
+  // in a consistent state — never observed or mutated mid-removal.
+  WaylandOutput output = std::move(*it);
+  self->m_outputs.erase(it);
+
+  if (self->m_outputRemovedCallback && output.output != nullptr) {
+    self->m_outputRemovedCallback(output.output);
+  }
+  if (output.xdgOutput != nullptr) {
+    zxdg_output_v1_destroy(output.xdgOutput);
+  }
+  if (output.output != nullptr) {
+    if (wl_output_get_version(output.output) >= WL_OUTPUT_RELEASE_SINCE_VERSION) {
+      wl_output_release(output.output);
+    } else {
+      wl_output_destroy(output.output);
     }
-    if (self->m_outputRemovedCallback && output.output != nullptr) {
-      self->m_outputRemovedCallback(output.output);
-    }
-    if (output.xdgOutput != nullptr) {
-      zxdg_output_v1_destroy(output.xdgOutput);
-    }
-    if (output.output != nullptr) {
-      if (wl_output_get_version(output.output) >= WL_OUTPUT_RELEASE_SINCE_VERSION) {
-        wl_output_release(output.output);
-      } else {
-        wl_output_destroy(output.output);
-      }
-    }
-    return true;
-  });
-  if (self->m_outputs.size() != sizeBefore && self->m_outputChangeCallback) {
+  }
+  if (self->m_outputChangeCallback) {
     self->m_outputChangeCallback();
   }
 }
@@ -1052,13 +1056,15 @@ void WaylandConnection::bindGlobal(
         }
     );
     wl_output_add_listener(output, &kOutputListener, this);
-    if (m_outputAddedCallback) {
-      m_outputAddedCallback(output);
-    }
     if (m_xdgOutputManager != nullptr) {
       auto* xdgOut = zxdg_output_manager_v1_get_xdg_output(m_xdgOutputManager, output);
       m_outputs.back().xdgOutput = xdgOut;
       zxdg_output_v1_add_listener(xdgOut, &kXdgOutputListener, this);
+    }
+    // Notify the shell only after m_outputs is fully populated for this output: the callback runs
+    // shell code that may mutate m_outputs, which would invalidate the back() access above.
+    if (m_outputAddedCallback) {
+      m_outputAddedCallback(output);
     }
   }
 }

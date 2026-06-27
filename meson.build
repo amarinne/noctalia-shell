@@ -25,10 +25,10 @@ endif
 # pipewire_lsan.cpp is only needed when address sanitizer is active.
 sanitize = get_option('b_sanitize') != 'none'
 
-# Tests build by default for every non-release buildtype; release skips them
-# unless explicitly enabled (-Dtests=enabled).
+# Tests build by default only for unsanitized debug builds; all other build
+# types skip them unless explicitly enabled (-Dtests=enabled).
 tests_opt = get_option('tests')
-build_tests = tests_opt.enabled() or (tests_opt.auto() and get_option('buildtype') != 'release')
+build_tests = tests_opt.enabled() or (tests_opt.auto() and get_option('buildtype') == 'debug' and not sanitize)
 
 # ── Release-only optimizations ────────────────────────────────────────────────
 if get_option('buildtype') == 'release'
@@ -972,7 +972,10 @@ input_area_test = executable('input_area_test',
     'src/render/animation/motion_service.cpp',
     'src/core/ui_phase.cpp',
     'src/core/log.cpp',
-  ),
+  ) + _protocol_headers,
+  dependencies: [
+    wayland_client_dep,
+  ],
   include_directories: _noctalia_inc,
 )
 

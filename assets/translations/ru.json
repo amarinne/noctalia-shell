@@ -235,7 +235,6 @@
       "unknown": "неизвестный",
       "uptime": "Работает уже: {uptime}",
       "weather": {
-        "configure-location": "Добавьте [weather].address или включите auto_locate.",
         "data-unavailable": "Данные о погоде недоступны.",
         "disabled": "Погода отключена в конфигурации.",
         "fetching": "Получение прогноза..."
@@ -369,7 +368,6 @@
       "weather": "Погода"
     },
     "weather": {
-      "configure-location": "Укажите [weather].address или включите auto_locate",
       "data-unavailable": "Данные о погоде недоступны",
       "details": {
         "elevation": "Высота",
@@ -388,6 +386,7 @@
         "temperature": "10 / 4C"
       },
       "location-unavailable": "Местоположение недоступно",
+      "no-location-title": "Местоположение не задано",
       "refreshing": "Обновление погоды...",
       "waiting": "Ожидание данных о погоде"
     }
@@ -436,6 +435,7 @@
         "custom-color": "Пользовательский…",
         "description": "Описание",
         "display": "Дисплей",
+        "display-graph": "График",
         "fade-when-idle": "Затухание в режиме ожидания",
         "font-family": "Шрифт",
         "font-family-default": "По умолчанию",
@@ -624,6 +624,7 @@
     },
     "internal": {
       "battery": "Батарея",
+      "battery-critical-title": "Критически низкий заряд",
       "battery-device": "Аккумуляторное устройство",
       "battery-low-body": "{device}: осталось {percent}%",
       "battery-low-title": "Батарея разряжена",
@@ -1055,7 +1056,8 @@
     "notifications": {
       "filter": {
         "add": "Добавить фильтр",
-        "match-label": "Приложение"
+        "match-label": "Приложение",
+        "play-sound": "Воспроизвести звук"
       }
     },
     "options": {
@@ -1781,6 +1783,9 @@
         "daemon": {
           "description": "Включите встроенный демон уведомлений",
           "label": "Демон уведомлений"
+        },
+        "filters": {
+          "label": "Фильтры оповещений"
         },
         "layer": {
           "description": "Используйте \"Оверлей\", чтобы показывать всплывающие уведомления поверх полноэкранных приложений",

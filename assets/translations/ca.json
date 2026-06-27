@@ -187,7 +187,6 @@
       "unknown": "Desconegut",
       "uptime": "Temps actiu - {uptime}",
       "weather": {
-        "configure-location": "Afegeix [weather].address o activa auto_locate.",
         "data-unavailable": "Dades meteorològiques no disponibles.",
         "disabled": "El temps està desactivat a la configuració.",
         "fetching": "S'està obtenint la previsió..."
@@ -306,7 +305,6 @@
       "weather": "Temps"
     },
     "weather": {
-      "configure-location": "Configura [weather].address o activa auto_locate",
       "data-unavailable": "Dades meteorològiques no disponibles",
       "details": {
         "elevation": "Elevació",

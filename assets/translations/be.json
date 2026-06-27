@@ -235,7 +235,6 @@
       "unknown": "невядома",
       "uptime": "Час працы - {uptime}",
       "weather": {
-        "configure-location": "Дадайце [weather].address або ўключыце auto_locate.",
         "data-unavailable": "Дадзеныя аб надвор'і недаступныя.",
         "disabled": "Надвор'е выключана ў файле канфігурацыі.",
         "fetching": "Загрузка прагнозу..."
@@ -369,7 +368,6 @@
       "weather": "Надвор'е"
     },
     "weather": {
-      "configure-location": "Задайце [weather].address або ўключыце auto_locate.",
       "data-unavailable": "Дадзеныя аб надвор'і недаступныя",
       "details": {
         "elevation": "Уздым",

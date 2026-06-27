@@ -235,7 +235,6 @@
       "unknown": "未知",
       "uptime": "已运行 - {uptime}",
       "weather": {
-        "configure-location": "添加 [weather].address 或启用 auto_locate。",
         "data-unavailable": "天气数据不可用。",
         "disabled": "天气已在配置中禁用。",
         "fetching": "正在获取天气预报..."
@@ -369,7 +368,6 @@
       "weather": "天气"
     },
     "weather": {
-      "configure-location": "设置 [weather].address 或启用 auto_locate",
       "data-unavailable": "天气数据不可用",
       "details": {
         "elevation": "海拔",
@@ -388,6 +386,8 @@
         "temperature": "10°C / 4°C"
       },
       "location-unavailable": "位置不可用",
+      "no-location-body": "请填写地址或启用自动定位。",
+      "no-location-title": "未设置位置",
       "refreshing": "正在刷新天气...",
       "waiting": "正在等待天气数据"
     }
@@ -888,14 +888,14 @@
           "ungroup": "取消组合"
         },
         "inspector": {
-          "add-instance-title": "将新的 {widget} 命名小组件添加到{lane}",
+          "add-instance-title": "将新的 {widget} 具名小组件添加到{lane}",
           "add-title": "将小组件添加到{lane}",
           "move-to-lane": "移动至{lane}"
         },
         "instance": {
           "create-save": "创建",
           "delete": "删除",
-          "delete-confirm-desc": "命名小组件将从所有状态栏中移除，且不再保留其配置项。",
+          "delete-confirm-desc": "具名小组件将从所有状态栏中移除，且不再保留其配置项。",
           "delete-confirm-title": "删除 \"{name}\"？",
           "id-description": "仅限字母、数字、下划线或连字符；不能包含空格；必须唯一",
           "id-placeholder": "小组件 ID",
@@ -912,8 +912,8 @@
         },
         "picker": {
           "empty": "未找到小组件",
-          "instance-description": "类型为 \"{type}\" 的命名小组件",
-          "instance-toggle": "命名小组件",
+          "instance-description": "类型为 \"{type}\" 的具名小组件",
+          "instance-toggle": "具名小组件",
           "placeholder": "搜索小组件..."
         },
         "raw": {
@@ -957,7 +957,7 @@
       "sync-greeter-timeout": "Greeter 同步仍在等待管理员授权。请检查 TTY 或控制台中的 Polkit 提示，在“安全”设置中启用 Polkit 代理，或手动运行 pkexec。",
       "sync-greeter-timeout-manual": "Greeter 同步仍需要管理员授权。请在终端运行：pkexec noctalia-greeter-apply-appearance \"$XDG_RUNTIME_DIR/noctalia-greeter-sync\"",
       "widget": {
-        "rename": "无法重命名此命名小组件。"
+        "rename": "无法重命名此具名小组件。"
       },
       "write": "设置保存失败。"
     },
@@ -1072,6 +1072,7 @@
         "desktop": "桌面",
         "dock": "Dock",
         "hooks": "Hook",
+        "keybinds": "快捷键",
         "location": "位置",
         "niri": "Niri",
         "notifications": "通知",
@@ -1497,7 +1498,7 @@
           "label": "末端小组件"
         },
         "ends-margin": {
-          "description": "状态栏两端与屏幕边缘的距离"
+          "description": "状态栏两端与屏幕边缘之间的距离"
         },
         "font-family": {
           "description": "此状态栏上小组件的字体；留空则继承全局字体。单独设置的小组件字体将覆盖此项。",
@@ -1552,7 +1553,7 @@
           "label": "小组件图标颜色"
         },
         "widget-spacing": {
-          "description": "状态栏里小组件之间的间距",
+          "description": "状态栏小组件之间的间距",
           "label": "小组件间距"
         }
       },
@@ -1619,7 +1620,7 @@
           "description": "显示或隐藏 Dock"
         },
         "ends-margin": {
-          "description": "Dock 两端与屏幕边缘的距离"
+          "description": "Dock 两端与屏幕边缘之间的距离"
         },
         "icon-size": {
           "description": "Dock 图标大小（像素）",
@@ -1765,7 +1766,7 @@
       },
       "idle": {
         "behaviors": {
-          "description": "包含预设（锁定、关闭屏幕、挂起）或自定义命令的命名空闲行为，支持配置超时时间、恢复命令以及执行顺序",
+          "description": "包含预设（锁定、关闭屏幕、挂起）或自定义命令的具名空闲行为，支持配置超时时间、恢复命令以及执行顺序",
           "label": "行为"
         },
         "pre-action-fade": {
@@ -1775,7 +1776,7 @@
       },
       "keybinds": {
         "cancel": {
-          "description": "关闭弹窗、收起面板或中止当前操作",
+          "description": "关闭弹窗、收起面板或取消当前操作",
           "label": "取消"
         },
         "down": {
@@ -1791,12 +1792,12 @@
           "label": "向右导航"
         },
         "tab-next": {
-          "description": "将焦点移动到下一个面板或控件组",
-          "label": "切换到下一个面板"
+          "description": "将焦点移动到下一个控件",
+          "label": "向后切换"
         },
         "tab-previous": {
-          "description": "将焦点移动到上一个面板或控件组",
-          "label": "切换到上一个面板"
+          "description": "将焦点移动到上一个控件",
+          "label": "向前切换"
         },
         "up": {
           "description": "向上移动焦点或选中项",
@@ -2084,11 +2085,11 @@
           "label": "强制夜间模式"
         },
         "latitude": {
-          "description": "日出/日落时间表的手动纬度，在自动定位和地址解析关闭时使用",
+          "description": "用于日出/日落时间表的纬度，禁用自动定位且未设置地址时使用",
           "label": "纬度"
         },
         "location-address": {
-          "description": "用于定位的城市或地址，在自动定位关闭时使用",
+          "description": "用于定位的城市或地址，禁用自动定位时使用",
           "label": "地址",
           "placeholder": "城市, 国家"
         },
@@ -2097,7 +2098,7 @@
           "label": "自动定位（IP）"
         },
         "longitude": {
-          "description": "日出/日落计划的手动经度，当自动定位和地址解析关闭时使用",
+          "description": "用于日出/日落时间表的经度，禁用自动定位且未设置地址时使用",
           "label": "经度"
         },
         "minimum-brightness": {
@@ -2131,11 +2132,11 @@
           "label": "音效音量"
         },
         "sunrise": {
-          "description": "手动设置日出时间（HH:MM），在未设置位置时使用",
+          "description": "手动设置日出时间（HH:MM），未设置地址时使用",
           "label": "日出时间"
         },
         "sunset": {
-          "description": "手动设置日落时间（HH:MM），在未设置位置时使用",
+          "description": "手动设置日落时间（HH:MM），未设置地址时使用",
           "label": "日落时间"
         },
         "system-monitor": {
@@ -2458,7 +2459,7 @@
           "label": "保存到文件"
         },
         "show-location": {
-          "description": "在天气小组件中显示位置名称",
+          "description": "在天气小组件中显示位置",
           "label": "显示位置"
         },
         "sync-greeter": {
@@ -3079,7 +3080,7 @@
           "label": "提示格式"
         },
         "type": {
-          "description": "命名小组件的内置类型",
+          "description": "具名小组件的内置类型",
           "label": "类型"
         },
         "vertical-format": {

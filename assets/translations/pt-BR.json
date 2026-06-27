@@ -187,7 +187,6 @@
       "unknown": "desconhecido",
       "uptime": "Tempo Ativo - {uptime}",
       "weather": {
-        "configure-location": "Adicionar [weather].address ou habilitar auto_locate.",
         "data-unavailable": "Dados de clima indisponíveis",
         "disabled": "O clima está desabilitado nas configurações.",
         "fetching": "Buscando previsão..."
@@ -303,7 +302,6 @@
       "weather": "Clima"
     },
     "weather": {
-      "configure-location": "Definir [weather].address ou habilite auto_locate",
       "data-unavailable": "Dados de clima indisponíveis",
       "details": {
         "elevation": "Elevação",

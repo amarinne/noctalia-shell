@@ -232,7 +232,6 @@
       "unknown": "không xác định",
       "uptime": "Thời gian hoạt động - {uptime}",
       "weather": {
-        "configure-location": "Thêm [weather].address hoặc bật auto_locate.",
         "data-unavailable": "Không thể tải dữ liệu thời tiết.",
         "disabled": "Tính năng thời tiết đã bị vô hiệu hóa trong config.",
         "fetching": "Đang cập nhật dự báo thời tiết..."
@@ -359,7 +358,6 @@
       "weather": "Thời tiết"
     },
     "weather": {
-      "configure-location": "Thêm [weather].address hoặc bật auto_locate",
       "data-unavailable": "Không thể tải dữ liệu thời tiết",
       "details": {
         "elevation": "Độ cao",

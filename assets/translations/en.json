@@ -235,7 +235,6 @@
       "unknown": "unknown",
       "uptime": "Uptime - {uptime}",
       "weather": {
-        "configure-location": "Add [weather].address or enable auto_locate.",
         "data-unavailable": "Weather data unavailable.",
         "disabled": "Weather is disabled in config.",
         "fetching": "Fetching forecast..."
@@ -369,7 +368,6 @@
       "weather": "Weather"
     },
     "weather": {
-      "configure-location": "Set your address or enable auto-locate",
       "data-unavailable": "Weather data unavailable",
       "details": {
         "elevation": "Elevation",
@@ -388,6 +386,8 @@
         "temperature": "10 / 4C"
       },
       "location-unavailable": "Location unavailable",
+      "no-location-body": "Add your address or enable auto-locate in Location settings.",
+      "no-location-title": "No location set",
       "refreshing": "Refreshing weather...",
       "waiting": "Waiting for weather data"
     }
@@ -1488,7 +1488,7 @@
           "label": "Scroll Up"
         },
         "edge-margin": {
-          "description": "Distance from the nearest screen edge; positive values float the bar away from it"
+          "description": "Gap between the bar and the screen edge it sits on. Set to 0 px to sit flush against that edge."
         },
         "enabled": {
           "description": "Show or hide this bar"
@@ -1498,7 +1498,7 @@
           "label": "End Widgets"
         },
         "ends-margin": {
-          "description": "Inset from each end of the bar along its main axis"
+          "description": "Shortens the bar from both ends along its length. Set to 0 px for a full-width or full-height bar."
         },
         "font-family": {
           "description": "Typeface for this bar's widgets; leave empty to inherit the global font. Per-widget Font Family overrides this.",

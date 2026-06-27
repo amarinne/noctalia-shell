@@ -235,7 +235,6 @@
       "unknown": "ismeretlen",
       "uptime": "Rendszeridő - {uptime}",
       "weather": {
-        "configure-location": "Add meg a [weather].address értéket vagy engedélyezd az auto_locate beállítást",
         "data-unavailable": "Az időjárási adatok nem érhetők el.",
         "disabled": "Az időjárás le van tiltva a konfigurációban.",
         "fetching": "Előrejelzés lekérése…"
@@ -369,7 +368,6 @@
       "weather": "Időjárás"
     },
     "weather": {
-      "configure-location": "Állítsd be a [weather].address értéket vagy az auto_locate beállítást",
       "data-unavailable": "Az időjárási adatok nem érhetők el",
       "details": {
         "elevation": "Emelkedés",
@@ -388,6 +386,8 @@
         "temperature": "10 / 4C"
       },
       "location-unavailable": "A hely nem érhető el",
+      "no-location-body": "Add meg a címed, vagy engedélyezd az automatikus helymeghatározást a Hely menüpontban.",
+      "no-location-title": "Nincs megadva hely",
       "refreshing": "Időjárás frissítése…",
       "waiting": "Várakozás az időjárási adatokra"
     }
@@ -1062,6 +1062,7 @@
         "desktop": "Asztal",
         "dock": "Dokk",
         "hooks": "Eseményindítók",
+        "keybinds": "Billentyűkiosztás",
         "location": "Hely",
         "niri": "Niri",
         "notifications": "Értesítések",
@@ -1160,6 +1161,7 @@
         "bottom-center": "Alul középen",
         "bottom-left": "Bal alsó",
         "bottom-right": "Jobb Lent",
+        "center": "Közép",
         "center-left": "Közép bal",
         "center-right": "Középső Jobb",
         "top-center": "Felül középen",
@@ -1238,6 +1240,17 @@
       }
     },
     "plugins": {
+      "panels": {
+        "open-near-click": {
+          "label": "Megnyitás kattintás közelében"
+        },
+        "placement": {
+          "label": "Elhelyezés"
+        },
+        "position": {
+          "label": "Pozíció"
+        }
+      },
       "plugins": {
         "configure": "Beállítás",
         "deprecated": "elavult",
@@ -1498,6 +1511,9 @@
         "shadow": {
           "description": "A sávból vetíti a globális felületi árnyékot"
         },
+        "show-on-workspace-switch": {
+          "label": "Megjelenítés a munkaterület-váltáskor"
+        },
         "start-widgets": {
           "description": "Widgetek a sáv kezdő (bal/felső) oldalán",
           "label": "Indító Widgetek"
@@ -1757,6 +1773,14 @@
           "description": "Fókusz vagy kijelölés mozgatása jobbra",
           "label": "Navigálás jobbra"
         },
+        "tab-next": {
+          "description": "Fókusz áthelyezése a következő vezérlőre",
+          "label": "Fókusz következő"
+        },
+        "tab-previous": {
+          "description": "Fókusz áthelyezése a előző vezérlőre",
+          "label": "Fókusz előző"
+        },
         "up": {
           "description": "Fókusz vagy kijelölés mozgatása egy sorral feljebb",
           "label": "Fel"
@@ -1927,7 +1951,7 @@
         },
         "open-near-click-clipboard": {
           "description": "Helyezd el a vágólap panelt a sáv kattintásához közel, ahelyett, hogy a sáv mentén középre igazítanád",
-          "label": "Kattintás közeli megnyitás"
+          "label": "Megnyitás kattintás közelében"
         },
         "open-near-click-control-center": {
           "description": "Helyezd el a Vezérlőközpont panelt a sáv kattintásához közel, ahelyett, hogy a sáv mentén középre igazítanád",
@@ -1957,6 +1981,9 @@
           "description": "Válaszd ki, hogy az indító rögzüljön-e a sávhoz, lebegjen-e a közelében, vagy középen nyíljon meg",
           "label": "Elhelyezés"
         },
+        "placement-polkit": {
+          "label": "Elhelyezés"
+        },
         "placement-session": {
           "description": "Válaszd ki, hogy a munkamenet menü a sávhoz csatlakozzon, lebegjen mellette, vagy középen nyíljon meg",
           "label": "Elhelyezés"
@@ -1964,6 +1991,24 @@
         "placement-wallpaper": {
           "description": "Válaszd ki, hogy a háttérképválasztó a sávhoz rögzül-e, lebeg-e mellette, vagy középen nyílik meg",
           "label": "Elhelyezés"
+        },
+        "position-clipboard": {
+          "label": "Pozíció"
+        },
+        "position-control-center": {
+          "label": "Pozíció"
+        },
+        "position-launcher": {
+          "label": "Pozíció"
+        },
+        "position-polkit": {
+          "label": "Pozíció"
+        },
+        "position-session": {
+          "label": "Pozíció"
+        },
+        "position-wallpaper": {
+          "label": "Pozíció"
         },
         "shadow": {
           "description": "Vetítsd a globális felületi árnyékot a Panel felületeiről"
@@ -2518,6 +2563,8 @@
       "command-label": "Shell parancs",
       "command-placeholder": "Opcionális bash parancs, hagyd üresen a beépített viselkedéshez",
       "command-required-placeholder": "Futtatandó shell-parancs",
+      "countdown-seconds-description": "Indítás előtt várjon ennyi másodpercet. Az azonnali megerősítéshez nyomd meg újra a gombot. Egy időben 0 fut.",
+      "countdown-seconds-label": "Visszaszámlálás (másodperc)",
       "glyph-label": "Glifa",
       "glyph-picker-title": "Művelet szimbólum",
       "kind-section-label": "Viselkedés",
@@ -3115,6 +3162,7 @@
       "m3-rainbow": "M3 Szivárvány",
       "m3-tonal-spot": "M3 Tónusos Folt",
       "muted": "Némítva",
+      "soft": "Lágy",
       "vibrant": "Élénk"
     }
   },

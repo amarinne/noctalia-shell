@@ -162,7 +162,6 @@
       "unknown": "невідомо",
       "uptime": "Час роботи - {uptime}",
       "weather": {
-        "configure-location": "Додайте [weather].address або увімкніть auto_locate.",
         "data-unavailable": "Дані про погоду недоступні.",
         "disabled": "Погода вимкнена у конфігурації.",
         "fetching": "Отримання прогнозу..."
@@ -273,7 +272,6 @@
       "weather": "Погода"
     },
     "weather": {
-      "configure-location": "Встановіть [weather].address або увімкніть auto_locate",
       "data-unavailable": "Дані про погоду недоступні",
       "details": {
         "elevation": "Висота",

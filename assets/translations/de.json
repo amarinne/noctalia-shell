@@ -27,6 +27,7 @@
   "bar": {
     "screenshot": {
       "choose-display": "Anzeige auswählen",
+      "confirm-region": "Enter oder Leertaste zum aufnehmen - Esc zum abbrechen - oder Auswahl anpassen.",
       "fullscreen": "Vollbild",
       "region": "Region auswählen"
     },
@@ -189,7 +190,6 @@
       "unknown": "unbekannt",
       "uptime": "Betriebszeit - {uptime}",
       "weather": {
-        "configure-location": "Füge [weather].address hinzu oder aktiviere auto_locate.",
         "data-unavailable": "Wetterdaten nicht verfügbar.",
         "disabled": "Wetter ist in der config deaktiviert.",
         "fetching": "Wettervorhersage wird abgerufen..."
@@ -311,7 +311,6 @@
       "weather": "Wetter"
     },
     "weather": {
-      "configure-location": "Setze [weather].address oder aktiviere auto_locate",
       "data-unavailable": "Wetterdaten nicht verfügbar",
       "details": {
         "elevation": "Höhe",
@@ -2301,6 +2300,7 @@
       "command-label": "Shell-Befehl",
       "command-placeholder": "Optionaler Bash-Befehl, für das Standardverhalten leer lassen",
       "command-required-placeholder": "Shell-Befehl zum Ausführen",
+      "countdown-seconds-label": "Countdaow {secods}",
       "glyph-label": "Glyphe",
       "glyph-picker-title": "Aktionssymbol",
       "kind-section-label": "Verhalten",
@@ -2566,6 +2566,9 @@
         "icon-size": {
           "description": "Icon-Größe in Pixeln",
           "label": "Symbolgröße"
+        },
+        "icon-spacing": {
+          "label": "Icon Abstand"
         },
         "inactive-opacity": {
           "description": "Deckkraft der Symbole für inaktive (nicht fokussierte) Fenster.",
@@ -2850,11 +2853,13 @@
       "m3-rainbow": "M3 Regenbogen",
       "m3-tonal-spot": "M3 Tonal Spot",
       "muted": "Stumm",
+      "soft": "Weich",
       "vibrant": "Lebendig"
     }
   },
   "time": {
     "duration": {
+      "less-than-day": "Weniger als ein Tag",
       "less-than-minute": "1m"
     },
     "file": {

@@ -1285,7 +1285,8 @@ void HomeTab::sync(Renderer& renderer) {
     } else if (!m_weather->locationConfigured()) {
       m_weatherGlyph->setGlyph("weather-cloud");
       m_weatherGlyph->setColor(colorSpecFromRole(ColorRole::OnSurfaceVariant));
-      m_weatherLine->setText(i18n::tr("control-center.home.weather.configure-location"));
+      m_weatherLine->setText(i18n::tr("control-center.weather.no-location-title"));
+
     } else {
       const auto& snapshot = m_weather->snapshot();
       if (!snapshot.valid) {

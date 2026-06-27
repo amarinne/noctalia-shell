@@ -234,7 +234,6 @@
       "unknown": "inconnu",
       "uptime": "Allumé depuis : {uptime}",
       "weather": {
-        "configure-location": "Ajouter [weather].address ou activer la détection automatique de localisation.",
         "data-unavailable": "Données météo indisponibles.",
         "disabled": "La météo est désactivée dans la configuration.",
         "fetching": "Récupération des prévisions..."
@@ -368,7 +367,6 @@
       "weather": "Météo"
     },
     "weather": {
-      "configure-location": "Définir [weather].address ou activer la localisation automatique",
       "data-unavailable": "Données météo indisponibles.",
       "details": {
         "elevation": "Élevation",

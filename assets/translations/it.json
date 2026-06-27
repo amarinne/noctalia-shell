@@ -235,7 +235,6 @@
       "unknown": "sconosciuto",
       "uptime": "Tempo di attività - {uptime}",
       "weather": {
-        "configure-location": "Aggiungi [weather].address o abilita auto_locate.",
         "data-unavailable": "Dati meteo non disponibili.",
         "disabled": "Il meteo è disabilitato nella configurazione.",
         "fetching": "Recupero previsioni meteo..."
@@ -369,7 +368,6 @@
       "weather": "Meteo"
     },
     "weather": {
-      "configure-location": "Imposta [weather].address o abilita auto_locate",
       "data-unavailable": "Dati meteo non disponibili",
       "details": {
         "elevation": "Altitudine",

@@ -117,12 +117,16 @@ void Select::setOptions(std::vector<std::string> options) {
   markLayoutDirty();
 }
 
-void Select::setSelectedIndex(std::size_t index) {
+void Select::setSelectedIndex(std::size_t index) { setSelectedIndexInternal(index, true); }
+
+void Select::setSelectedIndexSilently(std::size_t index) { setSelectedIndexInternal(index, false); }
+
+void Select::setSelectedIndexInternal(std::size_t index, bool notify) {
   if (index >= m_options.size()) {
     return;
   }
   if (m_selectedIndex == index) {
-    if (m_notifyOnReselect && m_onSelectionChanged) {
+    if (notify && m_notifyOnReselect && m_onSelectionChanged) {
       m_onSelectionChanged(m_selectedIndex, selectedText());
     }
     return;
@@ -131,7 +135,7 @@ void Select::setSelectedIndex(std::size_t index) {
   syncTriggerText();
   applyVisualState();
   markLayoutDirty();
-  if (m_onSelectionChanged) {
+  if (notify && m_onSelectionChanged) {
     m_onSelectionChanged(m_selectedIndex, selectedText());
   }
 }
