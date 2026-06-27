@@ -64,6 +64,8 @@ class VirtualGridView : public Flex {
 public:
   VirtualGridView();
 
+  [[nodiscard]] InputArea* focusArea() const noexcept { return m_inputArea; }
+
   // Adapter is non-owning and must outlive the grid.
   void setAdapter(VirtualGridAdapter* adapter);
 

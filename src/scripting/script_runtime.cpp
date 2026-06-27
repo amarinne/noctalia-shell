@@ -128,6 +128,12 @@ namespace scripting {
         case ScriptSideEffectKind::SetWallpaperEnabled:
           api.invokeWallpaperEnabled(effect.title, effect.flag);
           break;
+        case ScriptSideEffectKind::SetWallpaper:
+          api.invokeSetWallpaper(effect.title, effect.body);
+          break;
+        case ScriptSideEffectKind::TogglePanel:
+          api.invokeTogglePanel(effect.title);
+          break;
         }
       }
     }

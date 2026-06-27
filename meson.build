@@ -372,6 +372,12 @@ _protocol_headers += _wlr_ls_h
 # ── Main sources ──────────────────────────────────────────────────────────────
 _noctalia_sources = files(
   'src/app/application.cpp',
+  'src/app/application_events.cpp',
+  'src/app/application_ipc.cpp',
+  'src/app/application_plugins.cpp',
+  'src/app/application_poll_sources.cpp',
+  'src/app/application_services.cpp',
+  'src/app/application_ui.cpp',
   'src/app/main_loop.cpp',
   'src/app/single_instance_lock.cpp',
   'src/auth/fingerprint_authenticator.cpp',

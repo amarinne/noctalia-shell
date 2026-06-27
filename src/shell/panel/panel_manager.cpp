@@ -3,6 +3,7 @@
 #include "compositors/compositor_platform.h"
 #include "config/config_service.h"
 #include "core/deferred_call.h"
+#include "core/key_modifiers.h"
 #include "core/keybind_matcher.h"
 #include "core/log.h"
 #include "core/ui_phase.h"
@@ -1549,7 +1550,17 @@ void PanelManager::onKeyboardEvent(const KeyboardEvent& event) {
     return;
   }
 
-  if (m_activePanel != nullptr
+  // A focused text input owns plain printable keys; the panel's global key
+  // handler must not claim them (Space is a Validate chord but must type a space).
+  const InputArea* const focusedArea = m_inputDispatcher.focusedArea();
+  const bool textInputFocused = focusedArea != nullptr && focusedArea->textInputClient() != nullptr;
+  const bool plainPrintableKey = event.utf32 >= 0x20U
+      && event.utf32 != 0x7FU
+      && (event.modifiers & (KeyMod::Ctrl | KeyMod::Alt | KeyMod::Super)) == 0;
+  const bool reserveForTextInput = event.pressed && !event.preedit && textInputFocused && plainPrintableKey;
+
+  if (!reserveForTextInput
+      && m_activePanel != nullptr
       && m_activePanel->handleGlobalKey(event.sym, event.modifiers, event.pressed, event.preedit)) {
     if (m_surface != nullptr && m_sceneRoot != nullptr && (m_sceneRoot->paintDirty() || m_sceneRoot->layoutDirty())) {
       if (m_sceneRoot->layoutDirty()) {

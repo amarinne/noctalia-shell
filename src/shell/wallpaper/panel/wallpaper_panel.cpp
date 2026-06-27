@@ -900,6 +900,20 @@ bool WallpaperPanel::handleGlobalKey(std::uint32_t sym, std::uint32_t modifiers,
 
   auto& dispatcher = PanelManager::instance().inputDispatcher();
   InputArea* focused = dispatcher.focusedArea();
+
+  if ((m_favoriteThemeSegmented != nullptr && focused == m_favoriteThemeSegmented->focusArea())
+      || (m_favoritePaletteSourceSegmented != nullptr && focused == m_favoritePaletteSourceSegmented->focusArea())) {
+    const bool moveIntoGrid = KeybindMatcher::matches(KeybindAction::Down, sym, modifiers)
+        || KeybindMatcher::matches(KeybindAction::TabNext, sym, modifiers);
+    if (moveIntoGrid && m_grid != nullptr && m_grid->focusArea() != nullptr) {
+      dispatcher.setFocus(m_grid->focusArea());
+      if (!hasVisibleSelection() && !m_visibleEntries.empty()) {
+        selectVisibleIndex(0);
+      }
+      return true;
+    }
+  }
+
   if (focused != nullptr && !isDescendantOf(focused, m_grid)) {
     return false;
   }

@@ -603,20 +603,57 @@ void Wallpaper::onSecondTick() {
   runAutomation(secondStamp);
 }
 
+bool Wallpaper::isConnectorKnown(std::string_view connector) const {
+  if (m_wayland == nullptr) {
+    return false;
+  }
+  return std::ranges::any_of(m_wayland->outputs(), [&](const WaylandOutput& out) {
+    return !out.connectorName.empty() && out.connectorName == connector;
+  });
+}
+
+void Wallpaper::applyResolvedWallpaper(const std::optional<std::string>& connector, const std::string& resolvedPath) {
+  if (connector.has_value()) {
+    m_config->setWallpaperPath(connector, resolvedPath);
+    return;
+  }
+
+  // Match wallpaper panel "All monitors": per-output overrides win over default in
+  // getWallpaperPath(), so set every connected output plus default or the image never updates.
+  ConfigService::WallpaperBatch batch(*m_config);
+  if (m_wayland != nullptr) {
+    for (const auto& out : m_wayland->outputs()) {
+      if (!out.connectorName.empty()) {
+        m_config->setWallpaperPath(out.connectorName, resolvedPath);
+      }
+    }
+  }
+  m_config->setWallpaperPath(std::nullopt, resolvedPath);
+}
+
+bool Wallpaper::applyWallpaperImage(const std::optional<std::string>& connector, const std::string& path) {
+  if (m_config == nullptr) {
+    return false;
+  }
+  if (connector.has_value() && !isConnectorKnown(*connector)) {
+    return false;
+  }
+  const auto resolved = resolveWallpaperPath(path);
+  if (!resolved.has_value()) {
+    return false;
+  }
+  applyResolvedWallpaper(connector, *resolved);
+  return true;
+}
+
 void Wallpaper::registerIpc(IpcService& ipc) {
   auto validateOutputConnector = [this](std::string_view outputConnector) -> std::string {
-    if (m_wayland == nullptr) {
-      return {};
-    }
-    const auto& outputs = m_wayland->outputs();
-    const bool found = std::ranges::any_of(outputs, [&](const WaylandOutput& out) {
-      return !out.connectorName.empty() && out.connectorName == outputConnector;
-    });
-    if (found) {
+    if (m_wayland == nullptr || isConnectorKnown(outputConnector)) {
       return {};
     }
 
     std::vector<std::string> known;
+    const auto& outputs = m_wayland->outputs();
     for (const auto& out : outputs) {
       if (!out.connectorName.empty()) {
         known.push_back(out.connectorName);
@@ -700,21 +737,8 @@ void Wallpaper::registerIpc(IpcService& ipc) {
           if (const std::string error = validateOutputConnector(*outputConnector); !error.empty()) {
             return error;
           }
-          m_config->setWallpaperPath(outputConnector, resolved);
-          return "ok\n";
         }
-
-        // Match wallpaper panel "All monitors": per-output overrides win over default in
-        // getWallpaperPath(), so set every connected output plus default or the image never updates.
-        ConfigService::WallpaperBatch batch(*m_config);
-        if (m_wayland != nullptr) {
-          for (const auto& out : m_wayland->outputs()) {
-            if (!out.connectorName.empty()) {
-              m_config->setWallpaperPath(out.connectorName, resolved);
-            }
-          }
-        }
-        m_config->setWallpaperPath(std::nullopt, resolved);
+        applyResolvedWallpaper(outputConnector, resolved);
         return "ok\n";
       },
       "wallpaper-set [<connector>] <path>", "Set wallpaper for all or a specific output (persisted)"

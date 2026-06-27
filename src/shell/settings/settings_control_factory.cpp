@@ -79,6 +79,18 @@ namespace settings {
       }
       return false;
     }
+
+    bool isDeadZoneCommandPath(const std::vector<std::string>& path) {
+      if (path.size() < 4 || path[0] != "bar" || path[path.size() - 2] != "dead_zone") {
+        return false;
+      }
+      const std::string& key = path.back();
+      return key == "command"
+          || key == "right_command"
+          || key == "middle_command"
+          || key == "scroll_up_command"
+          || key == "scroll_down_command";
+    }
   } // namespace
 
   SettingsControlFactory::SettingsControlFactory(SettingsContentContext ctx)
@@ -591,6 +603,12 @@ namespace settings {
         .onSubmit = [setOverride = ctx.setOverride, path](const std::string& v) { setOverride(path, v); },
         .submitOnFocusLoss = true,
     });
+    if (isDeadZoneCommandPath(path)) {
+      input->setOnChange([setOverride = ctx.setOverride, path](const std::string& v) { setOverride(path, v); });
+      // Live-commit dead-zone command edits so async rebuilds do not snap the field
+      // back to the last submitted value while the user is typing.
+      input->setSubmitOnFocusLoss(false);
+    }
     return input;
   }
 

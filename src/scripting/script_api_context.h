@@ -59,12 +59,35 @@ namespace scripting {
       }
     }
 
+    // Applies and persists a wallpaper image. Empty connector targets all outputs.
+    // Wired to Wallpaper in Application; invoked only on the main thread.
+    void setWallpaperHook(std::function<void(const std::string&, const std::string&)> hook) {
+      m_wallpaperHook = std::move(hook);
+    }
+
+    void invokeSetWallpaper(const std::string& connector, const std::string& path) const {
+      if (m_wallpaperHook) {
+        m_wallpaperHook(connector, path);
+      }
+    }
+
+    // Toggles a host panel by id. Wired to PanelManager in Application; main thread only.
+    void setTogglePanelHook(std::function<void(const std::string&)> hook) { m_togglePanelHook = std::move(hook); }
+
+    void invokeTogglePanel(const std::string& panelId) const {
+      if (m_togglePanelHook) {
+        m_togglePanelHook(panelId);
+      }
+    }
+
   private:
     std::atomic<bool> m_darkMode{true};
     mutable std::mutex m_mutex;
     std::string m_wallpaperDirectory;
     std::vector<ScriptOutputInfo> m_outputs;
     std::function<void(const std::string&, bool)> m_wallpaperEnabledHook;
+    std::function<void(const std::string&, const std::string&)> m_wallpaperHook;
+    std::function<void(const std::string&)> m_togglePanelHook;
   };
 
 } // namespace scripting

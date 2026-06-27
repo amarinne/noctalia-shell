@@ -44,6 +44,10 @@ public:
   void onSecondTick();
   void onGpuResourcesInvalidated();
   void registerIpc(IpcService& ipc);
+  // Apply and persist a wallpaper image. nullopt connector targets all connected
+  // outputs plus the default. Returns false if the path does not exist or the
+  // connector is unknown. Shared by the wallpaper-set IPC handler and plugin scripts.
+  bool applyWallpaperImage(const std::optional<std::string>& connector, const std::string& path);
   void setAutomationGate(std::function<bool()> gate);
   [[nodiscard]] bool ownsSurface(wl_surface* surface) const noexcept;
   bool onPointerEvent(const PointerEvent& event);
@@ -63,6 +67,10 @@ private:
     Redirected,
   };
 
+  [[nodiscard]] bool isConnectorKnown(std::string_view connector) const;
+  // Persist a resolved image path to a single connector, or to every connected
+  // output plus the default when no connector is given.
+  void applyResolvedWallpaper(const std::optional<std::string>& connector, const std::string& resolvedPath);
   void reload();
   void syncInstances();
   void applyStartupAutomation(std::int64_t secondStamp);

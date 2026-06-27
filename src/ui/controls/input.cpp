@@ -918,15 +918,17 @@ void Input::doLayout(Renderer& renderer) {
 void Input::handleKey(std::uint32_t sym, std::uint32_t utf32, std::uint32_t modifiers, bool preedit) {
   clampEditState();
 
-  if (m_onKeyEvent && m_onKeyEvent(sym, modifiers)) {
-    return;
-  }
-
   const bool validateMatch = g_validateKeyMatcher && g_validateKeyMatcher(sym, modifiers);
   const bool shift = (modifiers & KeyMod::Shift) != 0;
   const bool ctrl = (modifiers & KeyMod::Ctrl) != 0;
   const bool plainPrintableText =
       !preedit && utf32 >= 0x20U && utf32 != 0x7FU && (modifiers & (KeyMod::Ctrl | KeyMod::Alt | KeyMod::Super)) == 0;
+
+  // A printable key that doubles as a keybind chord (Space is bound to Validate)
+  // is text while the field is focused, not an activation to hand to the panel.
+  if (m_onKeyEvent && !(plainPrintableText && validateMatch) && m_onKeyEvent(sym, modifiers)) {
+    return;
+  }
   const bool undoShortcut = ctrl && !shift && (sym == 'z' || sym == 'Z');
   const bool redoShortcut = (ctrl && (sym == 'y' || sym == 'Y')) || (ctrl && shift && (sym == 'z' || sym == 'Z'));
   const bool clearShortcut = ctrl && !shift && (sym == 'u' || sym == 'U');

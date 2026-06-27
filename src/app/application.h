@@ -146,7 +146,22 @@ public:
 
 private:
   void initServices();
+  // Sub-phases of initServices(), called in order.
+  void initStyleThemeAndWayland();
+  void initWaylandCallbacks();
+  void initAuxServicesAndHooks();
+  void initSystemBusServices();
+  void initBrightnessAndPipewire();
+  void initSessionBusServices();
   void initUi();
+  // Sub-phases of initUi(), called in order.
+  void initUiRenderSurfacesAndSettings();
+  void initLockScreenAndSession();
+  void initInputDispatch();
+  void initPanelManagerAndPanels();
+  void initNotificationAndOsd();
+  void initBarDockAndLayout();
+  void initWidgetControllersAndCallbacks();
   void initIpc();
   // (Re)register plugin-backed launcher providers from the enabled plugin set.
   void reloadPluginLauncherProviders();

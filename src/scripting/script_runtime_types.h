@@ -133,6 +133,8 @@ namespace scripting {
     NotifyError,
     CopyToClipboard,
     SetWallpaperEnabled,
+    SetWallpaper,
+    TogglePanel,
   };
 
   struct ScriptSideEffect {
@@ -140,6 +142,8 @@ namespace scripting {
     std::string title;
     std::string body;
     // SetWallpaperEnabled: title holds the output connector, flag the enabled state.
+    // SetWallpaper: title holds the output connector (empty = all outputs), body the image path.
+    // TogglePanel: title holds the panel id ("author/plugin:panel").
     bool flag = false;
   };
 
