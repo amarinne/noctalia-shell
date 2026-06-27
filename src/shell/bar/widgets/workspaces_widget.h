@@ -3,6 +3,7 @@
 #include "compositors/compositor_platform.h"
 #include "render/animation/animation_manager.h"
 #include "shell/bar/widget.h"
+#include "system/icon_resolver.h"
 #include "ui/palette.h"
 
 #include <cstdint>
@@ -13,6 +14,8 @@
 #include <vector>
 
 class Box;
+class ConfigService;
+class Image;
 class InputArea;
 class Label;
 
@@ -38,7 +41,7 @@ public:
     bool minimal = false;
   };
 
-  WorkspacesWidget(CompositorPlatform& platform, wl_output* output, Options options);
+  WorkspacesWidget(CompositorPlatform& platform, ConfigService& configService, wl_output* output, Options options);
   ~WorkspacesWidget() override;
 
   void create() override;
@@ -61,9 +64,10 @@ private:
   [[nodiscard]] static std::optional<std::size_t> numericWorkspaceId(const Workspace& workspace);
   [[nodiscard]] std::string workspaceLabel(const Workspace& workspace, std::size_t displayIndex) const;
   [[nodiscard]] std::string workspaceKey(const Workspace& workspace, std::size_t displayIndex) const;
-  [[nodiscard]] std::string workspaceAppsLabel(const Workspace& workspace, std::size_t displayIndex) const;
-  [[nodiscard]] bool isWorkspaceAppsLabel(const Workspace& workspace, std::size_t displayIndex,
-                                          std::string_view label) const;
+  [[nodiscard]] std::vector<std::string> workspaceAppIcons(const Workspace& workspace, std::size_t displayIndex);
+  [[nodiscard]] bool hasWorkspaceApps(const Workspace& workspace, std::size_t displayIndex) const;
+  void buildDesktopIconIndex();
+  [[nodiscard]] std::string resolveAppIconPath(const std::string& appId);
   [[nodiscard]] bool shouldShowWorkspaceLabel(const Workspace& workspace, std::string_view label) const noexcept;
   [[nodiscard]] DisplayMode effectiveDisplayMode() const noexcept;
   [[nodiscard]] bool isWorkspaceHidden(const Workspace& workspace) const noexcept;
@@ -76,8 +80,11 @@ private:
     InputArea* area = nullptr;
     Box* indicator = nullptr;
     Label* text = nullptr;
+    std::vector<Image*> icons;
     std::string label;
+    std::vector<std::string> iconPaths;
     bool showLabel = false;
+    bool showIcons = false;
     bool active = false;
     float inactiveWidth = 0.0f;
     float activeWidth = 0.0f;
@@ -95,6 +102,7 @@ private:
   [[nodiscard]] static ColorSpec readableColorForFill(const ColorSpec& fill);
 
   CompositorPlatform& m_platform;
+  ConfigService& m_configService;
   wl_output* m_output = nullptr;
   DisplayMode m_displayMode = DisplayMode::None;
   std::size_t m_maxLabelChars = 1;
@@ -107,6 +115,9 @@ private:
   Node* m_container = nullptr;
   std::vector<Workspace> m_cachedState;
   std::unordered_map<std::string, std::vector<std::string>> m_cachedAppsByWorkspace;
+  std::unordered_map<std::string, std::string> m_appIconsByLower;
+  std::uint64_t m_desktopEntriesVersion = 0;
+  IconResolver m_iconResolver;
   std::vector<Item> m_items;
   bool m_rebuildPending = true;
   std::uint64_t m_textMetricsGeneration = 0;

@@ -661,7 +661,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .inactivePillSize = static_cast<float>(wc != nullptr ? wc->getDouble("inactive_pill_size", 1.0) : 1.0),
         .minimal = wc != nullptr ? wc->getBool("minimal", false) : false,
     };
-    auto widget = std::make_unique<WorkspacesWidget>(m_platform, output, options);
+    auto widget = std::make_unique<WorkspacesWidget>(m_platform, m_configService, output, options);
     widget->setContentScale(contentScale);
     return widget;
   }

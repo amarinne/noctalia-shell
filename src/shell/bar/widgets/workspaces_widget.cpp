@@ -6,7 +6,13 @@
 #include "render/core/renderer.h"
 #include "render/scene/input_area.h"
 #include "render/scene/node.h"
+#include "config/config_service.h"
+#include "system/app_identity.h"
+#include "system/desktop_entry.h"
+#include "system/internal_app_metadata.h"
+#include "ui/app_icon_colorization.h"
 #include "ui/builders.h"
+#include "ui/controls/image.h"
 #include "ui/style.h"
 #include "util/string_utils.h"
 
@@ -14,7 +20,6 @@
 #include <cctype>
 #include <cmath>
 #include <linux/input-event-codes.h>
-#include <sstream>
 #include <utility>
 #include <wayland-client-protocol.h>
 
@@ -39,40 +44,11 @@ namespace {
     return !label.empty()
         && std::ranges::all_of(label, [](char c) { return std::isdigit(static_cast<unsigned char>(c)); });
   }
-
-  [[nodiscard]] std::string appInitial(std::string appId) {
-    if (appId.empty()) {
-      return {};
-    }
-
-    const auto stripSuffix = [](std::string& value, std::string_view suffix) {
-      if (value.size() >= suffix.size() && value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        value.resize(value.size() - suffix.size());
-      }
-    };
-
-    stripSuffix(appId, ".desktop");
-    if (const auto slash = appId.find_last_of('/'); slash != std::string::npos && slash + 1 < appId.size()) {
-      appId.erase(0, slash + 1);
-    }
-    if (const auto dot = appId.find_last_of('.'); dot != std::string::npos && dot + 1 < appId.size()) {
-      appId.erase(0, dot + 1);
-    }
-    if (const auto dash = appId.find_first_of("-_ "); dash != std::string::npos && dash > 0) {
-      appId.resize(dash);
-    }
-
-    for (const char c : appId) {
-      if (std::isalnum(static_cast<unsigned char>(c)) != 0) {
-        return std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
-      }
-    }
-    return {};
-  }
 } // namespace
 
-WorkspacesWidget::WorkspacesWidget(CompositorPlatform& platform, wl_output* output, Options options)
-    : m_platform(platform), m_output(output), m_displayMode(options.displayMode),
+WorkspacesWidget::WorkspacesWidget(CompositorPlatform& platform, ConfigService& configService, wl_output* output,
+                                   Options options)
+    : m_platform(platform), m_configService(configService), m_output(output), m_displayMode(options.displayMode),
       m_maxLabelChars(options.maxLabelChars), m_labelsOnlyWhenOccupied(options.labelsOnlyWhenOccupied),
       m_hideWhenEmpty(options.hideWhenEmpty), m_pillScale(options.pillScale),
       m_activePillSize(std::clamp(options.activePillSize, 0.25f, 8.0f)),
@@ -212,7 +188,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
   }
   m_cachedAppsByWorkspace = std::move(currentAppsByWorkspace);
 
-  if (structuralChange) {
+  if (structuralChange || appsChange) {
     m_rebuildPending = true;
     if (root() != nullptr) {
       root()->markLayoutDirty();
@@ -236,37 +212,54 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const FontWeight configuredFontWeight = labelFontWeight();
 
+  buildDesktopIconIndex();
+
+  std::vector<std::vector<std::string>> iconPaths;
+  iconPaths.reserve(workspaces.size());
   std::vector<std::string> labels;
   labels.reserve(workspaces.size());
   for (std::size_t i = 0; i < workspaces.size(); ++i) {
-    labels.push_back(workspaceAppsLabel(workspaces[i], i));
+    iconPaths.push_back(workspaceAppIcons(workspaces[i], i));
+    labels.push_back(workspaceLabel(workspaces[i], i));
   }
 
   // Measure text and compute per-slot widths along the bar main axis.
   // Width = max(baseSize * pill_size, textWidth + padding); pill_size comes from active/inactive settings.
   struct SlotMetrics {
     std::string label;
+    std::vector<std::string> iconPaths;
     bool showLabel = false;
+    bool showIcons = false;
     float textWidth = 0.0f;
+    float iconsWidth = 0.0f;
     float inactiveWidth = 0.0f;
     float activeWidth = 0.0f;
   };
   std::vector<SlotMetrics> slots(workspaces.size());
 
+  const float baseSize = std::round(pillHeight);
+  const float padding = m_minimal ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
+  const float iconSize = std::max(10.0f, std::round(baseSize * 0.70f));
+  const float iconGap = std::max(1.0f, std::round(Style::spaceXs * m_contentScale * 0.5f));
+
   for (std::size_t i = 0; i < workspaces.size(); ++i) {
     auto& slot = slots[i];
     slot.label = labels[i];
-    slot.showLabel = shouldShowWorkspaceLabel(workspaces[i], labels[i]) || isWorkspaceAppsLabel(workspaces[i], i, labels[i]);
+    slot.iconPaths = iconPaths[i];
+    slot.showIcons = !slot.iconPaths.empty();
+    slot.showLabel = !slot.showIcons && shouldShowWorkspaceLabel(workspaces[i], labels[i]);
 
     if (slot.showLabel) {
       const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, workspaces[i].active);
       const TextMetrics tm = renderer.measureText(labels[i], labelFontSize, slotFontWeight);
       slot.textWidth = std::max(tm.right - tm.left, tm.inkRight - tm.inkLeft);
     }
+    if (slot.showIcons) {
+      slot.iconsWidth = static_cast<float>(slot.iconPaths.size()) * iconSize
+          + static_cast<float>(slot.iconPaths.size() - 1) * iconGap;
+    }
   }
 
-  const float baseSize = std::round(pillHeight);
-  const float padding = m_minimal ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
   float maxLabelHeight = labelFontSize;
 
   for (std::size_t i = 0; i < workspaces.size(); ++i) {
@@ -281,8 +274,9 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     if (m_minimal) {
       const float minWidth = baseSize;
       if (!slot.showLabel) {
-        slot.inactiveWidth = minWidth;
-        slot.activeWidth = minWidth;
+        const float iconBasedWidth = slot.showIcons ? slot.iconsWidth + padding * 2.0f : 0.0f;
+        slot.inactiveWidth = std::max(minWidth, iconBasedWidth);
+        slot.activeWidth = slot.inactiveWidth;
       } else {
         const float textBasedWidth = slot.textWidth + padding * 2.0f;
         slot.inactiveWidth = std::max(minWidth, textBasedWidth);
@@ -300,8 +294,9 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     const float minActiveWidth = workspaceMainAxisMinWidth(baseSize, true);
 
     if (!slot.showLabel) {
-      slot.inactiveWidth = minWidth;
-      slot.activeWidth = minActiveWidth;
+      const float iconBasedWidth = slot.showIcons ? slot.iconsWidth + padding : 0.0f;
+      slot.inactiveWidth = std::max(minWidth, iconBasedWidth);
+      slot.activeWidth = std::max(minActiveWidth, iconBasedWidth);
     } else {
       const float textBasedWidth = slot.textWidth + padding;
       slot.inactiveWidth = std::max(minWidth, textBasedWidth);
@@ -323,7 +318,9 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     Item item{};
     item.active = ws.active;
     item.label = slot.label;
+    item.iconPaths = slot.iconPaths;
     item.showLabel = slot.showLabel;
+    item.showIcons = slot.showIcons;
     item.inactiveWidth = slot.inactiveWidth;
     item.activeWidth = slot.activeWidth;
 
@@ -353,6 +350,24 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
           })
       ));
       item.text->measure(renderer);
+    }
+
+    if (slot.showIcons) {
+      const int iconRequestSize = std::max(32, static_cast<int>(std::round(iconSize * 2.0f)));
+      const auto appIconTint = effectiveShellAppIconColorizationTint(m_configService.config().shell);
+      for (const auto& iconPath : slot.iconPaths) {
+        auto image = ui::image({
+            .fit = ImageFit::Contain,
+            .width = iconSize,
+            .height = iconSize,
+        });
+        image->setAppIconColorization(appIconTint);
+        if (image->setSourceFile(renderer, iconPath, iconRequestSize, true)) {
+          item.icons.push_back(image.get());
+          area->addChild(std::move(image));
+        }
+      }
+      item.showIcons = !item.icons.empty();
     }
 
     auto wsCopy = ws;
@@ -453,21 +468,28 @@ void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t in
 
   auto& item = m_items[index];
   const auto& workspace = m_cachedState[index];
-  const std::string label = workspaceAppsLabel(workspace, index);
+  const std::string label = workspaceLabel(workspace, index);
   const float labelFontSize = Style::fontSizeMini * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const float baseSize = std::round(pillHeight);
   const float padding = m_minimal ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
+  const float iconSize = std::max(10.0f, std::round(baseSize * 0.70f));
+  const float iconGap = std::max(1.0f, std::round(Style::spaceXs * m_contentScale * 0.5f));
   const FontWeight configuredFontWeight = labelFontWeight();
 
   item.label = label;
-  item.showLabel = shouldShowWorkspaceLabel(workspace, label) || isWorkspaceAppsLabel(workspace, index, label);
+  item.showLabel = !item.showIcons && shouldShowWorkspaceLabel(workspace, label);
 
   if (isWorkspaceHidden(workspace)) {
     item.inactiveWidth = 0.0f;
     item.activeWidth = 0.0f;
     if (item.text != nullptr) {
       item.text->setVisible(false);
+    }
+    for (Image* icon : item.icons) {
+      if (icon != nullptr) {
+        icon->setVisible(false);
+      }
     }
     return;
   }
@@ -482,8 +504,12 @@ void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t in
   if (m_minimal) {
     const float minWidth = baseSize;
     if (!item.showLabel) {
-      item.inactiveWidth = minWidth;
-      item.activeWidth = minWidth;
+      const float iconsWidth = item.showIcons
+          ? static_cast<float>(item.icons.size()) * iconSize + static_cast<float>(item.icons.size() - 1) * iconGap
+          : 0.0f;
+      const float iconBasedWidth = item.showIcons ? iconsWidth + padding * 2.0f : 0.0f;
+      item.inactiveWidth = std::max(minWidth, iconBasedWidth);
+      item.activeWidth = item.inactiveWidth;
     } else {
       const float textBasedWidth = textWidth + padding * 2.0f;
       item.inactiveWidth = std::max(minWidth, textBasedWidth);
@@ -493,8 +519,12 @@ void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t in
     const float minWidth = workspaceMainAxisMinWidth(baseSize, false);
     const float minActiveWidth = workspaceMainAxisMinWidth(baseSize, true);
     if (!item.showLabel) {
-      item.inactiveWidth = minWidth;
-      item.activeWidth = minActiveWidth;
+      const float iconsWidth = item.showIcons
+          ? static_cast<float>(item.icons.size()) * iconSize + static_cast<float>(item.icons.size() - 1) * iconGap
+          : 0.0f;
+      const float iconBasedWidth = item.showIcons ? iconsWidth + padding : 0.0f;
+      item.inactiveWidth = std::max(minWidth, iconBasedWidth);
+      item.activeWidth = std::max(minActiveWidth, iconBasedWidth);
     } else {
       const float textBasedWidth = textWidth + padding;
       item.inactiveWidth = std::max(minWidth, textBasedWidth);
@@ -510,6 +540,11 @@ void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t in
       item.text->setFontWeight(workspaceFontWeight(configuredFontWeight, m_minimal, workspace.active));
       item.text->setColor(workspaceTextColor(workspace));
       item.text->measure(renderer);
+    }
+  }
+  for (Image* icon : item.icons) {
+    if (icon != nullptr) {
+      icon->setVisible(item.showIcons);
     }
   }
 }
@@ -632,6 +667,25 @@ void WorkspacesWidget::applyItemLayout(std::size_t i) {
       it.text->setPosition(std::max(0.0f, textX), textY);
     }
   }
+  if (!it.icons.empty()) {
+    const float itemW = m_isVertical ? m_indicatorHeight : it.currentWidth;
+    const float itemH = m_isVertical ? it.currentWidth : m_indicatorHeight;
+    const float baseSize = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
+    const float iconSize = std::max(10.0f, std::round(baseSize * 0.70f));
+    const float iconGap = std::max(1.0f, std::round(Style::spaceXs * m_contentScale * 0.5f));
+    const float iconsWidth = static_cast<float>(it.icons.size()) * iconSize
+        + static_cast<float>(it.icons.size() - 1) * iconGap;
+    float x = std::max(0.0f, (itemW - iconsWidth) * 0.5f);
+    const float y = std::max(0.0f, (itemH - iconSize) * 0.5f);
+    for (Image* icon : it.icons) {
+      if (icon == nullptr) {
+        continue;
+      }
+      icon->setVisible(it.showIcons);
+      icon->setPosition(x, y);
+      x += iconSize + iconGap;
+    }
+  }
   if (it.indicator != nullptr) {
     const float itemW = m_isVertical ? m_indicatorHeight : it.currentWidth;
     const float itemH = m_isVertical ? it.currentWidth : m_indicatorHeight;
@@ -725,42 +779,92 @@ std::string WorkspacesWidget::workspaceKey(const Workspace& workspace, std::size
   return std::to_string(displayIndex + 1);
 }
 
-std::string WorkspacesWidget::workspaceAppsLabel(const Workspace& workspace, std::size_t displayIndex) const {
+bool WorkspacesWidget::hasWorkspaceApps(const Workspace& workspace, std::size_t displayIndex) const {
   const auto appsIt = m_cachedAppsByWorkspace.find(workspaceKey(workspace, displayIndex));
-  if (appsIt == m_cachedAppsByWorkspace.end() || appsIt->second.empty()) {
-    return workspaceLabel(workspace, displayIndex);
-  }
-
-  std::ostringstream label;
-  std::size_t shown = 0;
-  for (const auto& appId : appsIt->second) {
-    if (shown >= 4) {
-      label << '+';
-      break;
-    }
-    const std::string initial = appInitial(appId);
-    if (initial.empty()) {
-      continue;
-    }
-    if (shown > 0) {
-      label << ' ';
-    }
-    label << initial;
-    ++shown;
-  }
-
-  const std::string appsLabel = label.str();
-  return appsLabel.empty() ? workspaceLabel(workspace, displayIndex) : appsLabel;
+  return appsIt != m_cachedAppsByWorkspace.end() && !appsIt->second.empty();
 }
 
-bool WorkspacesWidget::isWorkspaceAppsLabel(const Workspace& workspace, std::size_t displayIndex,
-                                            std::string_view label) const {
+std::vector<std::string> WorkspacesWidget::workspaceAppIcons(const Workspace& workspace, std::size_t displayIndex) {
   const auto appsIt = m_cachedAppsByWorkspace.find(workspaceKey(workspace, displayIndex));
-  if (appsIt == m_cachedAppsByWorkspace.end() || appsIt->second.empty() || label.empty()) {
-    return false;
+  if (appsIt == m_cachedAppsByWorkspace.end() || appsIt->second.empty()) {
+    return {};
   }
 
-  return label == workspaceAppsLabel(workspace, displayIndex);
+  std::vector<std::string> icons;
+  icons.reserve(std::min<std::size_t>(appsIt->second.size(), 4));
+  for (const auto& appId : appsIt->second) {
+    if (icons.size() >= 4) {
+      break;
+    }
+    const std::string iconPath = resolveAppIconPath(appId);
+    if (!iconPath.empty()) {
+      icons.push_back(iconPath);
+    }
+  }
+  return icons;
+}
+
+void WorkspacesWidget::buildDesktopIconIndex() {
+  const std::uint64_t version = desktopEntriesVersion();
+  if (m_desktopEntriesVersion == version && !m_appIconsByLower.empty()) {
+    return;
+  }
+
+  m_appIconsByLower.clear();
+  for (const auto& entry : desktopEntries()) {
+    if (entry.icon.empty()) {
+      continue;
+    }
+    if (!entry.idLower.empty()) {
+      m_appIconsByLower[entry.idLower] = entry.icon;
+    }
+    if (!entry.startupWmClassLower.empty()) {
+      m_appIconsByLower[entry.startupWmClassLower] = entry.icon;
+    }
+    if (!entry.nameLower.empty()) {
+      m_appIconsByLower[entry.nameLower] = entry.icon;
+    }
+  }
+  m_desktopEntriesVersion = version;
+}
+
+std::string WorkspacesWidget::resolveAppIconPath(const std::string& appId) {
+  const int iconTargetSize = static_cast<int>(std::round(48.0f * m_contentScale));
+  auto resolveIconName = [this, iconTargetSize](const std::string& name) -> std::string {
+    if (name.empty()) {
+      return {};
+    }
+    return m_iconResolver.resolve(name, iconTargetSize);
+  };
+
+  if (appId.starts_with("steam_app_")) {
+    const app_identity::DesktopEntryLookupOptions steamLookup{
+        .includeHidden = true,
+        .includeNoDisplay = true,
+    };
+    if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries(), steamLookup);
+        entry.has_value() && !entry->icon.empty()) {
+      if (const std::string steamIcon = resolveIconName(entry->icon); !steamIcon.empty()) {
+        return steamIcon;
+      }
+    }
+  }
+
+  if (const auto internal = internal_apps::metadataForAppId(appId); internal.has_value()) {
+    return internal->iconPath;
+  }
+
+  const std::string appIdLower = StringUtils::toLower(appId);
+  if (const auto it = m_appIconsByLower.find(appIdLower); it != m_appIconsByLower.end()) {
+    if (const std::string desktopIcon = resolveIconName(it->second); !desktopIcon.empty()) {
+      return desktopIcon;
+    }
+  }
+
+  if (const std::string appIcon = resolveIconName(appId); !appIcon.empty()) {
+    return appIcon;
+  }
+  return resolveIconName("application-x-executable");
 }
 
 std::optional<std::size_t> WorkspacesWidget::numericWorkspaceId(const Workspace& workspace) {
