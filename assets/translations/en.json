@@ -482,6 +482,11 @@
         "label-min-width": "Label Min Width",
         "layout": "Layout",
         "mirrored": "Mirrored",
+        "network-speed-compact": "Compact Network Speed",
+        "network-speed-unit": "Network Speed Unit",
+        "network-speed-unit-auto": "Auto",
+        "network-speed-unit-kilobytes": "kB/s",
+        "network-speed-unit-megabytes": "MB/s",
         "opacity": "Opacity",
         "primary-color": "Primary Color",
         "reset-defaults": "Reset to Defaults",
@@ -2715,6 +2720,7 @@
       },
       "options": {
         "always": "Always",
+        "auto": "Auto",
         "cpu-temp": "CPU Temperature",
         "cpu-usage": "CPU Usage",
         "disk-percent": "Disk Percent",
@@ -2731,6 +2737,8 @@
         "id": "ID",
         "input": "Input",
         "instance": "Per Placement",
+        "kilobytes": "kB/s",
+        "megabytes": "MB/s",
         "name": "Name",
         "net-rx": "Network RX",
         "net-tx": "Network TX",
@@ -3056,6 +3064,14 @@
         "mirrored": {
           "description": "Mirror the visualizer around its center",
           "label": "Mirrored"
+        },
+        "network-speed-compact": {
+          "description": "Use short unit suffixes such as 1.2M instead of 1.2 MB/s",
+          "label": "Compact Network Speed"
+        },
+        "network-speed-unit": {
+          "description": "Unit used for network receive and transmit speeds; Auto switches between B/s, kB/s, MB/s, and GB/s",
+          "label": "Network Speed Unit"
         },
         "mute-color": {
           "description": "Color role used for the icon and label when muted; fixed hex colors are also supported",
