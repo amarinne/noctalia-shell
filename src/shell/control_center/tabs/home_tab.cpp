@@ -1,4 +1,4 @@
-#include "shell/control_center/home_tab.h"
+#include "shell/control_center/tabs/home_tab.h"
 
 #include "config/config_service.h"
 #include "core/build_info.h"
@@ -566,7 +566,6 @@ std::unique_ptr<Flex> HomeTab::create() {
               // Label font only: Button::setFontSize also resizes the glyph. Mini + uiScale keeps tiles closer to
               // other CC rows that use raw fontSizeCaption, while still scaling with shell.uiScale for consistency.
               button.label()->setFontSize(Style::fontSizeMini * scale);
-              button.label()->setBaselineMode(LabelBaselineMode::InkCentered);
               button.label()->setMaxLines(1);
               button.label()->setTextAlign(TextAlign::Center);
               button.setDirection(FlexDirection::Vertical);
@@ -1472,7 +1471,6 @@ void HomeTab::syncShortcuts() {
       if (pad.label->text() != label) {
         pad.button->setText(label);
       }
-      pad.label->setBaselineMode(LabelBaselineMode::InkCentered);
     }
   }
 }

@@ -36,6 +36,9 @@
       "active-window": {
         "no-active-window": "No hay ventanas activas"
       },
+      "bluetooth": {
+        "connected": "Conectado"
+      },
       "lock-keys": {
         "caps": "Mayús",
         "caps-short": "M",
@@ -295,9 +298,9 @@
       "audio": "Audio",
       "bluetooth": "Bluetooth",
       "calendar": "Calendario",
-      "display": "Monitor",
       "home": "Inicio",
       "media": "Medios",
+      "monitor": "Monitor",
       "network": "Red",
       "notifications": "Notificaciones",
       "screen-time": "Tiempo de pantalla",

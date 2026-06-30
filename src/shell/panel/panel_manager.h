@@ -41,8 +41,8 @@ struct PanelOpenRequest {
   float anchorY = 0.0f;
   bool hasExplicitAnchor = false;
   bool hasAnchorPosition = false;
-  std::string_view context = {};
-  std::string_view sourceBarName = {};
+  std::string_view context;
+  std::string_view sourceBarName;
 };
 
 class PanelManager : public PopupGrabHost {
@@ -59,13 +59,13 @@ public:
   void initialize(CompositorPlatform& platform, ConfigService* config, RenderContext* renderContext);
 
   // Optional: invoked from shell UI (e.g. control center) to spawn the standalone settings toplevel.
-  void setOpenSettingsWindowCallback(std::function<void()> callback);
+  void setOpenSettingsWindowCallback(std::function<void(std::string)> callback);
   void setCloseSettingsWindowCallback(std::function<void()> callback);
-  void setToggleSettingsWindowCallback(std::function<void()> callback);
+  void setToggleSettingsWindowCallback(std::function<void(std::string)> callback);
   void setCloseDesktopWidgetsEditorCallback(std::function<void()> callback);
-  void openSettingsWindow();
+  void openSettingsWindow(std::string context = "");
   void closeSettingsWindow();
-  void toggleSettingsWindow();
+  void toggleSettingsWindow(std::string context = "");
   void setAttachedPanelGeometryCallback(
       std::function<void(wl_output*, std::string_view, std::optional<AttachedPanelGeometry>)> callback
   );
@@ -173,9 +173,9 @@ private:
   CompositorPlatform* m_platform = nullptr;
   ConfigService* m_config = nullptr;
   RenderContext* m_renderContext = nullptr;
-  std::function<void()> m_openSettingsWindow;
+  std::function<void(std::string)> m_openSettingsWindow;
   std::function<void()> m_closeSettingsWindow;
-  std::function<void()> m_toggleSettingsWindow;
+  std::function<void(std::string)> m_toggleSettingsWindow;
   std::function<void()> m_closeDesktopWidgetsEditor;
   std::function<void(wl_output*, std::string_view, std::optional<AttachedPanelGeometry>)>
       m_attachedPanelGeometryCallback;

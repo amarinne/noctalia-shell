@@ -99,6 +99,7 @@
 #include <limits>
 #include <malloc.h>
 #include <optional>
+#include <ranges>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -210,6 +211,30 @@ void Application::initIpc() {
   );
 
   m_ipcService.registerHandler(
+      "notification-invoke-latest",
+      [this](const std::string&) -> std::string {
+        // Mirror the toast left-click behaviour for the most recent active notification:
+        // invoke its "default" action so the source application raises/focuses its window.
+        // all() stores notifications oldest-first (push_back), so iterate in reverse for newest.
+        const auto& notifications = m_notificationManager.all();
+        for (const auto& notification : std::views::reverse(notifications)) {
+          const auto& actions = notification.actions; // pairs: [key, label, ...]; "default" must be first.
+          if (actions.size() >= 2 && actions[0] == "default") {
+            if (!m_notificationManager.invokeAction(notification.id, "default", true)) {
+              return "error: invokeAction failed\n";
+            }
+            if (m_panelManager.isOpenPanel("control-center")) {
+              m_panelManager.refresh();
+            }
+            return "ok\n";
+          }
+        }
+        return "ok\n"; // No active notification carries a default action; nothing to do.
+      },
+      "notification-invoke-latest", "Invoke the default action of the most recent active notification"
+  );
+
+  m_ipcService.registerHandler(
       "notification-clear-history",
       [this](const std::string&) -> std::string {
         m_notificationManager.clearHistory();
@@ -250,6 +275,87 @@ void Application::initIpc() {
         return "ok\n";
       },
       "dpms-off", "Turn monitors off"
+  );
+
+  auto workspaceAlertStatus = [this]() {
+    const auto tokens = m_workspaceAlertService.tokens();
+    if (tokens.empty()) {
+      return std::string{"(no workspace alerts)\n"};
+    }
+    return StringUtils::join(tokens, "\n") + "\n";
+  };
+
+  m_ipcService.registerHandler(
+      "workspace-alert-add",
+      [this](const std::string& args) -> std::string {
+        const std::string workspace = StringUtils::trim(args);
+        if (workspace.empty()) {
+          return "error: workspace-alert-add requires <workspace>\n";
+        }
+        if (!m_compositorPlatform.isKnownWorkspaceAlertKey(workspace)) {
+          return "error: unknown workspace '" + workspace + "'\n";
+        }
+        // Store unconditionally. The overlay only marks inactive rows, so
+        // alerting the active workspace simply shows once the user leaves it and
+        // auto-clears on return; on per-output compositors this also lets an
+        // inactive duplicate alert even when the same workspace is active elsewhere.
+        (void)m_workspaceAlertService.add(workspace);
+        m_bar.refresh();
+        return "ok\n";
+      },
+      "workspace-alert-add <workspace>", "Add a workspace alert (by number, name, or id)"
+  );
+  m_ipcService.registerHandler(
+      "workspace-alert-add-window",
+      [this](const std::string& args) -> std::string {
+        const auto parts = noctalia::ipc::splitWords(args);
+        if (parts.size() != 1) {
+          return "error: workspace-alert-add-window requires <window-id>\n";
+        }
+        const auto workspace = m_compositorPlatform.workspaceAlertKeyForWindow(parts[0]);
+        if (!workspace.has_value()) {
+          return "error: could not resolve workspace for window id '" + parts[0] + "'\n";
+        }
+        (void)m_workspaceAlertService.add(*workspace);
+        m_bar.refresh();
+        return "ok\n";
+      },
+      "workspace-alert-add-window <window-id>", "Add a workspace alert for a window"
+  );
+  m_ipcService.registerHandler(
+      "workspace-alert-clear",
+      [this](const std::string& args) -> std::string {
+        const std::string workspace = StringUtils::trim(args);
+        if (workspace.empty()) {
+          return "error: workspace-alert-clear requires <workspace>\n";
+        }
+        (void)m_workspaceAlertService.clear(workspace);
+        m_bar.refresh();
+        return "ok\n";
+      },
+      "workspace-alert-clear <workspace>", "Clear a workspace alert"
+  );
+  m_ipcService.registerHandler(
+      "workspace-alert-clear-all",
+      [this](const std::string& args) -> std::string {
+        if (!noctalia::ipc::splitWords(args).empty()) {
+          return "error: workspace-alert-clear-all takes no arguments\n";
+        }
+        m_workspaceAlertService.clearAll();
+        m_bar.refresh();
+        return "ok\n";
+      },
+      "workspace-alert-clear-all", "Clear all workspace alerts"
+  );
+  m_ipcService.registerHandler(
+      "workspace-alert-status",
+      [workspaceAlertStatus](const std::string& args) -> std::string {
+        if (!noctalia::ipc::splitWords(args).empty()) {
+          return "error: workspace-alert-status takes no arguments\n";
+        }
+        return workspaceAlertStatus();
+      },
+      "workspace-alert-status", "Print workspace alerts"
   );
 
   registerSessionIpc(m_ipcService, m_sessionActionRunner, m_lockScreen, m_configService);

@@ -167,8 +167,13 @@ namespace settings {
           return "upload";
         }
       }
-      if (type == "volume" && config->getString("device", "output") == "input") {
-        return "microphone";
+      if (type == "volume") {
+        if (const std::string custom = config->getString("glyph", ""); !custom.empty()) {
+          return custom;
+        }
+        if (config->getString("device", "output") == "input") {
+          return "microphone";
+        }
       }
       return defaultWidgetGlyph(type);
     }
@@ -556,7 +561,7 @@ namespace settings {
     capsuleForeground.visibleWhen = capsuleOn;
 
     auto capsulePadding = withGroup(
-        doubleSpec("capsule_padding", static_cast<double>(Style::barCapsulePadding), 0.0, 48.0, 1.0),
+        intSpec("capsule_padding", static_cast<double>(Style::barCapsulePadding), 0.0, 48.0, 1.0),
         WidgetSettingGroup::Presentation
     );
     capsulePadding.visibleWhen = capsuleOn;
@@ -597,6 +602,11 @@ namespace settings {
         {"graph", "settings.widgets.options.graph"},
         {"text", "settings.widgets.options.text"},
     };
+    const std::vector<WidgetSettingSelectOption> networkSpeedUnits = {
+        {"auto", "settings.widgets.options.auto"},
+        {"kb", "settings.widgets.options.kilobytes"},
+        {"mb", "settings.widgets.options.megabytes"},
+    };
     const std::vector<WidgetSettingSelectOption> workspaceDisplay = {
         {"id", "settings.widgets.options.id"},
         {"name", "settings.widgets.options.name"},
@@ -624,7 +634,7 @@ namespace settings {
     if (type == "active_window") {
       add(intSpec("min_length", 80, 0.0, 800.0, 1.0));
       add(intSpec("max_length", 260, 40.0, 800.0, 1.0));
-      add(doubleSpec("icon_size", static_cast<double>(Style::fontSizeBody), 8.0, 64.0, 1.0));
+      add(intSpec("icon_size", static_cast<double>(Style::fontSizeBody), 8.0, 64.0, 1.0));
       add(selectSpec("title_scroll", "none", mediaTitleScroll));
       {
         auto display = selectSpec("display", "icon_and_text", activeWindowDisplay);
@@ -633,7 +643,7 @@ namespace settings {
       }
       add(boolSpec("show_empty_label", false));
     } else if (type == "audio_visualizer") {
-      add(doubleSpec("width", 56.0, 8.0, 400.0, 1.0));
+      add(intSpec("width", 56.0, 8.0, 400.0, 1.0));
       add(intSpec("bands", 16, 2.0, 128.0, 1.0));
       add(boolSpec("mirrored", true));
       add(boolSpec("centered", true));
@@ -725,10 +735,18 @@ namespace settings {
       add(segmentedSpec("display", "short", shortFull));
     } else if (type == "media") {
       const WidgetSettingVisibility notAlbumArtOnly{"album_art_only", {"false"}};
+      const WidgetSettingVisibility notHideAlbumArt{"hide_album_art", {"false"}};
       {
         auto albumArtOnly = boolSpec("album_art_only", false);
         albumArtOnly.horizontalBarOnly = true;
+        albumArtOnly.visibleWhen = notHideAlbumArt;
         add(std::move(albumArtOnly));
+      }
+      {
+        auto hideAlbumArt = boolSpec("hide_album_art", false);
+        hideAlbumArt.horizontalBarOnly = true;
+        hideAlbumArt.visibleWhen = notAlbumArtOnly;
+        add(std::move(hideAlbumArt));
       }
       {
         auto minLength = intSpec("min_length", 80, 0.0, 800.0, 1.0);
@@ -740,7 +758,7 @@ namespace settings {
         maxLength.visibleWhen = notAlbumArtOnly;
         add(std::move(maxLength));
       }
-      add(doubleSpec("art_size", 16.0, 8.0, 96.0, 1.0));
+      add(intSpec("art_size", 16.0, 8.0, 96.0, 1.0));
       {
         auto titleScroll = selectSpec("title_scroll", "none", mediaTitleScroll);
         titleScroll.visibleWhen = notAlbumArtOnly;
@@ -779,6 +797,16 @@ namespace settings {
         interface.visibleWhen = WidgetSettingVisibility{"stat", {"net_rx", "net_tx"}};
         add(std::move(interface));
       }
+      {
+        auto unit = selectSpec("network_speed_unit", "auto", networkSpeedUnits);
+        unit.visibleWhen = WidgetSettingVisibility{"stat", {"net_rx", "net_tx"}};
+        add(std::move(unit));
+      }
+      {
+        auto compact = boolSpec("network_speed_compact", false);
+        compact.visibleWhen = WidgetSettingVisibility{"stat", {"net_rx", "net_tx"}};
+        add(std::move(compact));
+      }
       add(segmentedSpec("display", "gauge", sysmonDisplay));
       add(colorSpec("highlight_color", "error"));
       add(boolSpec("show_label", true));
@@ -816,6 +844,13 @@ namespace settings {
           groupCapsule.visibleWhen =
               WidgetSettingVisibility{WidgetSettingVisibilityCondition{"group_by_workspace", {"true"}}};
           add(std::move(groupCapsule));
+        }
+        {
+          auto focusedOutputOnly = boolSpec("focused_output_only", false);
+          focusedOutputOnly.descriptionKey = "settings.widgets.settings.focused-output-only.taskbar-description";
+          focusedOutputOnly.visibleWhen =
+              WidgetSettingVisibility{WidgetSettingVisibilityCondition{"show_workspace_label", {"true"}}};
+          add(std::move(focusedOutputOnly));
         }
         {
           auto singleIconPerApp = boolSpec("group_single_icon_per_app", false);
@@ -866,12 +901,12 @@ namespace settings {
           return v;
         }();
         {
-          auto windowTitleMaxWidth = doubleSpec("window_title_max_width", 100.0, 10.0, 200.0, 1.0);
+          auto windowTitleMaxWidth = intSpec("window_title_max_width", 100.0, 10.0, 200.0, 1.0);
           windowTitleMaxWidth.visibleWhen = windowTitleSettings;
           add(std::move(windowTitleMaxWidth));
         }
         {
-          auto taskbarMaxWidth = doubleSpec("taskbar_max_width", 8192.0, 10.0, 8192.0, 1.0);
+          auto taskbarMaxWidth = intSpec("taskbar_max_width", 8192.0, 10.0, 8192.0, 1.0);
           taskbarMaxWidth.visibleWhen = windowTitleSettings;
           add(std::move(taskbarMaxWidth));
         }
@@ -879,12 +914,12 @@ namespace settings {
         add(boolSpec("show_window_title", false));
         const WidgetSettingVisibility windowTitleSettings{"show_window_title", {"true"}};
         {
-          auto windowTitleMaxWidth = doubleSpec("window_title_max_width", 100.0, 10.0, 200.0, 1.0);
+          auto windowTitleMaxWidth = intSpec("window_title_max_width", 100.0, 10.0, 200.0, 1.0);
           windowTitleMaxWidth.visibleWhen = windowTitleSettings;
           add(std::move(windowTitleMaxWidth));
         }
         {
-          auto taskbarMaxWidth = doubleSpec("taskbar_max_width", 8192.0, 10.0, 8192.0, 1.0);
+          auto taskbarMaxWidth = intSpec("taskbar_max_width", 8192.0, 10.0, 8192.0, 1.0);
           taskbarMaxWidth.visibleWhen = windowTitleSettings;
           add(std::move(taskbarMaxWidth));
         }
@@ -905,6 +940,12 @@ namespace settings {
       }
     } else if (type == "volume") {
       add(segmentedSpec("device", "output", volumeDeviceOptions));
+      {
+        auto glyph = glyphSpec("glyph", "");
+        glyph.descriptionKey = "settings.widgets.settings.glyph.volume-description";
+        add(std::move(glyph));
+      }
+      add(glyphSpec("mute_glyph", ""));
       add(stepperIntSpec("scroll_step", 5, 1.0, 25.0, 1.0, "%"));
       add(boolSpec("show_label", true));
       add(colorSpec("mute_color", "error"));
@@ -913,6 +954,7 @@ namespace settings {
     } else if (type == "weather") {
       add(intSpec("max_length", 160, 40.0, 800.0, 1.0));
       add(boolSpec("show_condition", true));
+      add(boolSpec("show_temperature", true));
     } else if (type == "workspaces") {
       const WidgetSettingVisibility pillStyleOnly{{"minimal", {"false"}}};
       for (auto& spec : commonSpecs) {
@@ -926,6 +968,11 @@ namespace settings {
         auto minimal = boolSpec("minimal", false);
         minimal.descriptionKey = "settings.widgets.settings.minimal.workspaces-description";
         add(std::move(minimal));
+      }
+      {
+        auto focusedOutputOnly = boolSpec("focused_output_only", false);
+        focusedOutputOnly.descriptionKey = "settings.widgets.settings.focused-output-only.workspaces-description";
+        add(std::move(focusedOutputOnly));
       }
       add(segmentedSpec("display", "id", workspaceDisplay));
       {

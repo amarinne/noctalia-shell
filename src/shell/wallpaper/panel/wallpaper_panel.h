@@ -159,6 +159,8 @@ private:
   SortMode m_sortMode = SortMode::NameAsc;
   std::size_t m_pinnedFavoriteCount = 0;
   bool m_syncingFavoriteControls = false;
+  bool m_syncingGridSelectionVisual = false;
+  bool m_gridKeyboardActive = false;
   std::vector<std::string> m_favoritePaletteDetailValues;
   std::vector<PaletteSource> m_paletteSourceOrder;
   static constexpr std::size_t kNoVisibleSelection = std::numeric_limits<std::size_t>::max();

@@ -54,8 +54,9 @@ void SettingsWindow::setSettingOverride(std::vector<std::string> path, ConfigOve
       markSettingsWriteError(i18n::tr(shell::avatarApplyErrorTranslationKey(result.error)));
       return;
     }
-    if (m_config->setOverride(path, std::move(value))) {
-      markSettingsWriteSuccess();
+    bool changed = false;
+    if (m_config->setOverride(path, std::move(value), &changed)) {
+      markSettingsWriteSuccess(changed || !m_statusMessage.empty());
       return;
     }
     markSettingsWriteError(i18n::tr("settings.errors.write"));
@@ -73,8 +74,9 @@ void SettingsWindow::setSettingOverrides(
       markSettingsWriteSuccess(!m_statusMessage.empty());
       return;
     }
-    if (m_config->setOverrides(std::move(overrides))) {
-      markSettingsWriteSuccess(true);
+    bool changed = false;
+    if (m_config->setOverrides(std::move(overrides), &changed)) {
+      markSettingsWriteSuccess(changed || !m_statusMessage.empty());
       return;
     }
     markSettingsWriteError(i18n::tr("settings.errors.batch-write"));

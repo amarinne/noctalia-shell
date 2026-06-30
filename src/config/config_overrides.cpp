@@ -344,6 +344,7 @@ namespace {
     return vectorEqual(a.bars, b.bars, barConfigEqual)
         && widgetMapEqual(a.widgets, b.widgets)
         && desktopWidgetsConfigEqual(a.desktopWidgets, b.desktopWidgets)
+        && a.hotCorners == b.hotCorners
         && lockscreenWidgetsConfigEqual(a.lockscreenWidgets, b.lockscreenWidgets)
         && a.wallpaper == b.wallpaper
         && a.backdrop == b.backdrop
@@ -701,6 +702,7 @@ ConfigChangeSet computeConfigChangeSet(const Config& prev, const Config& next) {
       .theme = !(prev.theme == next.theme),
       .controlCenter = !(prev.controlCenter == next.controlCenter),
       .plugins = !pluginsConfigEqual(prev.plugins, next.plugins),
+      .hotCorners = !(prev.hotCorners == next.hotCorners),
   };
 }
 
@@ -1410,12 +1412,25 @@ bool ConfigService::deleteCalendarAccountOverride(std::string_view id) {
 }
 
 bool ConfigService::setOverride(const std::vector<std::string>& path, ConfigOverrideValue value) {
+  return setOverride(path, std::move(value), nullptr);
+}
+
+bool ConfigService::setOverride(const std::vector<std::string>& path, ConfigOverrideValue value, bool* changed) {
   std::vector<std::pair<std::vector<std::string>, ConfigOverrideValue>> overrides;
   overrides.emplace_back(path, std::move(value));
-  return setOverrides(std::move(overrides));
+  return setOverrides(std::move(overrides), changed);
 }
 
 bool ConfigService::setOverrides(std::vector<std::pair<std::vector<std::string>, ConfigOverrideValue>> overrides) {
+  return setOverrides(std::move(overrides), nullptr);
+}
+
+bool ConfigService::setOverrides(
+    std::vector<std::pair<std::vector<std::string>, ConfigOverrideValue>> overrides, bool* changed
+) {
+  if (changed != nullptr) {
+    *changed = false;
+  }
   if (m_overridesPath.empty() || overrides.empty()) {
     return false;
   }
@@ -1463,6 +1478,9 @@ bool ConfigService::setOverrides(std::vector<std::pair<std::vector<std::string>,
   }
 
   m_ownOverridesWritePending = true;
+  if (changed != nullptr) {
+    *changed = true;
+  }
   extractWallpaperFromOverrides();
   loadAll();
   fireReloadCallbacks();

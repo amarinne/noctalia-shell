@@ -907,6 +907,159 @@ std::vector<InputRect> Surface::tessellateShape(
   return out;
 }
 
+std::vector<InputRect> Surface::tessellateRotatedRoundedRect(
+    float centerX, float centerY, float width, float height, float radius, float rotationRad, int stripPx
+) {
+  constexpr float kRotationEpsilon = 0.001f;
+  if (std::abs(rotationRad) < kRotationEpsilon) {
+    const int ix = static_cast<int>(std::lround(centerX - width * 0.5f));
+    const int iy = static_cast<int>(std::lround(centerY - height * 0.5f));
+    const int iw = static_cast<int>(std::lround(width));
+    const int ih = static_cast<int>(std::lround(height));
+    return tessellateRoundedRect(ix, iy, iw, ih, radius, stripPx);
+  }
+
+  const float cosA = std::cos(rotationRad);
+  const float sinA = std::sin(rotationRad);
+  const float halfW = width * 0.5f;
+  const float halfH = height * 0.5f;
+  const float r = std::clamp(radius, 0.0f, std::min(halfW, halfH));
+
+  const float aabbH = std::abs(width * sinA) + std::abs(height * cosA);
+  const int aabbIH = static_cast<int>(std::ceil(aabbH));
+  const float aabbTop = centerY - aabbH * 0.5f;
+
+  stripPx = std::max(stripPx, 1);
+
+  // Corner inset in local space: how far the rounded corner narrows the rect
+  // at a given distance from the edge.
+  const auto cornerInset = [](float cr, float distFromEdge) -> float {
+    if (cr <= 0.0f || distFromEdge >= cr) {
+      return 0.0f;
+    }
+    const float dy = cr - distFromEdge;
+    return cr - std::sqrt(std::max(0.0f, cr * cr - dy * dy));
+  };
+
+  // For a given local-space Y (origin at rect center), compute the left and
+  // right X extents of the rounded rect.
+  const auto localExtents = [&](float ly) -> std::pair<float, float> {
+    if (ly < -halfH || ly > halfH) {
+      return {0.0f, 0.0f};
+    }
+    float left = -halfW;
+    float right = halfW;
+    const float distFromTop = ly + halfH;
+    const float distFromBottom = halfH - ly;
+    if (distFromTop < r) {
+      const float inset = cornerInset(r, distFromTop);
+      left += inset;
+      right -= inset;
+    }
+    if (distFromBottom < r) {
+      const float inset = cornerInset(r, distFromBottom);
+      left += inset;
+      right -= inset;
+    }
+    if (left >= right) {
+      return {0.0f, 0.0f};
+    }
+    return {left, right};
+  };
+
+  std::vector<InputRect> out;
+  out.reserve(static_cast<std::size_t>(aabbIH / stripPx + 2));
+
+  for (int row = 0; row < aabbIH; row += stripPx) {
+    const int rowH = std::min(stripPx, aabbIH - row);
+    float globalMinX = std::numeric_limits<float>::max();
+    float globalMaxX = std::numeric_limits<float>::lowest();
+    bool anyHit = false;
+
+    // Sample the strip at its top and bottom edges for a conservative bound.
+    for (int edge = 0; edge <= 1; ++edge) {
+      const float surfaceY = aabbTop + static_cast<float>(row + edge * rowH);
+      const float dy = surfaceY - centerY;
+
+      // Scan across the local-Y axis to find what range of local rows this
+      // surface-Y touches. A horizontal surface-space line at surfaceY, when
+      // inverse-rotated, becomes a line in local space. We need the min/max
+      // surface-X of the rounded rect along that line.
+      //
+      // A point (lx, ly) in local space maps to surface-X = cx + lx*cos - ly*sin.
+      // The surface scanline surfaceY corresponds to all (lx, ly) satisfying
+      // cy + lx*sin + ly*cos = surfaceY, i.e. lx*sin + ly*cos = dy.
+      // For each local ly: lx_on_line = (dy - ly*cos) / sin  (when sin != 0).
+      // But lx must also be within the rounded rect's horizontal extent at ly.
+      // The leftmost and rightmost surface-X values across all valid (lx,ly) give
+      // the strip bounds.
+      //
+      // Sample the local-Y range that can produce this surface-Y.
+      constexpr int kSamples = 32;
+      for (int s = 0; s <= kSamples; ++s) {
+        const float t = static_cast<float>(s) / static_cast<float>(kSamples);
+        const float ly = -halfH + (2.0f * halfH) * t;
+        const auto [localLeft, localRight] = localExtents(ly);
+        if (localLeft >= localRight) {
+          continue;
+        }
+        // lx_on_line = (dy - ly*cos) / sin, but we need the intersection of
+        // the horizontal surface-Y line with the row ly in local space projected
+        // onto the surface X axis. Surface X = cx + lx*cos - ly*sin.
+        // Constraint: lx*sin + ly*cos = dy  =>  lx = (dy - ly*cos) / sin.
+        // But when sin ≈ 0, surface-Y ≈ cy + ly*cos, so only ly ≈ dy/cos is
+        // valid, and surface-X = cx + lx*cos for any lx in the local extent.
+        float sxLeft, sxRight;
+        if (std::abs(sinA) > 1e-6f) {
+          const float lxOnLine = (dy - ly * cosA) / sinA;
+          if (lxOnLine < localLeft - 0.5f || lxOnLine > localRight + 0.5f) {
+            continue;
+          }
+          const float clampedLx = std::clamp(lxOnLine, localLeft, localRight);
+          const float sx = centerX + clampedLx * cosA - ly * sinA;
+          sxLeft = sx;
+          sxRight = sx;
+        } else {
+          if (std::abs(ly * cosA - dy) > 1.0f) {
+            continue;
+          }
+          sxLeft = centerX + localLeft * cosA - ly * sinA;
+          sxRight = centerX + localRight * cosA - ly * sinA;
+          if (sxLeft > sxRight) {
+            std::swap(sxLeft, sxRight);
+          }
+        }
+        globalMinX = std::min(globalMinX, sxLeft);
+        globalMaxX = std::max(globalMaxX, sxRight);
+        anyHit = true;
+      }
+    }
+
+    if (!anyHit || globalMinX >= globalMaxX) {
+      continue;
+    }
+
+    const int rx = static_cast<int>(std::floor(globalMinX));
+    const int rRight = static_cast<int>(std::ceil(globalMaxX));
+    const int rw = rRight - rx;
+    const int ry = static_cast<int>(std::lround(aabbTop)) + row;
+    if (rw <= 0) {
+      continue;
+    }
+
+    if (!out.empty()) {
+      auto& prev = out.back();
+      if (prev.x == rx && prev.width == rw && prev.y + prev.height == ry) {
+        prev.height += rowH;
+        continue;
+      }
+    }
+    out.push_back({rx, ry, rw, rowH});
+  }
+
+  return out;
+}
+
 void Surface::clearBlurRegion() {
   if (m_backgroundEffect == nullptr) {
     traceSurfaceEvent(*this, "blur-clear-no-effect");

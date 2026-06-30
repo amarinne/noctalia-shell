@@ -43,6 +43,7 @@
 #include "shell/bar/widgets/wallpaper_widget.h"
 #include "shell/bar/widgets/weather_widget.h"
 #include "shell/bar/widgets/workspaces_widget.h"
+#include "system/format_units.h"
 #include "ui/style.h"
 #include "util/string_utils.h"
 #include "wayland/wayland_connection.h"
@@ -325,9 +326,10 @@ std::unique_ptr<Widget> WidgetFactory::create(
     const std::string titleScroll = wc != nullptr ? wc->getString("title_scroll", "none") : std::string("none");
     const bool hideWhenNoMedia = wc != nullptr ? wc->getBool("hide_when_no_media", false) : false;
     const bool albumArtOnly = wc != nullptr ? wc->getBool("album_art_only", false) : false;
+    const bool hideAlbumArt = wc != nullptr ? wc->getBool("hide_album_art", false) : false;
     auto widget = std::make_unique<MediaWidget>(
         m_mpris, m_httpClient, output, maxWidth, minWidth, artSize, parseMediaTitleScrollMode(titleScroll),
-        hideWhenNoMedia, albumArtOnly
+        hideWhenNoMedia, albumArtOnly, hideAlbumArt
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -486,6 +488,8 @@ std::unique_ptr<Widget> WidgetFactory::create(
     }
     const std::string display = wc != nullptr ? wc->getString("display", "gauge") : std::string("gauge");
     const std::string networkInterface = wc != nullptr ? wc->getString("interface", "") : std::string();
+    const std::string networkSpeedUnit = wc != nullptr ? wc->getString("network_speed_unit", "auto") : "auto";
+    const bool networkSpeedCompact = wc != nullptr ? wc->getBool("network_speed_compact", false) : false;
     SysmonDisplayMode displayMode = SysmonDisplayMode::Gauge;
     if (display == "text")
       displayMode = SysmonDisplayMode::Text;
@@ -501,6 +505,9 @@ std::unique_ptr<Widget> WidgetFactory::create(
               )
             : colorSpecFromRole(ColorRole::Error),
         .networkInterface = networkInterface,
+        .networkSpeedUnit = FormatUnits::decimalByteRateUnitFromString(networkSpeedUnit),
+        .networkSpeedLabelStyle =
+            networkSpeedCompact ? FormatUnits::ByteRateLabelStyle::Compact : FormatUnits::ByteRateLabelStyle::Full,
         .showLabel = wc != nullptr ? wc->getBool("show_label", true) : true,
         .labelMinWidth = static_cast<float>(wc != nullptr ? wc->getDouble("label_min_width", 0.0) : 0.0),
         .glyph = wc != nullptr ? wc->getString("glyph", "") : std::string{},
@@ -525,6 +532,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .workspaceLabelPlacement = WorkspaceLabelPlacement::Corner,
         .hideEmptyWorkspaces = wc != nullptr ? wc->getBool("hide_empty_workspaces", false) : false,
         .workspaceGroupCapsule = wc != nullptr ? wc->getBool("workspace_group_capsule", true) : true,
+        .focusedOutputOnly = wc != nullptr ? wc->getBool("focused_output_only", false) : false,
         .groupSingleIconPerApp = wc != nullptr ? wc->getBool("group_single_icon_per_app", false) : false,
         .showActiveIndicator = wc != nullptr ? wc->getBool("show_active_indicator", true) : true,
         .activeOpacity = wc != nullptr ? static_cast<float>(wc->getDouble("active_opacity", 1.0)) : 1.0f,
@@ -598,8 +606,11 @@ std::unique_ptr<Widget> WidgetFactory::create(
     const ColorSpec muteColor = wc != nullptr
         ? wc->getColorSpec("mute_color", colorSpecFromRole(ColorRole::Error), "widget." + name + ".mute_color")
         : colorSpecFromRole(ColorRole::Error);
+    std::string glyphOverride = wc != nullptr ? wc->getString("glyph", "") : std::string{};
+    std::string muteGlyphOverride = wc != nullptr ? wc->getString("mute_glyph", "") : std::string{};
     auto widget = std::make_unique<VolumeWidget>(
-        m_audio, m_easyEffects, &m_config, output, showLabel, volumeTarget, scrollStep, muteColor
+        m_audio, m_easyEffects, &m_config, output, showLabel, volumeTarget, scrollStep, muteColor,
+        std::move(glyphOverride), std::move(muteGlyphOverride)
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -618,7 +629,8 @@ std::unique_ptr<Widget> WidgetFactory::create(
   if (type == "weather") {
     const float maxWidth = static_cast<float>(wc != nullptr ? wc->getDouble("max_length", 160.0) : 160.0);
     const bool showCondition = wc != nullptr ? wc->getBool("show_condition", true) : true;
-    auto widget = std::make_unique<WeatherWidget>(m_weather, output, maxWidth, showCondition);
+    const bool showTemperature = wc != nullptr ? wc->getBool("show_temperature", true) : true;
+    auto widget = std::make_unique<WeatherWidget>(m_weather, output, maxWidth, showCondition, showTemperature);
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -660,6 +672,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .activePillSize = static_cast<float>(wc != nullptr ? wc->getDouble("active_pill_size", 2.2) : 2.2),
         .inactivePillSize = static_cast<float>(wc != nullptr ? wc->getDouble("inactive_pill_size", 1.0) : 1.0),
         .minimal = wc != nullptr ? wc->getBool("minimal", false) : false,
+        .focusedOutputOnly = wc != nullptr ? wc->getBool("focused_output_only", false) : false,
     };
     auto widget = std::make_unique<WorkspacesWidget>(m_platform, m_configService, output, options);
     widget->setContentScale(contentScale);

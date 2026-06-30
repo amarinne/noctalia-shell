@@ -315,7 +315,11 @@ std::optional<LayerPopupParentContext> SettingsWindow::popupParentContextForSurf
   return std::nullopt;
 }
 
-void SettingsWindow::open() {
+void SettingsWindow::open(std::string context) {
+  if (!context.empty()) {
+    m_selectedSection = std::move(context);
+  }
+
   if (m_wayland == nullptr || m_renderContext == nullptr || !m_wayland->hasXdgShell()) {
     return;
   }

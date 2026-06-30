@@ -35,6 +35,16 @@ namespace shell::dock {
     constexpr std::int32_t kMenuPinToggleId = -4;
     constexpr std::int32_t kMenuWindowBaseId = -1000;
 
+    bool isWindowClosable(const ToplevelInfo& window) {
+      if (window.handle != nullptr) {
+        return true;
+      }
+      if (compositors::isKde()) {
+        return !window.identifier.empty() || (!window.title.empty() && !window.appId.empty());
+      }
+      return false;
+    }
+
     popup_chrome::Attachment popupAttachmentForDockPosition(bool isBottom, bool isTop, bool isRight) {
       if (isBottom) {
         return popup_chrome::Attachment{
@@ -128,11 +138,8 @@ namespace shell::dock {
   ) {
     auto menu = std::make_unique<DockPopup>();
 
-    // Collect running windows for "Close" / "Close All" entries.
+    // Collect running windows for activation/close actions.
     menu->windows = windows;
-    for (const auto& w : windows) {
-      menu->handles.push_back(w.handle);
-    }
 
     // IDs 0..N-1 -> desktop actions; negative constants -> windows / close commands.
     std::vector<ContextMenuControlEntry> entries;
@@ -169,7 +176,15 @@ namespace shell::dock {
 
     const bool hasWindowEntries = !windows.empty();
     const bool hasActionEntries = !entry.actions.empty();
-    const bool hasCloseEntries = !menu->handles.empty();
+    std::vector<std::size_t> closableWindowIndices;
+    closableWindowIndices.reserve(menu->windows.size());
+    for (std::size_t i = 0; i < menu->windows.size(); ++i) {
+      if (isWindowClosable(menu->windows[i])) {
+        closableWindowIndices.push_back(i);
+      }
+    }
+    const std::size_t closableCount = closableWindowIndices.size();
+    const bool hasCloseEntries = closableCount > 0;
     if (hasWindowEntries && (hasActionEntries || hasCloseEntries)) {
       bodyEntries.push_back(
           ContextMenuControlEntry{
@@ -190,8 +205,7 @@ namespace shell::dock {
       );
     }
 
-    const std::size_t runCount = menu->handles.size();
-    if (runCount > 0) {
+    if (closableCount > 0) {
       if (hasActionEntries) {
         bodyEntries.push_back(
             ContextMenuControlEntry{
@@ -199,7 +213,7 @@ namespace shell::dock {
             }
         );
       }
-      if (runCount == 1) {
+      if (closableCount == 1) {
         bodyEntries.push_back(
             ContextMenuControlEntry{
                 .id = kMenuCloseId,
@@ -336,7 +350,8 @@ namespace shell::dock {
       menuPtr->surface->requestLayout();
     });
     menu->surface->setPrepareFrameCallback([&platform, &config, &renderContext, menuPtr, entries, entryActions,
-                                            callbacks, isPinned](bool /*needsUpdate*/, bool needsLayout) {
+                                            callbacks, isPinned,
+                                            closableWindowIndices](bool /*needsUpdate*/, bool needsLayout) {
       if (menuPtr->surface == nullptr) {
         return;
       }
@@ -375,19 +390,19 @@ namespace shell::dock {
         if (menuPtr->surface)
           menuPtr->surface->requestRedraw();
       });
-      ctrl->setOnActivate([menuPtr, entryActions, callbacks, isPinned](const ContextMenuControlEntry& e) {
+      ctrl->setOnActivate([menuPtr, entryActions, callbacks, isPinned,
+                           closableWindowIndices](const ContextMenuControlEntry& e) {
         const std::int32_t id = e.id;
-        auto menuHandles = menuPtr->handles;
-        auto closingHandles = menuPtr->handles;
-        DeferredCall::callLater([id, entryActions, callbacks, isPinned, menuHandles = std::move(menuHandles),
-                                 closingHandles = std::move(closingHandles)]() mutable {
+        auto menuWindows = menuPtr->windows;
+        DeferredCall::callLater([id, entryActions, callbacks, isPinned, menuWindows = std::move(menuWindows),
+                                 closableWindowIndices]() mutable {
           if (id == kMenuPinToggleId) {
             if (callbacks.setEntryPinned) {
               callbacks.setEntryPinned(!isPinned);
             }
           } else if (id <= kMenuWindowBaseId) {
             const auto idx = static_cast<std::size_t>(kMenuWindowBaseId - id);
-            if (idx < menuHandles.size() && callbacks.activateWindow) {
+            if (idx < menuWindows.size() && callbacks.activateWindow) {
               callbacks.activateWindow(idx);
             }
           } else if (id >= 0) {
@@ -395,14 +410,16 @@ namespace shell::dock {
             if (idx < entryActions.size() && callbacks.launchAction) {
               callbacks.launchAction(entryActions[idx]);
             }
-          } else if (id == kMenuCloseId && !closingHandles.empty()) {
+          } else if (id == kMenuCloseId && !closableWindowIndices.empty()) {
             if (callbacks.closeWindow) {
-              callbacks.closeWindow(closingHandles[0]);
+              callbacks.closeWindow(closableWindowIndices[0]);
             }
           } else if (id == kMenuCloseAllId) {
             if (callbacks.closeWindow) {
-              for (auto* handle : closingHandles) {
-                callbacks.closeWindow(handle);
+              for (std::size_t windowIndex : closableWindowIndices) {
+                if (windowIndex < menuWindows.size()) {
+                  callbacks.closeWindow(windowIndex);
+                }
               }
             }
           }

@@ -226,6 +226,7 @@ struct ShellGreeterSyncConfig {
   // Shell prefix that replaces the default pkexec/run0 escalator before the apply helper
   // path and staging directory. Empty = pkexec or run0. Example: "ghostty -e pkexec"
   std::string privilegeCommand;
+  bool autoSync = false;
 
   bool operator==(const ShellGreeterSyncConfig&) const = default;
 };
@@ -938,6 +939,7 @@ struct ShellConfig {
   bool appIconColorize = false;
   std::optional<ColorSpec> appIconColor;
   bool launchAppsAsSystemdServices = false;
+  std::string launchAppsCustomCommand;
   /// When false, disables Wayland clipboard integration (history panel, data-control binding, Input paste/copy hooks).
   bool clipboardEnabled = true;
   /// Maximum unpinned clipboard history entries retained (pinned entries are exempt).
@@ -1087,6 +1089,7 @@ struct BrightnessMonitorOverride {
 
 struct BrightnessConfig {
   bool enableDdcutil = false;
+  bool syncBrightnessOfAllMonitors = false;
   std::vector<std::string> ddcutilIgnoreMmids;
   std::vector<BrightnessMonitorOverride> monitorOverrides;
   float minimumBrightness = 0.0f;
@@ -1320,6 +1323,7 @@ struct ControlCenterConfig {
   static constexpr std::int32_t kDefaultWidth = 700;
 
   std::vector<ShortcutConfig> shortcuts;
+  std::vector<std::string> hiddenTabs; // tab keys (see kTabs) the user has hidden; empty = all available shown
   ControlCenterSidebarMode sidebarMode = ControlCenterSidebarMode::Compact;
   ControlCenterSidebarMode sidebarSectionMode = ControlCenterSidebarMode::Compact;
   std::int32_t width = kDefaultWidth; // full-sidebar logical width; compact/none modes scale down from this
@@ -1369,6 +1373,22 @@ struct PluginsConfig {
 // Source names are stable user-facing handles and git source storage directory names.
 // Keep them flat so they can never escape the plugin source cache.
 [[nodiscard]] bool isValidPluginSourceName(std::string_view name);
+struct HotCornersConfig {
+  bool enabled = false;
+
+  struct Corner {
+    std::string action = "none";
+    std::string command;
+    bool operator==(const Corner&) const = default;
+  };
+
+  Corner topLeft;
+  Corner topRight;
+  Corner bottomLeft;
+  Corner bottomRight;
+
+  bool operator==(const HotCornersConfig&) const = default;
+};
 
 struct Config {
   std::vector<BarConfig> bars;
@@ -1379,6 +1399,7 @@ struct Config {
   LockscreenWidgetsConfig lockscreenWidgets;
   DockConfig dock;
   DesktopWidgetsConfig desktopWidgets;
+  HotCornersConfig hotCorners;
   ShellConfig shell;
   OsdConfig osd;
   NotificationConfig notification;
@@ -1397,7 +1418,6 @@ struct Config {
   ControlCenterConfig controlCenter;
   PluginsConfig plugins;
 };
-
 // Which top-level config sections changed across a reload. Default-constructed
 // to all-true (conservative: "assume everything changed") so any path that does
 // not compute a precise diff still fans the reload out to every subscriber.
@@ -1427,6 +1447,7 @@ struct ConfigChangeSet {
   bool theme = true;
   bool controlCenter = true;
   bool plugins = true;
+  bool hotCorners = true;
 
   [[nodiscard]] bool any() const noexcept {
     return bars
@@ -1453,7 +1474,8 @@ struct ConfigChangeSet {
         || hooks
         || theme
         || controlCenter
-        || plugins;
+        || plugins
+        || hotCorners;
   }
 };
 

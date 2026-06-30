@@ -1,5 +1,6 @@
 #include "config/schema/config_schema.h"
 
+#include "config/config_types.h"
 #include "config/schema/engine.h"
 #include "config/schema/ranges.h"
 #include "core/key_chord.h"
@@ -427,6 +428,21 @@ namespace noctalia::config::schema {
     return s;
   }
 
+  const Schema<HotCornersConfig>& hotCornersSchema() {
+    static const Schema<HotCornersConfig::Corner> cornerSchema = {
+        field(&HotCornersConfig::Corner::action, "action"),
+        field(&HotCornersConfig::Corner::command, "command"),
+    };
+    static const Schema<HotCornersConfig> s = {
+        field(&HotCornersConfig::enabled, "enabled"),
+        subTable(&HotCornersConfig::topLeft, "top_left", cornerSchema),
+        subTable(&HotCornersConfig::topRight, "top_right", cornerSchema),
+        subTable(&HotCornersConfig::bottomLeft, "bottom_left", cornerSchema),
+        subTable(&HotCornersConfig::bottomRight, "bottom_right", cornerSchema),
+    };
+    return s;
+  }
+
   namespace {
     const Schema<BrightnessMonitorOverride>& brightnessMonitorSchema() {
       static const Schema<BrightnessMonitorOverride> s = {
@@ -447,6 +463,7 @@ namespace noctalia::config::schema {
   const Schema<BrightnessConfig>& brightnessSchema() {
     static const Schema<BrightnessConfig> s = {
         field(&BrightnessConfig::enableDdcutil, "enable_ddcutil"),
+        field(&BrightnessConfig::syncBrightnessOfAllMonitors, "sync_all_monitors"),
         field(&BrightnessConfig::ddcutilIgnoreMmids, "ignore_mmids"),
         field(&BrightnessConfig::minimumBrightness, "minimum_brightness", kUnitRange),
         // Map key seeds `match`; an explicit `match` key inside overrides it.
@@ -484,6 +501,7 @@ namespace noctalia::config::schema {
         enumField(&ControlCenterConfig::sidebarMode, "sidebar", kControlCenterSidebarModes),
         enumField(&ControlCenterConfig::sidebarSectionMode, "sidebar_section", kControlCenterSidebarModes),
         field(&ControlCenterConfig::width, "width", kControlCenterWidthRange),
+        field(&ControlCenterConfig::hiddenTabs, "hidden_tabs"),
         arrayOf<ControlCenterConfig, ShortcutConfig>(
             &ControlCenterConfig::shortcuts, "shortcuts", shortcutSchema(),
             [](const ShortcutConfig& sc) { return !sc.type.empty(); }
@@ -1300,6 +1318,7 @@ namespace noctalia::config::schema {
 
     const Schema<ShellGreeterSyncConfig>& shellGreeterSyncSchema() {
       static const Schema<ShellGreeterSyncConfig> s = {
+          field(&ShellGreeterSyncConfig::autoSync, "auto_sync"),
           custom<ShellGreeterSyncConfig>(
               "privilege_command",
               [](const toml::table& tbl, ShellGreeterSyncConfig& out, std::string_view, Diagnostics&) {
@@ -1361,6 +1380,7 @@ namespace noctalia::config::schema {
         field(&ShellConfig::appIconColorize, "app_icon_colorize"),
         colorSpecField(&ShellConfig::appIconColor, "app_icon_color", /*alwaysEmit=*/false),
         field(&ShellConfig::launchAppsAsSystemdServices, "launch_apps_as_systemd_services"),
+        field(&ShellConfig::launchAppsCustomCommand, "launch_apps_custom_command"),
         field(&ShellConfig::clipboardEnabled, "clipboard_enabled"),
         field(
             &ShellConfig::clipboardHistoryMaxEntries, "clipboard_history_max_entries", kClipboardHistoryMaxEntriesRange
@@ -1536,6 +1556,9 @@ namespace noctalia::config::schema {
       }
       if (section == "desktop_widgets") {
         return chk(desktopWidgetsSchema());
+      }
+      if (section == "hot_corners") {
+        return chk(hotCornersSchema());
       }
       if (section == "lockscreen_widgets") {
         return chk(lockscreenWidgetsSchema());

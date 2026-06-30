@@ -1,4 +1,4 @@
-#include "shell/control_center/audio_tab.h"
+#include "shell/control_center/tabs/audio_tab.h"
 
 #include "config/config_service.h"
 #include "core/log.h"

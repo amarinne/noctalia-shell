@@ -1,4 +1,4 @@
-#include "shell/control_center/screen_time_tab.h"
+#include "shell/control_center/tabs/screen_time_tab.h"
 
 #include "i18n/i18n.h"
 #include "render/core/color.h"

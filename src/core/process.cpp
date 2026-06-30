@@ -22,6 +22,7 @@
 #include <string_view>
 #include <sys/poll.h>
 #include <sys/wait.h>
+#include <system_error>
 #include <thread>
 #include <unistd.h>
 
@@ -713,7 +714,8 @@ namespace process {
     }
 
     if (std::strchr(name, '/') != nullptr) {
-      return ::access(name, X_OK) == 0;
+      std::error_code ec;
+      return ::access(name, X_OK) == 0 && std::filesystem::is_regular_file(name, ec);
     }
 
     const char* pathEnv = std::getenv("PATH");
@@ -728,7 +730,8 @@ namespace process {
       const std::string_view dir = end == std::string_view::npos ? path.substr(start) : path.substr(start, end - start);
       const std::filesystem::path candidate =
           dir.empty() ? std::filesystem::path(name) : (std::filesystem::path(dir) / name);
-      if (::access(candidate.c_str(), X_OK) == 0) {
+      std::error_code ec;
+      if (::access(candidate.c_str(), X_OK) == 0 && std::filesystem::is_regular_file(candidate, ec)) {
         return true;
       }
       if (end == std::string_view::npos) {

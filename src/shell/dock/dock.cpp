@@ -58,6 +58,7 @@ namespace {
     return desktop_entry_launch::LaunchOptions{
         .activationToken = std::move(token),
         .runAsSystemdService = config.config().shell.launchAppsAsSystemdServices,
+        .customCommand = config.config().shell.launchAppsCustomCommand,
     };
   }
 
@@ -888,7 +889,12 @@ void Dock::openItemMenu(shell::dock::DockInstance& instance, const shell::dock::
               m_platform->activateToplevelInfo(windows[windowIndex]);
             }
           },
-      .closeWindow = [this](zwlr_foreign_toplevel_handle_v1* handle) { m_platform->closeToplevel(handle); },
+      .closeWindow =
+          [this, windows](std::size_t windowIndex) {
+            if (windowIndex < windows.size()) {
+              m_platform->closeToplevelInfo(windows[windowIndex]);
+            }
+          },
       .launchAction =
           [this, entryId, entryWorkingDir, entryTerminal](const DesktopAction& desktopAction) {
             (void)desktop_entry_launch::launchAction(

@@ -40,7 +40,7 @@ namespace shell::dock {
 
   struct DockMenuCallbacks {
     std::function<void(std::size_t windowIndex)> activateWindow;
-    std::function<void(zwlr_foreign_toplevel_handle_v1*)> closeWindow;
+    std::function<void(std::size_t windowIndex)> closeWindow;
     std::function<void(const DesktopAction&)> launchAction;
     std::function<void(bool pinned)> setEntryPinned;
     std::function<void()> closeMenu;

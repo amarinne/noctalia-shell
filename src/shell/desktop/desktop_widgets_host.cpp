@@ -356,6 +356,17 @@ void DesktopWidgetsHost::prepareFrame(DesktopWidgetInstance& instance, bool need
   if (instance.widget->needsFrameTick()) {
     instance.surface->requestFrameTick();
   }
+
+  if (instance.widget->hasVisibleBackground()) {
+    const float radius = instance.widget->backgroundRadius();
+    auto blurStrips = Surface::tessellateRotatedRoundedRect(
+        geometry.contentOffsetX, geometry.contentOffsetY, instance.intrinsicWidth, instance.intrinsicHeight, radius,
+        instance.state.rotationRad
+    );
+    instance.surface->setBlurRegion(blurStrips);
+  } else {
+    instance.surface->clearBlurRegion();
+  }
 }
 
 bool DesktopWidgetsHost::onPointerEvent(const PointerEvent& event) {

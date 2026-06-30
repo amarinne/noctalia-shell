@@ -6,6 +6,7 @@
 #include "core/log.h"
 #include "core/process.h"
 #include "i18n/i18n.h"
+#include "shell/control_center/control_center_panel.h"
 #include "shell/control_center/shortcut_registry.h"
 #include "shell/settings/color_spec_picker.h"
 #include "shell/settings/font_weight_catalog.h"
@@ -193,10 +194,13 @@ namespace settings {
       );
     }
 
-    std::vector<SelectOption> controlCenterShortcutOptions() {
+    std::vector<SelectOption> controlCenterShortcutOptions(const Config& cfg) {
       std::vector<SelectOption> opts;
       opts.reserve(ShortcutRegistry::catalog().size());
       for (const auto& shortcut : ShortcutRegistry::catalog()) {
+        if (!ShortcutRegistry::isAvailable(shortcut.type, cfg)) {
+          continue;
+        }
         opts.push_back(
             SelectOption{
                 std::string(shortcut.type),
@@ -1024,10 +1028,28 @@ namespace settings {
         SettingsSection::ControlCenter, "general", tr("settings.schema.panels.home-shortcuts.label"),
         tr("settings.schema.panels.home-shortcuts.description"), {"control_center", "shortcuts"},
         ShortcutListSetting{
-            .items = cfg.controlCenter.shortcuts, .suggestedOptions = controlCenterShortcutOptions(), .maxItems = 6
+            .items = cfg.controlCenter.shortcuts, .suggestedOptions = controlCenterShortcutOptions(cfg), .maxItems = 6
         },
         "quick settings shortcuts toggles wifi bluetooth caffeine night light dnd power media weather clipboard"
     ));
+    {
+      MultiSelectSetting tabs;
+      const auto catalog = ControlCenterPanel::hideableTabCatalog();
+      tabs.options.reserve(catalog.size());
+      tabs.selectedValues.reserve(catalog.size());
+      for (const auto& tab : catalog) {
+        tabs.options.push_back(SelectOption{std::string(tab.key), tr(tab.titleKey)});
+        if (!std::ranges::contains(cfg.controlCenter.hiddenTabs, tab.key)) {
+          tabs.selectedValues.emplace_back(tab.key);
+        }
+      }
+      tabs.persistUnselected = true;
+      entries.push_back(makeEntry(
+          SettingsSection::ControlCenter, "general", tr("settings.schema.panels.control-center-tabs.label"),
+          tr("settings.schema.panels.control-center-tabs.description"), {"control_center", "hidden_tabs"},
+          std::move(tabs), "tabs sections visible hide show display brightness media audio network power"
+      ));
+    }
     entries.push_back(makeEntry(
         SettingsSection::Panels, "launcher", tr("settings.schema.panels.placement-launcher.label"),
         tr("settings.schema.panels.placement-launcher.description"), {"shell", "panel", "launcher_placement"},
@@ -1173,6 +1195,61 @@ namespace settings {
         sliderFor(cfg.shell.screenCorners.size, noctalia::config::schema::kScreenCornersSizeRange, true),
         "screen corners radius"
     ));
+
+    entries.push_back(makeEntry(
+        SettingsSection::Desktop, "hot-corners", tr("settings.schema.desktop.hot-corners-enabled.label"),
+        tr("settings.schema.desktop.hot-corners-enabled.description"), {"hot_corners", "enabled"},
+        ToggleSetting{cfg.hotCorners.enabled}, "hot corners trigger mouse edge screen"
+    ));
+
+    auto hotCornerActionSelect = [](const std::string& current) {
+      return plainSelect(
+          {{"none", "settings.options.hot-corners.none"},
+           {"launcher", "settings.options.hot-corners.launcher"},
+           {"control_center", "settings.options.hot-corners.control-center"},
+           {"window_switcher", "settings.options.hot-corners.window-switcher"},
+           {"command", "settings.options.hot-corners.command"}},
+          current
+      );
+    };
+
+    auto addCornerEntry = [&](const std::string& key, const std::string& labelKey, const std::string& currentAction,
+                              const std::string& currentCommand) {
+      SettingEntry e = makeEntry(
+          SettingsSection::Desktop, "hot-corners", tr(labelKey + ".label"), tr(labelKey + ".description"),
+          {"hot_corners", key, "action"}, hotCornerActionSelect(currentAction), "hot corners " + key
+      );
+      e.visibleWhen = SettingVisibility{{"hot_corners", "enabled"}, {"true"}};
+      entries.push_back(std::move(e));
+
+      SettingEntry c = makeEntry(
+          SettingsSection::Desktop, "hot-corners", tr(labelKey + "-command.label"),
+          tr(labelKey + "-command.description"), {"hot_corners", key, "command"},
+          TextSetting{.value = currentCommand, .placeholder = "Run command..."}, "hot corners command execute " + key
+      );
+      c.visibleWhen = SettingVisibility{std::vector<SettingVisibilityCondition>{
+          {{"hot_corners", "enabled"}, {"true"}},
+          {{"hot_corners", key, "action"}, {"command"}},
+      }};
+      entries.push_back(std::move(c));
+    };
+
+    addCornerEntry(
+        "top_left", "settings.schema.desktop.hot-corners-top-left", cfg.hotCorners.topLeft.action,
+        cfg.hotCorners.topLeft.command
+    );
+    addCornerEntry(
+        "top_right", "settings.schema.desktop.hot-corners-top-right", cfg.hotCorners.topRight.action,
+        cfg.hotCorners.topRight.command
+    );
+    addCornerEntry(
+        "bottom_left", "settings.schema.desktop.hot-corners-bottom-left", cfg.hotCorners.bottomLeft.action,
+        cfg.hotCorners.bottomLeft.command
+    );
+    addCornerEntry(
+        "bottom_right", "settings.schema.desktop.hot-corners-bottom-right", cfg.hotCorners.bottomRight.action,
+        cfg.hotCorners.bottomRight.command
+    );
 
     // Shell
     entries.push_back(makeEntry(
@@ -1360,6 +1437,21 @@ namespace settings {
           tr("settings.schema.shell.launch-apps-as-systemd-services.description"),
           {"shell", "launch_apps_as_systemd_services"}, ToggleSetting{cfg.shell.launchAppsAsSystemdServices}
       ));
+    }
+    {
+      auto e = makeEntry(
+          SettingsSection::Shell, "general", tr("settings.schema.shell.launch-apps-custom-command.label"),
+          tr("settings.schema.shell.launch-apps-custom-command.description"), {"shell", "launch_apps_custom_command"},
+          TextSetting{
+              .value = cfg.shell.launchAppsCustomCommand,
+              .placeholder = tr("settings.schema.shell.launch-apps-custom-command.placeholder"),
+              .width = 320.0f,
+              .browseFileExtensions = {},
+          },
+          "app command custom launcher"
+      );
+      e.visibleWhen = SettingVisibility{{"shell", "launch_apps_as_systemd_services"}, {"false"}};
+      entries.push_back(std::move(e));
     }
     const SettingVisibility clipboardOn{{"shell", "clipboard_enabled"}, {"true"}};
     entries.push_back(makeEntry(
@@ -2144,6 +2236,11 @@ namespace settings {
         SettingsSection::Services, "brightness", tr("settings.schema.services.minimum-brightness.label"),
         tr("settings.schema.services.minimum-brightness.description"), {"brightness", "minimum_brightness"},
         sliderFor(cfg.brightness.minimumBrightness, noctalia::config::schema::kUnitRange, false), "floor clamp"
+    ));
+    entries.push_back(makeEntry(
+        SettingsSection::Services, "brightness", tr("settings.schema.services.sync-monitor-brightness.label"),
+        tr("settings.schema.services.sync-monitor-brightness.description"), {"brightness", "sync_all_monitors"},
+        ToggleSetting{.checked = cfg.brightness.syncBrightnessOfAllMonitors}, "monitor brightness"
     ));
     entries.push_back(makeEntry(
         SettingsSection::Services, "media", tr("settings.schema.services.mpris-blacklist.label"),

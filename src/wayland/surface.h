@@ -102,6 +102,12 @@ public:
       int x, int y, int w, int h, const CornerShapes& corners, const RectInsets& logicalInset, const Radii& radii,
       int stripPx = 1
   );
+  // Tessellates a rounded rectangle rotated by `rotationRad` around its center
+  // (`centerX`, `centerY`) into axis-aligned horizontal strips. When `rotationRad`
+  // is zero this reduces to a plain tessellateRoundedRect call.
+  static std::vector<InputRect> tessellateRotatedRoundedRect(
+      float centerX, float centerY, float width, float height, float radius, float rotationRad, int stripPx = 1
+  );
   void requestUpdate();
   void requestUpdateOnly();
   void requestLayout();

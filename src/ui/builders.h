@@ -94,6 +94,7 @@ namespace ui {
     Flex** out = nullptr;
     std::optional<FlexAlign> align = std::nullopt;
     std::optional<FlexJustify> justify = std::nullopt;
+    std::optional<bool> wrap = std::nullopt;
     std::optional<float> gap = std::nullopt;
     std::optional<float> padding = std::nullopt;  // uniform; overridden per-axis by paddingV/paddingH
     std::optional<float> paddingV = std::nullopt; // vertical (top+bottom)
@@ -354,9 +355,9 @@ namespace ui {
   };
 
   struct SegmentedOption {
-    std::string label = {};
-    std::string glyph = {};
-    std::string tooltip = {};
+    std::string label;
+    std::string glyph;
+    std::string tooltip;
   };
 
   struct SegmentedProps {

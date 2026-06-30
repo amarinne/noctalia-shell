@@ -167,7 +167,7 @@ namespace desktop_settings {
   std::vector<WidgetSettingSpec> commonDesktopWidgetSettingSpecs(std::string_view type) {
     if (type == "login_box") {
       auto bgColor = colorSpec("background_color", "surface_variant");
-      auto bgRadius = doubleSpec("background_radius", 12.0, 0.0, 32.0, 1.0);
+      auto bgRadius = intSpec("background_radius", 12.0, 0.0, 32.0, 1.0);
       auto bgOpacity = doubleSpec("background_opacity", 0.88, 0.0, 1.0, 0.01);
       return {
           std::move(bgColor),
@@ -186,10 +186,10 @@ namespace desktop_settings {
     auto bgColor = colorSpec("background_color", "surface");
     bgColor.visibleWhen = backgroundOn;
 
-    auto bgRadius = doubleSpec("background_radius", 12.0, 0.0, 32.0, 1.0);
+    auto bgRadius = intSpec("background_radius", 12.0, 0.0, 32.0, 1.0);
     bgRadius.visibleWhen = backgroundOn;
 
-    auto bgPadding = doubleSpec("background_padding", 10.0, 0.0, 32.0, 1.0);
+    auto bgPadding = intSpec("background_padding", 10.0, 0.0, 32.0, 1.0);
     bgPadding.visibleWhen = backgroundOn;
 
     auto bgOpacity = doubleSpec("background_opacity", 0.8, 0.0, 1.0, 0.01);
@@ -227,6 +227,12 @@ namespace desktop_settings {
         {"", "desktop-widgets.editor.settings.stat-none"},
     };
     sysmonStatsWithNone.insert(sysmonStatsWithNone.end(), sysmonStats.begin(), sysmonStats.end());
+
+    const std::vector<WidgetSettingSelectOption> networkSpeedUnits = {
+        {"auto", "desktop-widgets.editor.settings.network-speed-unit-auto"},
+        {"kb", "desktop-widgets.editor.settings.network-speed-unit-kilobytes"},
+        {"mb", "desktop-widgets.editor.settings.network-speed-unit-megabytes"},
+    };
 
     std::vector<WidgetSettingSpec> specs;
     auto add = [&](WidgetSettingSpec spec) { specs.push_back(std::move(spec)); };
@@ -356,6 +362,17 @@ namespace desktop_settings {
             WidgetSettingVisibility{{{"stat", {"net_rx", "net_tx"}}, {"stat2", {"net_rx", "net_tx"}}}};
         add(std::move(interface));
       }
+      {
+        auto unit = selectSpec("network_speed_unit", "auto", networkSpeedUnits);
+        unit.visibleWhen = WidgetSettingVisibility{{{"stat", {"net_rx", "net_tx"}}, {"stat2", {"net_rx", "net_tx"}}}};
+        add(std::move(unit));
+      }
+      {
+        auto compact = boolSpec("network_speed_compact", false);
+        compact.visibleWhen =
+            WidgetSettingVisibility{{{"stat", {"net_rx", "net_tx"}}, {"stat2", {"net_rx", "net_tx"}}}};
+        add(std::move(compact));
+      }
       add(segmentedSpec("display", "graph", sysmonDisplay));
       {
         auto gaugeLayout = segmentedSpec(
@@ -395,7 +412,7 @@ namespace desktop_settings {
     } else if (type == "login_box") {
       add(boolSpec("show_login_button", true));
       add(doubleSpec("input_opacity", 1.0, 0.0, 1.0, 0.01));
-      add(doubleSpec("input_radius", 6.0, 0.0, 32.0, 1.0));
+      add(intSpec("input_radius", 6.0, 0.0, 32.0, 1.0));
     }
 
     return specs;

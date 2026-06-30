@@ -119,18 +119,14 @@ namespace {
     return (style.compact ? kIconSizeCompact : kIconSizeDefault) * style.scale;
   }
 
-  [[nodiscard]] float inkCenteredLabelHeight(const TextMetrics& metrics) {
-    const float actualHeight = metrics.bottom - metrics.top;
-    const float inkHeight = std::max(0.0f, metrics.inkBottom - metrics.inkTop);
-    return std::round(std::max(actualHeight, inkHeight));
-  }
+  [[nodiscard]] float stableLabelHeight(const TextMetrics& metrics) { return std::round(metrics.bottom - metrics.top); }
 
   [[nodiscard]] float launcherTextStackHeight(Renderer& renderer, const LauncherListStyle& style) {
     const float bodySize = Style::fontSizeBody * style.scale;
-    float textHeight = inkCenteredLabelHeight(renderer.measureFont(bodySize, FontWeight::Bold));
+    float textHeight = stableLabelHeight(renderer.measureFont(bodySize, FontWeight::Bold));
     if (!style.compact) {
       const float captionSize = Style::fontSizeCaption * style.scale;
-      textHeight += inkCenteredLabelHeight(renderer.measureFont(captionSize, FontWeight::Normal));
+      textHeight += stableLabelHeight(renderer.measureFont(captionSize, FontWeight::Normal));
     }
     return textHeight;
   }
@@ -263,14 +259,14 @@ namespace {
                   .color = colorSpecFromRole(ColorRole::OnSurface),
                   .maxLines = 1,
                   .fontWeight = FontWeight::Bold,
-                  .baselineMode = LabelBaselineMode::InkCentered,
+                  .baselineMode = LabelBaselineMode::StableFont,
               }),
               ui::label({
                   .out = &m_subtitle,
                   .fontSize = Style::fontSizeCaption * m_style.scale,
                   .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                   .maxLines = 1,
-                  .baselineMode = LabelBaselineMode::InkCentered,
+                  .baselineMode = LabelBaselineMode::StableFont,
               })
           )
       );
