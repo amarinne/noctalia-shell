@@ -22,6 +22,7 @@ struct wl_surface;
 struct wl_output;
 class ConfigService;
 
+class CompositorPlatform;
 class FingerprintAuthenticator;
 class LockSurface;
 class RenderContext;
@@ -36,7 +37,7 @@ public:
 
   bool initialize(
       WaylandConnection& wayland, RenderContext* renderContext, ConfigService* configService,
-      SharedTextureCache* textureCache, SystemBus* systemBus
+      SharedTextureCache* textureCache, SystemBus* systemBus, CompositorPlatform* compositorPlatform
   );
   void setSessionHooks(std::function<void()> onLocked, std::function<void()> onUnlocked);
   void setLockEngagedCallback(std::function<void()> callback);
@@ -50,6 +51,8 @@ public:
   void onGpuResourcesInvalidated();
   void onWallpaperChanged();
   void onConfigChanged();
+  void onLockKeysChanged();
+  void onKeyboardLayoutChanged();
   void requestLayout();
   void onPointerEvent(const PointerEvent& event);
   void onKeyboardEvent(const KeyboardEvent& event);
@@ -94,6 +97,9 @@ private:
   void resetLockState();
   void clearInstances();
   void updatePromptOnSurfaces();
+  void updateIndicatorsOnSurfaces();
+  void applyIndicatorsToSurface(LockSurface& surface) const;
+  void cycleKeyboardLayout();
   void handlePasswordEdited(const std::string& value);
   void tryAuthenticate();
   void handleAuthResult(std::uint64_t generation, PamAuthenticator::Result result);
@@ -108,6 +114,7 @@ private:
   ConfigService* m_configService = nullptr;
   SharedTextureCache* m_textureCache = nullptr;
   SystemBus* m_systemBus = nullptr;
+  CompositorPlatform* m_compositorPlatform = nullptr;
   ext_session_lock_v1* m_lock = nullptr;
   std::vector<Instance> m_instances;
   std::unordered_map<wl_output*, ScreencopyImage> m_desktopCaptures;

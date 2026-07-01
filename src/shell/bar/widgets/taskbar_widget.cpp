@@ -574,6 +574,9 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
         area->addChild(std::move(indicator));
       }
     }
+    if (!task.title.empty()) {
+      area->setTooltip(task.title);
+    }
     return area;
   };
 

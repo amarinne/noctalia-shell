@@ -482,6 +482,11 @@
         "label-min-width": "标签最小宽度",
         "layout": "布局",
         "mirrored": "镜像",
+        "network-speed-compact": "紧凑网速",
+        "network-speed-unit": "网速单位",
+        "network-speed-unit-auto": "自动",
+        "network-speed-unit-kilobytes": "kB/s",
+        "network-speed-unit-megabytes": "MB/s",
         "opacity": "不透明度",
         "primary-color": "主色",
         "reset-defaults": "恢复默认设置",
@@ -679,7 +684,7 @@
       "desktop-widgets-editor": "桌面小组件编辑器",
       "desktop-widgets-editor-enabled": "桌面小组件编辑器已开启。请切换到空的工作区查看编辑器图层。",
       "greeter-sync": "Noctalia Greeter",
-      "greeter-sync-pending": "正在等待管理员授权以写入 greeter 配置。",
+      "greeter-sync-pending": "正在等待管理员授权以写入 Greeter 配置。",
       "greeter-sync-pending-console": "正在等待管理员授权。请在 Noctalia 的 Polkit 弹窗、TTY 或控制台中确认，或手动运行 pkexec。",
       "greeter-sync-pending-manual": "同步文件已就绪。请在终端运行：pkexec noctalia-greeter-apply-appearance \"$XDG_RUNTIME_DIR/noctalia-greeter-sync\" 或设置 shell.greeter_sync.privilege_command（例如 ghostty -e pkexec）后重新同步。",
       "greeter-sync-success": "外观已同步。更改将在下次登录时生效。",
@@ -2014,6 +2019,10 @@
           "description": "打开特定选项卡时（音量、媒体等）",
           "label": "打开选项卡时的侧边栏"
         },
+        "control-center-tabs": {
+          "description": "选择控制中心中显示的标签页；未勾选的标签页将被隐藏",
+          "label": "控制中心标签页"
+        },
         "control-center-width": {
           "description": "控制中心面板的宽度（像素）；紧凑模式和无侧边栏模式会以此为基准按比例缩小",
           "label": "控制中心宽度"
@@ -2227,6 +2236,10 @@
           "description": "手动设置日落时间（HH:MM），未设置地址时使用",
           "label": "日落时间"
         },
+        "sync-monitor-brightness": {
+          "description": "同步所有屏幕的亮度",
+          "label": "同步屏幕亮度"
+        },
         "system-monitor": {
           "cpu-poll": {
             "description": "CPU 使用率、CPU 温度和平均负载的采样间隔秒数（0 为禁用）",
@@ -2379,13 +2392,22 @@
           "description": "Shell UI 默认日期格式",
           "label": "日期格式"
         },
+        "greeter-sync-auto": {
+          "description": "每当壁纸、配色或主题模式改变时，自动同步 Greeter",
+          "label": "自动同步 Greeter"
+        },
         "greeter-sync-privilege-command": {
-          "description": "用于替代 pkexec/run0 执行 greeter 同步。应用路径和暂存目录将自动追加。例如：ghostty -e pkexec",
+          "description": "用于替代 pkexec/run0 执行 Greeter 同步。应用路径和暂存目录将自动追加。例如：ghostty -e pkexec",
           "label": "Greeter 同步提权命令"
         },
         "launch-apps-as-systemd-services": {
           "description": "将应用程序作为独立的 systemd 服务启动，避免与 Noctalia 共享同一 cgroup",
           "label": "作为 systemd 服务启动应用"
+        },
+        "launch-apps-custom-command": {
+          "description": "应用启动器使用的自定义命令，其中 $CMD 会被替换为原命令",
+          "label": "自定义启动器命令",
+          "placeholder": "$CMD"
         },
         "middle-click-opens-widget-settings": {
           "description": "在状态栏中键点击小组件时打开其设置",
@@ -2600,12 +2622,12 @@
           "label": "自动轮换"
         },
         "automation-interval": {
-          "description": "壁纸切换的间隔秒数",
+          "description": "切换壁纸的间隔秒数",
           "label": "轮换间隔"
         },
         "automation-order": {
-          "description": "随机或按字母顺序选择壁纸",
-          "label": "顺序"
+          "description": "以随机或按字母顺序选择壁纸",
+          "label": "轮换顺序"
         },
         "automation-recursive": {
           "description": "在嵌套文件夹中搜索壁纸",
@@ -2711,6 +2733,7 @@
       },
       "options": {
         "always": "始终",
+        "auto": "自动",
         "cpu-temp": "CPU 温度",
         "cpu-usage": "CPU 使用率",
         "disk-percent": "磁盘使用率",
@@ -2727,6 +2750,8 @@
         "id": "ID",
         "input": "输入",
         "instance": "独立运行",
+        "kilobytes": "kB/s",
+        "megabytes": "MB/s",
         "name": "名称",
         "net-rx": "网络下行",
         "net-tx": "网络上行",
@@ -2901,7 +2926,8 @@
         "glyph": {
           "description": "图标名称",
           "label": "图标",
-          "sysmon-description": "自定义图标；留空则使用当前所选统计项的默认图标。"
+          "sysmon-description": "自定义图标；留空则使用当前所选统计项的默认图标。",
+          "volume-description": "自定义图标；留空则使用内置的动态图标"
         },
         "group-by-workspace": {
           "description": "可获取合成器数据时，按工作区将任务栏图标分组到胶囊中",
@@ -3056,6 +3082,18 @@
           "description": "静音时图标和标签的颜色；也支持固定的十六进制颜色值",
           "label": "静音颜色"
         },
+        "mute-glyph": {
+          "description": "静音或 0% 音量时使用的图标；留空则使用内置的静音图标",
+          "label": "静音图标"
+        },
+        "network-speed-compact": {
+          "description": "使用简短的单位后缀（例如 1.2M，而不是 1.2 MB/s）",
+          "label": "紧凑网速"
+        },
+        "network-speed-unit": {
+          "description": "用于网络接收和发送速度的单位；“自动”将在 B/s、kB/s、MB/s 和 GB/s 之间自动切换",
+          "label": "网速单位"
+        },
         "occupied-color": {
           "description": "非空工作区的颜色；也支持固定的十六进制颜色值",
           "label": "非空工作区颜色"
@@ -3144,6 +3182,10 @@
         "show-scroll-lock": {
           "description": "显示滚动锁定状态",
           "label": "显示滚动锁定"
+        },
+        "show-temperature": {
+          "description": "显示当前温度文本",
+          "label": "显示温度"
         },
         "show-when-idle": {
           "description": "未播放媒体时保持可视化显示",
@@ -3252,6 +3294,7 @@
       "reset-page": "重置页面",
       "reset-page-confirm": "确认重置",
       "search-placeholder": "搜索设置...",
+      "search-truncated": "仅显示前 {count} 个匹配项。请缩小搜索范围以减少结果。",
       "support-report": "诊断报告",
       "support-report-saved": "诊断报告已保存。",
       "support-report-title": "保存诊断报告",

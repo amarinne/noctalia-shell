@@ -298,7 +298,9 @@ void Application::scheduleGreeterAutoSync() {
 }
 
 void Application::initLockScreenAndSession() {
-  m_lockScreen.initialize(m_wayland, &m_renderContext, &m_configService, &m_sharedTextureCache, m_systemBus.get());
+  m_lockScreen.initialize(
+      m_wayland, &m_renderContext, &m_configService, &m_sharedTextureCache, m_systemBus.get(), &m_compositorPlatform
+  );
   m_wallpaper.setAutomationGate([this]() { return !m_lockScreen.isActive(); });
   m_configService.addReloadCallback([this]() {
     if (m_logindService != nullptr) {
@@ -399,6 +401,11 @@ void Application::initInputDispatch() {
     m_notificationToast.onPointerEvent(event);
   });
 
+  m_wayland.setLockKeysChangeCallback([this]() {
+    if (m_lockScreen.isActive()) {
+      m_lockScreen.onLockKeysChanged();
+    }
+  });
   m_wayland.setKeyboardEventCallback([this](const KeyboardEvent& event) {
     if (m_lockScreen.isActive()) {
       m_lockScreen.onKeyboardEvent(event);

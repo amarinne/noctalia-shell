@@ -64,6 +64,7 @@ namespace settings {
     std::string label;
     std::string description;
     ColorSwatchPreview preview = {};
+    std::string tooltip;
   };
 
   struct SelectSetting {

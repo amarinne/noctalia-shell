@@ -640,6 +640,9 @@ namespace settings {
           syncPressedText();
         });
         card->setOnClick([checkedState, setTileActive]() mutable { setTileActive(!*checkedState); });
+        if (!option.tooltip.empty()) {
+          card->setTooltip(option.tooltip);
+        }
 
         row->addChild(std::move(cardNode));
         ++countInRow;

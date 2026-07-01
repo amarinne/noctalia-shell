@@ -177,6 +177,15 @@ stb_dep = declare_dependency(
   include_directories: include_directories('third_party/stb', is_system: true),
 )
 
+# ── Vendored: tomlplusplus (header-only) ─────────────────────────────────
+if get_option('system_tomlplusplus')
+  tomlplusplus_dep = dependency('tomlplusplus')
+else
+  tomlplusplus_dep = declare_dependency(
+    include_directories: include_directories('third_party/tomlplusplus', is_system: true),
+  )
+endif
+
 # ── Vendored: md4c (CommonMark parser) ───────────────────────────────────────
 _md4c_lib = static_library('md4c',
   'third_party/md4c/md4c.c',
@@ -875,7 +884,6 @@ endif
 # ── Include directories ────────────────────────────────────────────────────────
 _noctalia_inc = [
   include_directories('src'),
-  include_directories('third_party/tomlplusplus', is_system: true),
   include_directories('third_party/wuffs', is_system: true),
   # nlohmann is header-only and uses GCC extensions in some paths; treat as system.
   include_directories('third_party/nlohmann', is_system: true),
@@ -917,6 +925,7 @@ noctalia_exe = executable('noctalia',
     mcu_dep,
     libxml2_dep,
     stb_dep,
+    tomlplusplus_dep,
     md4c_dep,
     libwebp_dep,
     luau_dep,
@@ -1056,6 +1065,17 @@ battery_hook_state_test = executable('battery_hook_state_test',
 )
 
 test('battery_hook_state', battery_hook_state_test)
+
+hook_manager_test = executable('hook_manager_test',
+  sources: files(
+    'tests/hook_manager_test.cpp',
+    'src/hooks/hook_manager.cpp',
+    'src/core/log.cpp',
+  ),
+  include_directories: _noctalia_inc,
+)
+
+test('hook_manager', hook_manager_test)
 
 desktop_entry_launch_test = executable('desktop_entry_launch_test',
   sources: files(
@@ -1269,6 +1289,9 @@ plugin_manifest_test = executable('plugin_manifest_test',
     'src/core/log.cpp',
   ),
   include_directories: _noctalia_inc,
+  dependencies: [
+    tomlplusplus_dep,
+  ],
 )
 
 test('plugin_manifest', plugin_manifest_test)
@@ -1308,7 +1331,10 @@ config_schema_roundtrip_test = executable('config_schema_roundtrip_test',
     'src/core/key_chord.cpp',
   ),
   include_directories: _noctalia_inc,
-  dependencies: [xkbcommon_dep],
+  dependencies: [
+    xkbcommon_dep,
+    tomlplusplus_dep,
+  ],
 )
 
 test('config_schema_roundtrip', config_schema_roundtrip_test)
@@ -1327,7 +1353,10 @@ config_widget_test = executable('config_widget_test',
     'src/core/key_chord.cpp',
   ),
   include_directories: _noctalia_inc,
-  dependencies: [xkbcommon_dep],
+  dependencies: [
+    xkbcommon_dep,
+    tomlplusplus_dep,
+  ],
 )
 
 test('config_widget', config_widget_test)
@@ -1347,7 +1376,10 @@ config_path_resolution_test = executable('config_path_resolution_test',
     'src/core/key_chord.cpp',
   ),
   include_directories: _noctalia_inc,
-  dependencies: [xkbcommon_dep],
+  dependencies: [
+    xkbcommon_dep,
+    tomlplusplus_dep,
+  ],
 )
 
 test('config_path_resolution', config_path_resolution_test)
@@ -1373,6 +1405,9 @@ state_store_test = executable('state_store_test',
     'src/core/log.cpp',
   ),
   include_directories: _noctalia_inc,
+  dependencies: [
+    tomlplusplus_dep,
+  ],
 )
 
 test('state_store', state_store_test)

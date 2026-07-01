@@ -728,7 +728,14 @@ namespace settings {
       std::vector<SelectOption> templateOptions;
       templateOptions.reserve(availableTemplates.size());
       for (const auto& t : availableTemplates) {
-        templateOptions.push_back(SelectOption{.value = t.id, .label = t.displayName, .description = t.category});
+        templateOptions.push_back(
+            SelectOption{
+                .value = t.id,
+                .label = t.displayName,
+                .description = t.category,
+                .tooltip = noctalia::theme::formatTemplateTooltip(t)
+            }
+        );
       }
       auto e = makeEntry(
           SettingsSection::Templates, "built-in", tr("settings.schema.templates.builtin-ids.label"),

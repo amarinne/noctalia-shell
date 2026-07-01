@@ -19,6 +19,7 @@
 #include "shell/tooltip/tooltip_manager.h"
 #include "system/battery_warning_monitor.h"
 #include "system/dependency_service.h"
+#include "theme/builtin_templates.h"
 #include "theme/community_palettes.h"
 #include "theme/community_templates.h"
 #include "theme/custom_palettes.h"
@@ -302,7 +303,12 @@ settings::RegistryEnvironment SettingsWindow::buildRegistryEnvironment() const {
   }
   for (const auto& t : noctalia::theme::CommunityTemplateService::availableTemplates()) {
     env.communityTemplates.push_back(
-        settings::SelectOption{.value = t.id, .label = t.displayName, .description = t.category}
+        settings::SelectOption{
+            .value = t.id,
+            .label = t.displayName,
+            .description = t.category,
+            .tooltip = noctalia::theme::formatTemplateTooltip(t)
+        }
     );
   }
   static const std::vector<settings::SelectOption> kFontFamilies = discoverFontFamilyOptions();

@@ -597,6 +597,9 @@ void Application::initWaylandCallbacks() {
     if (m_configService.config().osd.kinds.keyboardLayout) {
       m_keyboardLayoutOsd.onLayoutChanged(m_compositorPlatform, m_configService.config());
     }
+    if (m_lockScreen.isActive()) {
+      m_lockScreen.onKeyboardLayoutChanged();
+    }
   });
   m_compositorPlatform.setToplevelChangeCallback([this]() {
     m_screenTimeService.onFocusChange();

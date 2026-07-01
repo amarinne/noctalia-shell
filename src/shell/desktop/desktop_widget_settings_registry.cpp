@@ -411,6 +411,9 @@ namespace desktop_settings {
       add(boolSpec("shadow", true));
     } else if (type == "login_box") {
       add(boolSpec("show_login_button", true));
+      add(boolSpec("show_password_hint", true));
+      add(boolSpec("show_caps_lock", true));
+      add(boolSpec("show_keyboard_layout", true));
       add(doubleSpec("input_opacity", 1.0, 0.0, 1.0, 0.01));
       add(intSpec("input_radius", 6.0, 0.0, 32.0, 1.0));
     }

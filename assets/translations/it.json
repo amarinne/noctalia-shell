@@ -2019,6 +2019,10 @@
           "description": "Quando si apre una scheda specifica (volume, media ecc.)",
           "label": "Barra laterale aprendo una scheda"
         },
+        "control-center-tabs": {
+          "description": "Scegli quali schede visualizzare nel centro di controllo; le schede non selezionate vengono nascoste",
+          "label": "Schede del Centro di controllo"
+        },
         "control-center-width": {
           "description": "Larghezza del pannello del centro di controllo in pixel (le modalità compatta e senza barra laterale si riducono rispetto a questo valore)",
           "label": "Larghezza Control Center"
@@ -2232,6 +2236,10 @@
           "description": "Ora manuale del tramonto in HH:MM, usata quando non è impostata alcuna posizione",
           "label": "Tramonto"
         },
+        "sync-monitor-brightness": {
+          "description": "Sincronizza la luminosità di tutti i monitor",
+          "label": "Sincronizza la luminosità dei monitor"
+        },
         "system-monitor": {
           "cpu-poll": {
             "description": "Secondi tra campioni di uso CPU, temperatura CPU e media carico (0 disabilita)",
@@ -2395,6 +2403,11 @@
         "launch-apps-as-systemd-services": {
           "description": "Avvia le applicazioni in servizi systemd separati così non condividono il cgroup di Noctalia",
           "label": "Avvia app come servizi systemd"
+        },
+        "launch-apps-custom-command": {
+          "description": "Comando personalizzato utilizzato dal Launcher, sostituisce $CMD con il comando originale.",
+          "label": "Comando Launcher personalizzato",
+          "placeholder": "$CMD"
         },
         "middle-click-opens-widget-settings": {
           "description": "Apre le impostazioni di un widget barra dalla barra con click centrale",
@@ -3281,6 +3294,7 @@
       "reset-page": "Ripristina pagina",
       "reset-page-confirm": "Conferma ripristino",
       "search-placeholder": "Cerca impostazioni...",
+      "search-truncated": "Visualizzazione delle prime {count} corrispondenze. Perfeziona la ricerca per restringere i risultati.",
       "support-report": "Report di supporto",
       "support-report-saved": "Report di supporto salvato.",
       "support-report-title": "Salva report di supporto",

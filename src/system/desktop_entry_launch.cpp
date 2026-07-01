@@ -48,6 +48,29 @@ namespace {
     while (!result.empty() && result.back() == ' ') {
       result.pop_back();
     }
+
+    // Strip orphaned Flatpak @@ file-forwarding markers.
+    for (std::size_t pos = 0;;) {
+      pos = result.find("@@u", pos);
+      if (pos == std::string::npos)
+        break;
+      std::size_t end = result.find("@@", pos + 3);
+      if (end == std::string::npos)
+        break;
+      bool onlyWhitespace = true;
+      for (std::size_t j = pos + 3; j < end; ++j) {
+        if (result[j] != ' ') {
+          onlyWhitespace = false;
+          break;
+        }
+      }
+      if (onlyWhitespace) {
+        result.erase(pos, end + 2 - pos);
+      } else {
+        pos = end + 2;
+      }
+    }
+
     return result;
   }
 
