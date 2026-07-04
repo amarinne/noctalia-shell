@@ -481,6 +481,19 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
     const bool iconOddSpareOnEnd = !groupedHorizontalPill;
     const float iconInsetX = centeredOffset(tileSize, iconSize);
     const float iconInsetY = centeredOffset(tileSize, iconSize, 0.0f, iconOddSpareOnEnd);
+    if (task.active && m_showActiveIndicator && m_groupByWorkspace) {
+      const float haloInset = std::round(std::max(1.0f, Style::spaceXs * 0.5f * m_contentScale));
+      const float haloSize = std::round(iconSize + haloInset * 2.0f);
+      auto halo = ui::box({
+          .fill = colorSpecFromRole(ColorRole::Primary, 0.22f),
+          .radius = resolvedBarCapsuleRadius(haloSize, haloSize),
+          .width = haloSize,
+          .height = haloSize,
+          .configure = [](Box& box) { box.setBorder(colorSpecFromRole(ColorRole::Primary, 0.75f), Style::borderWidth); },
+      });
+      halo->setPosition(std::round(iconInsetX - haloInset), std::round(iconInsetY - haloInset));
+      area->addChild(std::move(halo));
+    }
     if (!task.iconPath.empty()) {
       auto image = ui::image({
           .fit = ImageFit::Contain,
