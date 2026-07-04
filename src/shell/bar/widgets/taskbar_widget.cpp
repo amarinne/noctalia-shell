@@ -481,19 +481,6 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
     const bool iconOddSpareOnEnd = !groupedHorizontalPill;
     const float iconInsetX = centeredOffset(tileSize, iconSize);
     const float iconInsetY = centeredOffset(tileSize, iconSize, 0.0f, iconOddSpareOnEnd);
-    if (task.active && m_showActiveIndicator && m_groupByWorkspace) {
-      const float haloInset = std::round(std::max(1.0f, Style::spaceXs * 0.5f * m_contentScale));
-      const float haloSize = std::round(iconSize + haloInset * 2.0f);
-      auto halo = ui::box({
-          .fill = colorSpecFromRole(ColorRole::Primary, 0.22f),
-          .radius = resolvedBarCapsuleRadius(haloSize, haloSize),
-          .width = haloSize,
-          .height = haloSize,
-          .configure = [](Box& box) { box.setBorder(colorSpecFromRole(ColorRole::Primary, 0.75f), Style::borderWidth); },
-      });
-      halo->setPosition(std::round(iconInsetX - haloInset), std::round(iconInsetY - haloInset));
-      area->addChild(std::move(halo));
-    }
     if (!task.iconPath.empty()) {
       auto image = ui::image({
           .fit = ImageFit::Contain,
@@ -566,7 +553,22 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
     if (task.active && m_showActiveIndicator) {
       const float d = std::max(4.0f, std::round(Style::baseGlyphSize * 0.32f * m_contentScale));
       const float bottomInset = 0.25f * m_contentScale;
-      if (showWindowTitle) {
+      if (m_groupByWorkspace && !showWindowTitle) {
+        const float lineThickness = std::max(2.0f, std::round(Style::borderWidth * 1.6f * m_contentScale));
+        const float lineWidth = std::round(std::max(10.0f, iconSize * 0.48f));
+        const float groupedBottomInset = std::round(std::max(1.0f, Style::borderWidth * m_contentScale));
+        auto indicator = ui::box({
+            .fill = colorSpecFromRole(ColorRole::Primary),
+            .radius = lineThickness * 0.5f,
+            .width = lineWidth,
+            .height = lineThickness,
+        });
+        indicator->setPosition(
+            std::round(iconInsetX + (iconSize - lineWidth) * 0.5f),
+            std::round(tileSize - lineThickness - groupedBottomInset)
+        );
+        area->addChild(std::move(indicator));
+      } else if (showWindowTitle) {
         const float lineThickness = d * 0.5f;
         auto indicator = ui::box({
             .fill = colorSpecFromRole(ColorRole::Primary),
@@ -597,7 +599,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
     const float groupGap = Style::spaceXs * m_contentScale;
     const float groupPad = Style::spaceXs * m_contentScale;
     const float groupPadMain = Style::spaceXs * 0.55f * m_contentScale;
-    const float groupPadCross = Style::spaceXs * 0.35f * m_contentScale;
+    const float groupPadCross = std::max(Style::spaceXs * 0.5f * m_contentScale, groupOutlineInset * 2.0f);
     const bool inlineBadge = m_showWorkspaceLabel && m_workspaceLabelPlacement == WorkspaceLabelPlacement::Inside;
     const bool externalBadge = m_showWorkspaceLabel && !inlineBadge;
     const float badgeBase = std::round(std::max(11.0f, Style::baseGlyphSize * 0.72f) * m_contentScale);
@@ -824,7 +826,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
                                  : tileSize)
           : (tileSize * taskCount) + (groupGap * externalGapCount);
       const float innerMainTotal = inlineBadge ? (groupPadMain * 2.0f + runLength) : (tileMain + groupPad + runLength);
-      const bool paddedCrossEnvelope = inlineBadge || externalBadge || m_vertical;
+      const bool paddedCrossEnvelope = inlineBadge || externalBadge || m_vertical || m_workspaceGroupCapsule;
       const float innerCrossSize =
           paddedCrossEnvelope ? std::round(tileSize + (groupPadCross * 2.0f)) : std::round(tileSize);
       const auto badgeCrossOverhang = externalBadge
