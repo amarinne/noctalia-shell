@@ -117,6 +117,8 @@ void Application::reloadPluginPanels() {
             PluginPanelOptions{
                 .width = resolved.entry->panelWidth,
                 .height = resolved.entry->panelHeight,
+                .widthFill = resolved.entry->panelWidthFill,
+                .heightFill = resolved.entry->panelHeightFill,
                 .shellConfig = shellConfig,
             }
         )

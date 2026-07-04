@@ -1073,8 +1073,8 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
           ui::label({
               .text = label,
               .fontSize = Style::fontSizeCaption * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
               .fontWeight = FontWeight::Medium,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
           })
       );
       field->addChild(std::move(control));
@@ -1555,8 +1555,8 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                 ui::label({
                     .text = label,
                     .fontSize = Style::fontSizeCaption * scale,
-                    .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                     .fontWeight = FontWeight::Medium,
+                    .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                 })
             );
             field->addChild(std::move(control));
@@ -1568,8 +1568,8 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                 ui::label({
                     .text = draft->error,
                     .fontSize = Style::fontSizeCaption * scale,
-                    .color = colorSpecFromRole(ColorRole::Error),
                     .fontWeight = FontWeight::Medium,
+                    .color = colorSpecFromRole(ColorRole::Error),
                 })
             );
           }
@@ -1645,8 +1645,8 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                 ui::label({
                     .text = i18n::tr("settings.plugins.sources.update-on-startup"),
                     .fontSize = Style::fontSizeCaption * scale,
-                    .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                     .fontWeight = FontWeight::Medium,
+                    .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                 })
             );
             autoUpdate->addChild(ui::spacer());

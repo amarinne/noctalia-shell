@@ -5,10 +5,10 @@
 #include "config/config_types.h"
 #include "core/build_info.h"
 #include "core/deferred_call.h"
-#include "core/keybind_matcher.h"
+#include "core/files/resource_paths.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
-#include "core/process.h"
-#include "core/resource_paths.h"
+#include "core/process/process.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "dbus/accounts/accounts_service.h"
 #include "dbus/bluetooth/bluetooth_agent.h"
@@ -82,6 +82,7 @@
 #include "system/easyeffects_service.h"
 #include "system/system_monitor_service.h"
 #include "ui/app_icon_colorization.h"
+#include "ui/controls/context_menu_popup.h"
 #include "ui/controls/input.h"
 #include "ui/dialogs/color_picker_dialog.h"
 #include "ui/dialogs/file_dialog.h"
@@ -115,6 +116,9 @@ void Application::initUi() {
   initNotificationAndOsd();
   initBarDockAndLayout();
   initWidgetControllersAndCallbacks();
+  // Wiring is complete and outputs are enumerated; build every per-output layer
+  // surface once in canonical order. initialize() above only wired dependencies.
+  reconcileOutputSurfaces();
 }
 
 void Application::initUiRenderSurfacesAndSettings() {
@@ -409,6 +413,14 @@ void Application::initInputDispatch() {
   m_wayland.setKeyboardEventCallback([this](const KeyboardEvent& event) {
     if (m_lockScreen.isActive()) {
       m_lockScreen.onKeyboardEvent(event);
+      return;
+    }
+    // Grab popups are modal — while one is open it owns the keyboard and ESC
+    // dismisses it before anything behind can react.
+    if (ContextMenuPopup::dispatchKeyboardEvent(event)) {
+      return;
+    }
+    if (m_trayMenu.onKeyboardEvent(event)) {
       return;
     }
     if (m_colorPickerDialogPopup.isOpen()) {
@@ -730,8 +742,6 @@ void Application::initNotificationAndOsd() {
       },
       "privacy-filters"
   );
-  m_screenCorners.initialize(m_wayland, &m_configService, &m_renderContext);
-  m_screenCorners.onConfigReload();
 }
 
 void Application::initBarDockAndLayout() {
@@ -978,9 +988,10 @@ void Application::initWidgetControllersAndCallbacks() {
     });
   }
 
-  // Created last so the corner trigger surfaces stack above the bar and dock on
-  // their shared Overlay layer; same ordering is preserved on hot reload in
-  // initWaylandCallbacks (bar/dock onOutputChange run before hot corners').
+  // Wire the corner surface owners here alongside the dock. Surface creation and
+  // stacking order live entirely in reconcileOutputSurfaces(): screen corners and
+  // the hot-corner trigger zones are built after the bar and dock so they are
+  // never occluded by shell chrome on their shared layer.
+  m_screenCorners.initialize(m_wayland, &m_configService, &m_renderContext);
   m_hotCorners.initialize(m_wayland, &m_configService, &m_renderContext);
-  m_hotCorners.onConfigReload();
 }

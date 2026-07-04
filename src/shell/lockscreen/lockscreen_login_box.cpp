@@ -262,7 +262,6 @@ namespace lockscreen_login_box {
         continue;
       }
       widget.rotationRad = 0.0f;
-      widget.enabled = true;
       widget.type = std::string(kWidgetType);
       normalizeSettings(widget.settings);
       const float screenWidth = screenWidthForOutput(wayland, widget.outputName);
@@ -271,6 +270,7 @@ namespace lockscreen_login_box {
       } else {
         clampPanelSize(screenWidth, widget.boxWidth, widget.boxHeight);
       }
+      desktop_widgets::clampStateToOutput(wayland, widget, widget.boxWidth, widget.boxHeight);
     }
 
     for (const auto& output : wayland.outputs()) {
@@ -295,6 +295,22 @@ namespace lockscreen_login_box {
       applyDefaultSettings(widget.settings, desktop_settings::DesktopWidgetSettingsScope::Background);
       widgets.insert(widgets.begin(), std::move(widget));
       outputsWithLoginBox.insert(outputKey);
+    }
+
+    bool anyEnabled = false;
+    for (const auto& widget : widgets) {
+      if (isLoginBoxWidget(widget) && widget.enabled) {
+        anyEnabled = true;
+        break;
+      }
+    }
+    if (!anyEnabled) {
+      for (auto& widget : widgets) {
+        if (isLoginBoxWidget(widget)) {
+          widget.enabled = true;
+          break;
+        }
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 #include "system/internal_app_metadata.h"
 
-#include "core/resource_paths.h"
+#include "core/files/resource_paths.h"
 #include "i18n/i18n.h"
 #include "system/desktop_entry.h"
 #include "util/string_utils.h"

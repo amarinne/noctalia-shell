@@ -63,6 +63,7 @@ int main() {
   expectKnown({"battery", "warning_threshold"});
   expectKnown({"calendar", "refresh_minutes"});
   expectKnown({"calendar", "account", "icloud", "provider"});
+  expectKnown({"control_center", "calendar", "show_events_card"});
   expectKnown({"nightlight", "temperature_day"});
   expectKnown({"location", "auto_locate"});
   expectKnown({"keybinds", "validate"});

@@ -719,8 +719,8 @@ std::unique_ptr<Flex> NotificationsTab::create() {
           ui::label({
               .out = &m_emptyTitle,
               .fontSize = Style::fontSizeBody * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
               .fontWeight = FontWeight::Bold,
+              .color = colorSpecFromRole(ColorRole::OnSurface),
           }),
           ui::label({
               .out = &m_emptyBody,

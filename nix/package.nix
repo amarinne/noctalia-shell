@@ -27,6 +27,7 @@
   librsvg,
   libqalculate,
   libxml2,
+  wireplumber,
   jemalloc,
   autoAddDriverRunpath,
   cudaSupport ? config.cudaSupport,
@@ -69,6 +70,7 @@ stdenv.mkDerivation {
     sdbus-cpp_2
     systemd
     pipewire
+    wireplumber
     pam
     curl
     libwebp

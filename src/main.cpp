@@ -3,7 +3,7 @@
 #include "config/cli.h"
 #include "core/build_info.h"
 #include "core/log.h"
-#include "core/process_fds.h"
+#include "core/process/process_fds.h"
 #include "ipc/cli.h"
 #include "launcher/dmenu_cli.h"
 #include "scripting/plugin_lint.h"

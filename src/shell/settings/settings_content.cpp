@@ -565,9 +565,9 @@ namespace settings {
                 .out = &titleLabel,
                 .text = option.label,
                 .fontSize = Style::fontSizeBody * scale,
+                .fontWeight = FontWeight::Medium,
                 .color = colorSpecFromRole(checked ? ColorRole::OnPrimary : ColorRole::OnSurface),
                 .maxLines = 1,
-                .fontWeight = FontWeight::Medium,
             })
         );
         if (!option.description.empty()) {

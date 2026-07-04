@@ -511,9 +511,10 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
 
   m_wallpaper->setVisible(true);
   m_widgetLayer->setVisible(true);
-  m_loginPanel->setVisible(true);
-  m_passwordField->setVisible(true);
-  m_loginButton->setVisible(true);
+  const bool loginVisible = isLoginBoxEnabled();
+  m_loginPanel->setVisible(loginVisible);
+  m_passwordField->setVisible(loginVisible);
+  m_loginButton->setVisible(loginVisible && resolveLoginStyle().showLoginButton);
   float panelHeight = lockscreen_login_box::defaultPanelHeight();
   float panelWidth = lockscreen_login_box::defaultPanelWidth(sw);
   float panelX = std::round((sw - panelWidth) * 0.5f);
@@ -597,7 +598,9 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
       lockscreen_login_box::panelContentLayout(panelWidth, panelHeight, loginStyle.showLoginButton);
   const float gap = Style::spaceSm;
   const float controlHeight = contentLayout.controlHeight;
-  const float contentTop = panelY + contentLayout.contentTop;
+  const float hintBand = hintVisible ? (Style::spaceXs + hintHeight) : 0.0f;
+  const float groupHeight = controlHeight + hintBand;
+  const float contentTop = panelY + std::max(0.0f, (panelHeight - groupHeight) * 0.5f);
   const float contentLeft = panelX + contentLayout.contentLeft;
   const float inputRightEdge = contentLeft + contentLayout.inputWidth;
 
@@ -625,21 +628,19 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
   m_passwordField->setPosition(inputLeft, contentTop);
   m_passwordField->layout(*renderer);
 
-  m_loginButton->setVisible(loginStyle.showLoginButton);
-  if (loginStyle.showLoginButton) {
+  m_loginButton->setVisible(loginVisible && loginStyle.showLoginButton);
+  if (loginVisible && loginStyle.showLoginButton) {
     m_loginButton->setRadius(Style::scaledRadius(loginStyle.inputRadius));
     m_loginButton->setSize(controlHeight, controlHeight);
     m_loginButton->setPosition(panelX + contentLayout.buttonX, contentTop);
     m_loginButton->layout(*renderer);
   }
 
-  // Status/hint line: the input stays vertically centered in the panel; the hint is centered
-  // horizontally and within the bottom margin below the input, without enlarging the panel.
+  // Status/hint line: centered horizontally, placed in the reserved band directly below the input.
   if (hintVisible) {
     const float inputBottom = contentTop + controlHeight;
-    const float bottomRegion = std::max(0.0f, panelY + panelHeight - inputBottom - hintHeight);
     const float labelX = panelX + (panelWidth - m_statusLabel->width()) * 0.5f;
-    const float labelY = inputBottom + bottomRegion * 0.5f;
+    const float labelY = inputBottom + Style::spaceXs;
     m_statusLabel->setPosition(labelX, labelY);
   }
 }
@@ -654,6 +655,18 @@ lockscreen_login_box::LoginBoxStyle LockSurface::resolveLoginStyle() const {
     return lockscreen_login_box::resolveStyle(loginBox->settings);
   }
   return lockscreen_login_box::LoginBoxStyle{};
+}
+
+bool LockSurface::isLoginBoxEnabled() const {
+  if (m_config == nullptr) {
+    return true;
+  }
+  if (const DesktopWidgetState* loginBox =
+          lockscreen_login_box::findForOutput(m_config->config().lockscreenWidgets.widgets, m_outputKey);
+      loginBox != nullptr) {
+    return loginBox->enabled;
+  }
+  return true;
 }
 
 std::string LockSurface::resolveStatusText(const lockscreen_login_box::LoginBoxStyle& style, bool& isError) const {
@@ -689,7 +702,7 @@ void LockSurface::updateCopy() {
   if (m_statusLabel != nullptr) {
     bool isError = false;
     const std::string text = resolveStatusText(style, isError);
-    const bool show = m_locked && !m_blackout && !text.empty();
+    const bool show = m_locked && !m_blackout && !text.empty() && isLoginBoxEnabled();
     m_statusLabel->setVisible(show);
     if (show) {
       m_statusLabel->setText(text);
@@ -698,7 +711,8 @@ void LockSurface::updateCopy() {
   }
 
   if (m_layoutChip != nullptr) {
-    const bool show = m_locked && !m_blackout && style.showKeyboardLayout && m_hasMultipleLayouts;
+    const bool show =
+        m_locked && !m_blackout && style.showKeyboardLayout && m_hasMultipleLayouts && isLoginBoxEnabled();
     m_layoutChip->setVisible(show);
     if (show) {
       m_layoutChip->setText(m_layoutLabel);

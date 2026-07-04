@@ -134,8 +134,16 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
   syncWidgetVisibility(showWidget);
   if (!showWidget) {
     if (!m_cachedState.empty() || !m_items.empty()) {
+      cancelAnimation();
       m_cachedState.clear();
       m_cachedAppsByWorkspace.clear();
+      m_items.clear();
+      if (m_container != nullptr) {
+        m_container->setFrameSize(0.0f, 0.0f);
+        while (!m_container->children().empty()) {
+          m_container->removeChild(m_container->children().back().get());
+        }
+      }
       m_rebuildPending = true;
       if (root() != nullptr) {
         root()->markLayoutDirty();
@@ -151,6 +159,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
   bool structuralChange = current.size() != m_cachedState.size();
   bool activeChange = false;
   bool appsChange = currentAppsByWorkspace != m_cachedAppsByWorkspace;
+  bool hideWhenEmptyTransition = false;
   if (!structuralChange) {
     for (std::size_t i = 0; i < current.size(); ++i) {
       const auto& a = current[i];
@@ -165,10 +174,13 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
       if (a.occupied != b.occupied) {
         activeChange = true;
       }
+      if (m_hideWhenEmpty && isEmptyWorkspace(a) != isEmptyWorkspace(b)) {
+        hideWhenEmptyTransition = true;
+      }
     }
   }
 
-  if (!structuralChange && !activeChange && !appsChange) {
+  if (!structuralChange && !activeChange && !hideWhenEmptyTransition && !appsChange) {
     if (m_focusedOutputOnly) {
       const bool isFocused = isFocusedOutput();
       if (isFocused != m_wasFocusedOutput) {
@@ -196,7 +208,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
   }
   m_cachedAppsByWorkspace = std::move(currentAppsByWorkspace);
 
-  if (structuralChange || appsChange) {
+  if (structuralChange || hideWhenEmptyTransition || appsChange) {
     m_rebuildPending = true;
     if (root() != nullptr) {
       root()->markLayoutDirty();
@@ -352,9 +364,9 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
           ui::label({
               .text = slot.label,
               .fontSize = labelFontSize,
+              .fontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, ws.active),
               .fontFamily = labelFontFamily(),
               .color = workspaceTextColor(ws),
-              .fontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, ws.active),
               .baselineMode = LabelBaselineMode::StableLogical,
           })
       ));
@@ -400,9 +412,17 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
 
   float total = 0.0f;
   for (const auto& item : m_items) {
-    total = std::max(total, item.currentX + item.currentWidth);
+    if (item.currentWidth > 0.0f) {
+      total = std::max(total, item.currentX + item.currentWidth);
+    }
   }
-  if (m_isVertical) {
+  if (total <= 0.0f) {
+    if (m_isVertical) {
+      m_container->setFrameSize(m_indicatorHeight, 0.0f);
+    } else {
+      m_container->setFrameSize(0.0f, m_indicatorHeight);
+    }
+  } else if (m_isVertical) {
     m_container->setFrameSize(m_indicatorHeight, total);
   } else {
     m_container->setFrameSize(total, m_indicatorHeight);
@@ -430,9 +450,17 @@ void WorkspacesWidget::updateContainerSize() {
   }
   float total = 0.0f;
   for (const auto& item : m_items) {
-    total = std::max(total, item.currentX + item.currentWidth);
+    if (item.currentWidth > 0.0f) {
+      total = std::max(total, item.currentX + item.currentWidth);
+    }
   }
-  if (m_isVertical) {
+  if (total <= 0.0f) {
+    if (m_isVertical) {
+      m_container->setFrameSize(m_indicatorHeight, 0.0f);
+    } else {
+      m_container->setFrameSize(0.0f, m_indicatorHeight);
+    }
+  } else if (m_isVertical) {
     m_container->setFrameSize(m_indicatorHeight, total);
   } else {
     m_container->setFrameSize(total, m_indicatorHeight);
@@ -461,9 +489,9 @@ void WorkspacesWidget::ensureItemLabel(Renderer& renderer, std::size_t index) {
       ui::label({
           .text = item.label,
           .fontSize = labelFontSize,
+          .fontWeight = workspaceFontWeight(labelFontWeight(), m_minimal, workspace.active),
           .fontFamily = labelFontFamily(),
           .color = workspaceTextColor(workspace),
-          .fontWeight = workspaceFontWeight(labelFontWeight(), m_minimal, workspace.active),
           .baselineMode = LabelBaselineMode::StableLogical,
       })
   ));
@@ -848,11 +876,7 @@ std::string WorkspacesWidget::resolveAppIconPath(const std::string& appId) {
   };
 
   if (appId.starts_with("steam_app_")) {
-    const app_identity::DesktopEntryLookupOptions steamLookup{
-        .includeHidden = true,
-        .includeNoDisplay = true,
-    };
-    if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries(), steamLookup);
+    if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries());
         entry.has_value() && !entry->icon.empty()) {
       if (const std::string steamIcon = resolveIconName(entry->icon); !steamIcon.empty()) {
         return steamIcon;

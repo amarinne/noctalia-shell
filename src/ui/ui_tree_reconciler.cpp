@@ -256,16 +256,17 @@ namespace ui {
                                                                  "color",   "spacing", "orientation"};
       static const std::unordered_set<std::string> kProgress = {"width",    "height", "flexGrow", "opacity", "visible",
                                                                 "progress", "fill",   "track",    "radius"};
-      static const std::unordered_set<std::string> kButton = {"width",     "height",      "flexGrow", "opacity",
-                                                              "visible",   "text",        "glyph",    "fontSize",
-                                                              "glyphSize", "variant",     "enabled",  "selected",
-                                                              "onClick",   "onRightClick"};
+      static const std::unordered_set<std::string> kButton = {"width",     "height",  "flexGrow",     "opacity",
+                                                              "visible",   "text",    "glyph",        "fontSize",
+                                                              "glyphSize", "variant", "contentAlign", "enabled",
+                                                              "selected",  "onClick", "onRightClick"};
       static const std::unordered_set<std::string> kGraph = {"width",   "height",    "flexGrow",   "opacity",
                                                              "visible", "values",    "values2",    "color",
                                                              "color2",  "lineWidth", "fillOpacity"};
-      static const std::unordered_set<std::string> kInput = {"width",   "height",   "flexGrow",    "opacity",
-                                                             "visible", "value",    "placeholder", "fontSize",
-                                                             "enabled", "password", "onChange",    "onSubmit"};
+      static const std::unordered_set<std::string> kInput = {"width",    "height",   "flexGrow",    "opacity",
+                                                             "visible",  "value",    "placeholder", "fontSize",
+                                                             "enabled",  "password", "multiline",   "focus",
+                                                             "onChange", "onSubmit"};
       static const std::unordered_set<std::string> kSelect = {"width",       "height",  "flexGrow",      "opacity",
                                                               "visible",     "options", "selectedIndex", "enabled",
                                                               "placeholder", "onChange"};
@@ -800,6 +801,17 @@ namespace ui {
       if (auto variant = parseButtonVariant(desired)) {
         button->setVariant(*variant);
       }
+      if (const std::string* contentAlign = strProp(desired, "contentAlign")) {
+        if (*contentAlign == "start") {
+          button->setContentAlign(ButtonContentAlign::Start);
+        } else if (*contentAlign == "end") {
+          button->setContentAlign(ButtonContentAlign::End);
+        } else if (*contentAlign == "center") {
+          button->setContentAlign(ButtonContentAlign::Center);
+        } else {
+          kLog.warn("ui tree: unknown button contentAlign '{}'", *contentAlign);
+        }
+      }
       if (const bool* enabled = boolProp(desired, "enabled")) {
         button->setEnabled(*enabled);
       }
@@ -975,6 +987,11 @@ namespace ui {
         if (const std::string* value = strProp(desired, "value")) {
           input->setValue(*value);
         }
+        // `focus` requests keyboard focus once, when the control is created
+        // (a fresh key makes a new control) — never on later re-renders.
+        if (const bool* focus = boolProp(desired, "focus"); focus != nullptr && *focus && m_focusSink) {
+          m_focusSink(input->inputArea());
+        }
         slot.seeded = true;
       }
       if (const std::string* placeholder = strProp(desired, "placeholder")) {
@@ -982,6 +999,10 @@ namespace ui {
       }
       if (const double* fontSize = numProp(desired, "fontSize")) {
         input->setFontSize(scaled(*fontSize));
+      }
+      // Multiline before password: they are mutually exclusive and multiline wins.
+      if (const bool* multiline = boolProp(desired, "multiline")) {
+        input->setMultiline(*multiline);
       }
       if (const bool* password = boolProp(desired, "password")) {
         input->setPasswordMode(*password);

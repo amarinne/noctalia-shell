@@ -34,6 +34,7 @@
         { pkgs, ... }:
         {
           default = pkgs.callPackage ./nix/package.nix { };
+          cuda = pkgs.callPackage ./nix/package.nix { cudaSupport = true; };
         }
       );
 

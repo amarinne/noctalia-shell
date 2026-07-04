@@ -775,9 +775,9 @@ namespace settings {
         ui::label({
             .text = entry.title,
             .fontSize = Style::fontSizeBody * scale,
+            .fontWeight = FontWeight::Bold,
             .color = colorSpecFromRole(ColorRole::OnSurface),
             .maxLines = titleMaxTwoLines ? std::optional<int>{2} : std::nullopt,
-            .fontWeight = FontWeight::Bold,
         })
     );
 

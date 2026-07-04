@@ -31,6 +31,7 @@
       "choose-display": "Choose display",
       "confirm-region": "Enter or Space to capture · Esc to cancel · drag to reselect",
       "fullscreen": "Full screen",
+      "overlay-alloc-failed": "Could not display the screenshot overlay (GPU out of video memory?)",
       "region": "Select region"
     },
     "widgets": {
@@ -166,7 +167,7 @@
       "application-volumes": "Application Volumes",
       "choose-effects-profile": "Choose a profile",
       "effects-profile": "Effects",
-      "input-device-prefix": "Input:",
+      "input-device-prefix": "Input",
       "no-application-audio": "No application audio",
       "no-application-audio-body": "No application playback streams are currently available.",
       "no-input-devices": "No input devices",
@@ -175,7 +176,7 @@
       "no-output-devices": "No output devices",
       "no-output-devices-body": "No playback sinks are currently available.",
       "no-output-selected": "No output device selected",
-      "output-device-prefix": "Output:",
+      "output-device-prefix": "Output",
       "unavailable-body": "PipeWire is not active.",
       "unavailable-title": "Audio unavailable"
     },
@@ -211,7 +212,8 @@
       "all-day": "All day",
       "events": "Events",
       "no-events": "No events.",
-      "today": "Today"
+      "today": "Today",
+      "toggle-events-card": "Toggle events card"
     },
     "display": {
       "disabled": "Disabled",
@@ -254,8 +256,8 @@
       "password": "Password",
       "password-prompt": "Enter password",
       "password-prompt-for": "Enter password for {ssid}",
-      "unavailable-detail": "Install and enable NetworkManager to manage networks from here.",
-      "unavailable-title": "NetworkManager unavailable",
+      "unavailable-detail": "Install and enable NetworkManager, wpa_supplicant, or iwd to manage networks from here.",
+      "unavailable-title": "Network service unavailable",
       "vpns": "VPNs",
       "wi-fi": "Wi-Fi",
       "wifi": "Wi-Fi",
@@ -814,6 +816,7 @@
     "badges": {
       "advanced": "Advanced",
       "community": "Community",
+      "deprecated": "Deprecated",
       "inherited": "Inherited",
       "monitor": "Monitor",
       "official": "Official",
@@ -1735,6 +1738,15 @@
           "description": "Space between dock items",
           "label": "Item Spacing"
         },
+        "launcher-custom-image": {
+          "description": "Use an image on the dock launcher button instead of an icon",
+          "label": "Launcher Custom Image",
+          "placeholder": "Path to an image"
+        },
+        "launcher-custom-image-colorize": {
+          "description": "Tint the custom image with the icon color",
+          "label": "Colorize Custom Image"
+        },
         "launcher-icon": {
           "description": "Tabler icon shown on the dock launcher button",
           "label": "Launcher Icon"
@@ -1772,7 +1784,7 @@
           "description": "Cast the global surface shadow from the dock"
         },
         "show-dots": {
-          "description": "Show running window dots beside dock icons",
+          "description": "Show running window dots below dock icons",
           "label": "Show Dots"
         },
         "show-instance-count": {
@@ -2529,6 +2541,10 @@
           "description": "Regex for microphone apps to ignore in privacy indicators and OSDs",
           "label": "Microphone Filter Regex"
         },
+        "privacy-screen-filter-regex": {
+          "description": "Regex for screen-sharing apps to ignore in privacy indicators and OSDs",
+          "label": "Screen Sharing Filter Regex"
+        },
         "screen-time-enabled": {
           "description": "Track per-app usage and show it in Control Center",
           "label": "Screen Time"
@@ -2611,6 +2627,7 @@
           "empty": "No community templates are available yet. Enable community templates and refresh the catalog first.",
           "label": "Community Templates"
         },
+        "dynamic-output": "Output path is resolved when the template is applied",
         "enable-builtins": {
           "description": "Use the bundled catalog of theme templates for apps",
           "label": "Enable Built-In Templates"
@@ -2900,6 +2917,10 @@
         "drawer-columns": {
           "description": "Number of tray icons per row in the drawer panel",
           "label": "Drawer Columns"
+        },
+        "drawer-item-size": {
+          "description": "Size of tray icons inside the drawer panel in pixels",
+          "label": "Drawer Icon Size"
         },
         "empty-color": {
           "description": "Color role used for empty workspaces; fixed hex colors are also supported",

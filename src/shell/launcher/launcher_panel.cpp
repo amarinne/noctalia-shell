@@ -2,9 +2,9 @@
 
 #include "config/config_service.h"
 #include "core/deferred_call.h"
-#include "core/key_modifiers.h"
-#include "core/key_symbols.h"
-#include "core/keybind_matcher.h"
+#include "core/input/key_modifiers.h"
+#include "core/input/key_symbols.h"
+#include "core/input/keybind_matcher.h"
 #include "core/ui_phase.h"
 #include "i18n/i18n.h"
 #include "render/core/async_texture_cache.h"
@@ -256,9 +256,9 @@ namespace {
               ui::label({
                   .out = &m_title,
                   .fontSize = Style::fontSizeBody * m_style.scale,
+                  .fontWeight = FontWeight::Bold,
                   .color = colorSpecFromRole(ColorRole::OnSurface),
                   .maxLines = 1,
-                  .fontWeight = FontWeight::Bold,
                   .baselineMode = LabelBaselineMode::StableFont,
               }),
               ui::label({
@@ -459,9 +459,9 @@ namespace {
           ui::label({
               .out = &m_title,
               .fontSize = Style::fontSizeCaption * m_style.scale,
+              .fontWeight = FontWeight::Normal,
               .color = colorSpecFromRole(ColorRole::OnSurface),
               .maxLines = 2,
-              .fontWeight = FontWeight::Normal,
               .configure = [](Label& label) { label.setTextAlign(TextAlign::Center); },
           })
       );

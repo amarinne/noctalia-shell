@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <fstream>
 #include <iterator>
 #include <set>
@@ -291,20 +292,37 @@ namespace settings {
     dc->setAlign(FlexAlign::Stretch);
     dc->setGap(Style::spaceMd * scale);
 
-    auto header = ui::row({.align = FlexAlign::Center, .gap = Style::spaceMd * scale, .fillWidth = true});
+    auto header = ui::row({.align = FlexAlign::Stretch, .gap = Style::spaceMd * scale, .fillWidth = true});
 
+    auto pill = [&](const std::string& text, ColorRole fg, ColorRole bg, float bgAlpha) {
+      return ui::row(
+          {.align = FlexAlign::Center,
+           .paddingH = Style::spaceXs * scale,
+           .fill = colorSpecFromRole(bg, bgAlpha),
+           .radius = Style::scaledRadiusSm(scale)},
+          ui::label({
+              .text = text,
+              .fontSize = Style::fontSizeMini * scale,
+              .fontWeight = FontWeight::Bold,
+              .color = colorSpecFromRole(fg),
+          })
+      );
+    };
+
+    // Left side: plugin thumbnail (Contain-fit so it shows uncropped), or glyph fallback.
     auto thumbIt = m_thumbnailPaths.find(entry.id);
     if (thumbIt != m_thumbnailPaths.end() && !thumbIt->second.empty()) {
       auto img = ui::image({
-          .fit = ImageFit::Cover,
+          .fit = ImageFit::Contain,
           .radius = Style::scaledRadiusMd(scale),
-          .width = 120.0f * scale,
-          .height = 80.0f * scale,
+          .width = 320.0f * scale,
+          .height = 200.0f * scale,
       });
+      const int thumbTargetSize = static_cast<int>(std::ceil(320.0f * scale));
       if (textureCache != nullptr) {
-        img->setSourceFileAsync(renderer, *textureCache, thumbIt->second);
+        img->setSourceFileAsync(renderer, *textureCache, thumbIt->second, thumbTargetSize, true);
       } else {
-        img->setSourceFile(renderer, thumbIt->second);
+        img->setSourceFile(renderer, thumbIt->second, thumbTargetSize, true);
       }
       header->addChild(std::move(img));
     } else {
@@ -319,13 +337,17 @@ namespace settings {
       );
     }
 
-    auto info = ui::column({.align = FlexAlign::Start, .gap = Style::spaceXs * scale, .flexGrow = 1.0f});
+    // Right side: plugin info (name, author, version/license/badges, description, tags, action),
+    // left-aligned and filling the space next to the thumbnail.
+    auto info = ui::column(
+        {.align = FlexAlign::Start, .gap = Style::spaceXs * scale, .paddingV = Style::spaceSm * scale, .flexGrow = 1.0f}
+    );
     info->addChild(
         ui::label({
             .text = entry.name,
             .fontSize = Style::fontSizeHeader * scale,
-            .color = colorSpecFromRole(ColorRole::OnSurface),
             .fontWeight = FontWeight::Bold,
+            .color = colorSpecFromRole(ColorRole::OnSurface),
         })
     );
     if (!entry.author.empty()) {
@@ -347,34 +369,56 @@ namespace settings {
           })
       );
     }
-    if (storeEntry.source == "official") {
+    if (!entry.license.empty()) {
       meta->addChild(
-          ui::row(
-              {.align = FlexAlign::Center,
-               .paddingH = Style::spaceXs * scale,
-               .fill = colorSpecFromRole(ColorRole::Primary, 0.15f),
-               .radius = Style::scaledRadiusSm(scale)},
-              ui::label({
-                  .text = i18n::tr("settings.badges.official"),
-                  .fontSize = Style::fontSizeMini * scale,
-                  .color = colorSpecFromRole(ColorRole::Primary),
-                  .fontWeight = FontWeight::Bold,
-              })
-          )
+          ui::label({
+              .text = entry.license,
+              .fontSize = Style::fontSizeMini * scale,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+          })
       );
     }
+    if (storeEntry.source == "official") {
+      meta->addChild(pill(i18n::tr("settings.badges.official"), ColorRole::Primary, ColorRole::Primary, 0.15f));
+    } else if (storeEntry.source == "community") {
+      meta->addChild(pill(i18n::tr("settings.badges.community"), ColorRole::Secondary, ColorRole::Secondary, 0.15f));
+    }
+    if (entry.deprecated) {
+      meta->addChild(pill(i18n::tr("settings.badges.deprecated"), ColorRole::Error, ColorRole::Error, 0.15f));
+    }
     info->addChild(std::move(meta));
-    header->addChild(std::move(info));
+
+    if (!entry.description.empty()) {
+      info->addChild(
+          ui::label({
+              .text = entry.description,
+              .fontSize = Style::fontSizeCaption * scale,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+              .maxLines = 4,
+              .ellipsize = TextEllipsize::End,
+          })
+      );
+    }
+
+    if (!entry.tags.empty()) {
+      auto tagsRow = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
+      for (const auto& tag : entry.tags) {
+        tagsRow->addChild(pill(tag, ColorRole::OnSurfaceVariant, ColorRole::SurfaceVariant, 1.0f));
+      }
+      info->addChild(std::move(tagsRow));
+    }
+
+    info->addChild(ui::spacer());
 
     if (enabling) {
-      header->addChild(
+      info->addChild(
           ui::spinner({
               .spinnerSize = Style::controlHeightSm * scale * 0.7f,
               .spinning = true,
           })
       );
     } else if (!entry.compatible) {
-      header->addChild(
+      info->addChild(
           ui::button({
               .text = i18n::tr("settings.plugins.store.incompatible"),
               .fontSize = Style::fontSizeCaption * scale,
@@ -383,7 +427,7 @@ namespace settings {
           })
       );
     } else if (!onDisk) {
-      header->addChild(
+      info->addChild(
           ui::button({
               .text = i18n::tr("settings.plugins.store.add"),
               .fontSize = Style::fontSizeCaption * scale,
@@ -396,6 +440,8 @@ namespace settings {
           })
       );
     }
+    header->addChild(std::move(info));
+
     dc->addChild(std::move(header));
 
     dc->addChild(ui::separator({.spacing = Style::spaceSm * scale}));
@@ -411,15 +457,6 @@ namespace settings {
       auto md = std::make_unique<MarkdownView>();
       md->setMarkdown(m_detailReadme, scale);
       dc->addChild(std::move(md));
-    } else if (!entry.description.empty()) {
-      dc->addChild(
-          ui::label({
-              .text = entry.description,
-              .fontSize = Style::fontSizeBody * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
-              .maxLines = 0,
-          })
-      );
     } else {
       dc->addChild(
           ui::label({

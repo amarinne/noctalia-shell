@@ -1,6 +1,6 @@
 #include "config/config_types.h"
 
-#include "core/key_modifiers.h"
+#include "core/input/key_modifiers.h"
 #include "render/core/color.h"
 #include "util/string_utils.h"
 #include "wayland/wayland_connection.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config/config_types.h"
-#include "core/key_chord.h"
+#include "core/input/key_chord.h"
 #include "ui/controls/color_swatch_preview.h"
 #include "ui/palette.h"
 

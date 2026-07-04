@@ -31,6 +31,7 @@
       "choose-display": "选择屏幕",
       "confirm-region": "Enter 或 Space 键截图 · Esc 取消 · 拖动重新选择",
       "fullscreen": "全屏",
+      "overlay-alloc-failed": "无法显示截图覆盖层（GPU 显存不足？）",
       "region": "选择区域"
     },
     "widgets": {
@@ -166,7 +167,7 @@
       "application-volumes": "应用音量",
       "choose-effects-profile": "选择音效预设",
       "effects-profile": "音效",
-      "input-device-prefix": "输入：",
+      "input-device-prefix": "输入",
       "no-application-audio": "无应用音频",
       "no-application-audio-body": "当前没有应用正在播放音频。",
       "no-input-devices": "无输入设备",
@@ -175,7 +176,7 @@
       "no-output-devices": "无输出设备",
       "no-output-devices-body": "当前没有可用的音频输出设备。",
       "no-output-selected": "未选择输出设备",
-      "output-device-prefix": "输出：",
+      "output-device-prefix": "输出",
       "unavailable-body": "PipeWire 服务未运行。",
       "unavailable-title": "音频不可用"
     },
@@ -382,8 +383,8 @@
         "elevation": "海拔",
         "sunrise": "日出",
         "sunset": "日落",
-        "temp-max": "最高温度",
-        "temp-min": "最低温度",
+        "temp-max": "最高气温",
+        "temp-min": "最低气温",
         "timezone": "时区",
         "uv-index": "紫外线",
         "wind": "风速"
@@ -393,18 +394,18 @@
       "forecast-placeholder": {
         "day": "星期日",
         "description": "天气",
-        "temperature": "10°C / 4°C"
+        "temperature": "10 / 4°C"
       },
       "forecast-view": {
         "daily": "每日",
         "hourly": "每小时"
       },
       "hourly": {
-        "summary": "{condition} / 降雨 {precip}%",
+        "summary": "{condition} / 降水概率 {precip}%",
         "tooltip": {
           "condition": "天气",
           "humidity": "湿度",
-          "rain": "降雨",
+          "rain": "降水",
           "wind": "风速"
         }
       },
@@ -495,9 +496,12 @@
         "secondary-color": "辅助色",
         "sensitivity": "灵敏度",
         "shadow": "阴影",
+        "show-caps-lock": "大写锁定提示",
         "show-forecast": "显示天气预报",
+        "show-keyboard-layout": "键盘布局",
         "show-label": "显示标签",
         "show-login-button": "登录按钮",
+        "show-password-hint": "密码提示",
         "show-when-idle": "空闲时显示",
         "stat": "统计",
         "stat-cpu-temp": "CPU 温度",
@@ -648,6 +652,7 @@
   "lockscreen": {
     "authenticating": "正在验证身份...",
     "authentication-failed": "身份验证失败",
+    "caps-lock-on": "大写锁定已开启",
     "password-cleared": "密码已清除",
     "password-placeholder": "密码",
     "ready": "请输入密码并按下 Enter 键。",
@@ -707,7 +712,7 @@
       "screen-time-reset-success": "使用记录已清除。",
       "session-bus-unavailable": "会话总线不可用",
       "wallpaper-palette-export": "自定义配色方案",
-      "wallpaper-palette-export-success": "已保存 \"{name}\" 并将配色方案源切换为自定义。"
+      "wallpaper-palette-export-success": "已保存 \"{name}\" 并将配色方案来源更改为自定义。"
     }
   },
   "osd": {
@@ -1030,7 +1035,7 @@
         "unnamed": "未命名行为"
       },
       "live-status": {
-        "active": "活跃",
+        "active": "活跃中",
         "idle-for-one": "已空闲 1 秒",
         "idle-for-seconds": "已空闲 {seconds} 秒"
       }
@@ -1731,6 +1736,15 @@
           "description": "Dock 项之间的间距",
           "label": "项目间距"
         },
+        "launcher-custom-image": {
+          "description": "在 Dock 启动器按钮上使用自定义图片代替图标",
+          "label": "启动器自定义图片",
+          "placeholder": "图片路径"
+        },
+        "launcher-custom-image-colorize": {
+          "description": "使用图标颜色为自定义图片着色",
+          "label": "着色自定义图片"
+        },
         "launcher-icon": {
           "description": "在 Dock 启动器按钮上显示的 Tabler 图标",
           "label": "启动器图标"
@@ -1768,7 +1782,7 @@
           "description": "从 Dock 投射全局表面阴影"
         },
         "show-dots": {
-          "description": "在 Dock 图标旁显示运行窗口的指示点",
+          "description": "在 Dock 图标下方显示运行窗口的指示点",
           "label": "显示指示点"
         },
         "show-instance-count": {
@@ -1808,7 +1822,7 @@
             "label": "蓝牙启用时"
           },
           "colors-changed": {
-            "description": "当前配色方案变化时执行的命令",
+            "description": "当前配色方案更改时执行的命令",
             "label": "配色改变时"
           },
           "logging-out": {
@@ -1994,7 +2008,7 @@
           "label": "大小"
         },
         "show-actions": {
-          "description": "在 Toast 通知中显示操作按钮；禁用后，点击 Toast 将触发其默认操作",
+          "description": "在 Toast 通知中显示操作按钮；禁用后，点击 Toast 将触发默认操作",
           "label": "显示操作按钮"
         },
         "show-app-name": {
@@ -2446,7 +2460,7 @@
           "label": "键盘布局"
         },
         "osd-kinds-lock-keys": {
-          "description": "大写锁定、数字锁定和滚动锁定变化时显示 OSD 弹窗",
+          "description": "大写锁定、数字锁定和滚动锁定切换时显示 OSD 弹窗",
           "label": "锁定键"
         },
         "osd-kinds-media": {
@@ -2607,6 +2621,7 @@
           "empty": "暂无可用的社区模板。请先启用社区模板并刷新目录。",
           "label": "社区模板"
         },
+        "dynamic-output": "输出路径将在应用模板时确定",
         "enable-builtins": {
           "description": "使用内置的应用主题模板目录",
           "label": "启用内置模板"
@@ -3184,8 +3199,8 @@
           "label": "显示滚动锁定"
         },
         "show-temperature": {
-          "description": "显示当前温度文本",
-          "label": "显示温度"
+          "description": "显示当前气温文本",
+          "label": "显示气温"
         },
         "show-when-idle": {
           "description": "未播放媒体时保持可视化显示",

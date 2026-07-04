@@ -1,7 +1,7 @@
 #include "render/render_context.h"
 
+#include "core/files/resource_paths.h"
 #include "core/log.h"
-#include "core/resource_paths.h"
 #include "core/ui_phase.h"
 #include "render/backend/render_backend.h"
 #include "render/core/texture_handle.h"
@@ -262,6 +262,13 @@ void RenderContext::measureTextCursorStops(
     FontWeight fontWeight
 ) {
   m_textRenderer.measureCursorStops(text, fontSize, byteOffsets, outStops, fontWeight);
+}
+
+void RenderContext::measureTextCursorStopsWrapped(
+    std::string_view text, float fontSize, const std::vector<std::size_t>& byteOffsets, float maxWidth,
+    std::vector<TextCursorStop>& outStops, FontWeight fontWeight
+) {
+  m_textRenderer.measureCursorStopsWrapped(text, fontSize, byteOffsets, maxWidth, outStops, fontWeight);
 }
 
 TextMetrics RenderContext::measureGlyph(char32_t codepoint, float fontSize) {

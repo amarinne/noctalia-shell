@@ -3,8 +3,8 @@
 #include "compositors/compositor_platform.h"
 #include "config/config_service.h"
 #include "core/deferred_call.h"
-#include "core/key_chord.h"
-#include "core/keybind_matcher.h"
+#include "core/input/key_chord.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
 #include "core/ui_phase.h"
 #include "ipc/ipc_service.h"
@@ -456,8 +456,8 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
   m_pendingOpenContext = std::string(request.context);
   m_activePanel->setPendingOpenContext(request.context);
 
-  const auto panelWidth = static_cast<std::uint32_t>(m_activePanel->preferredWidth());
-  const auto panelHeight = static_cast<std::uint32_t>(m_activePanel->preferredHeight());
+  auto panelWidth = static_cast<std::uint32_t>(m_activePanel->preferredWidth());
+  auto panelHeight = static_cast<std::uint32_t>(m_activePanel->preferredHeight());
   auto barConfig = resolvePanelBarConfig(m_config, m_platform, request.output, request.sourceBarName);
   m_sourceBarName = request.sourceBarName.empty() ? barConfig.name : std::string(request.sourceBarName);
   if (m_attachedPanelLayerProvider != nullptr) {
@@ -471,17 +471,32 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
   const std::int32_t panelGap = m_config->config().shell.panel.floatingOffset;
   const auto screenPadding = static_cast<std::int32_t>(Style::spaceSm);
 
-  auto outputWidth = static_cast<std::int32_t>(panelWidth);
-  auto outputHeight = static_cast<std::int32_t>(panelHeight);
+  std::int32_t resolvedOutputWidth = 0;
+  std::int32_t resolvedOutputHeight = 0;
   if (m_platform != nullptr) {
     const auto* wlOutput = m_platform->findOutputByWl(request.output);
     if (wlOutput != nullptr && wlOutput->effectiveLogicalWidth() > 0) {
-      outputWidth = wlOutput->effectiveLogicalWidth();
+      resolvedOutputWidth = wlOutput->effectiveLogicalWidth();
     }
     if (wlOutput != nullptr && wlOutput->effectiveLogicalHeight() > 0) {
-      outputHeight = wlOutput->effectiveLogicalHeight();
+      resolvedOutputHeight = wlOutput->effectiveLogicalHeight();
     }
   }
+  // Backstop clamp: never request a surface larger than the output — the
+  // compositor renders such a surface broken. This is sanity capping, not
+  // work-area layout; if the compositor still configures smaller (exclusive
+  // zones), buildScene lays out at the configured size.
+  if (resolvedOutputWidth > 0) {
+    panelWidth = std::min(panelWidth, static_cast<std::uint32_t>(std::max(1, resolvedOutputWidth - screenPadding * 2)));
+  }
+  if (resolvedOutputHeight > 0) {
+    panelHeight =
+        std::min(panelHeight, static_cast<std::uint32_t>(std::max(1, resolvedOutputHeight - screenPadding * 2)));
+  }
+  const std::int32_t outputWidth =
+      resolvedOutputWidth > 0 ? resolvedOutputWidth : static_cast<std::int32_t>(panelWidth);
+  const std::int32_t outputHeight =
+      resolvedOutputHeight > 0 ? resolvedOutputHeight : static_cast<std::int32_t>(panelHeight);
 
   const auto clampMargin = [](float desired, std::int32_t panelSize, std::int32_t outputSize,
                               std::int32_t padding) -> std::int32_t {
@@ -489,7 +504,15 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
     return static_cast<std::int32_t>(std::clamp(desired, static_cast<float>(padding), static_cast<float>(maxValue)));
   };
 
-  const PanelPlacement activePlacement = m_activePanel->panelPlacement();
+  PanelPlacement activePlacement = m_activePanel->panelPlacement();
+  const bool fillWidth = m_activePanel->fillsWidth();
+  const bool fillHeight = m_activePanel->fillsHeight();
+  if ((fillWidth || fillHeight) && activePlacement != PanelPlacement::Floating) {
+    kLog.warn("panel manager: \"{}\" uses fill sizing, which requires floating placement — opening floating", panelId);
+    activePlacement = PanelPlacement::Floating;
+  }
+  m_panelFillWidth = fillWidth;
+  m_panelFillHeight = fillHeight;
   const bool pluginPanel = m_activePanelId.contains(':');
   const std::string panelPosition =
       pluginPanel ? m_activePanel->panelScreenPosition() : resolvePanelPosition(m_config, m_activePanelId);
@@ -642,6 +665,34 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
     }
   }
 
+  // A filled axis dual-anchors the surface with a requested size of 0: the
+  // compositor assigns the extent, subtracting every exclusive zone on the
+  // output (all bars and any third-party client) — the shell never computes
+  // the work area itself. Margins keep the screen padding around the visible
+  // body (the shadow bleed sits outside the padding); they override whatever
+  // the placement branches above computed on that axis. The default size is
+  // only the fallback if the compositor assigns nothing.
+  std::uint32_t requestedSurfaceWidth = detachedSurfaceWidth;
+  std::uint32_t requestedSurfaceHeight = detachedSurfaceHeight;
+  std::uint32_t fallbackSurfaceWidth = detachedSurfaceWidth;
+  std::uint32_t fallbackSurfaceHeight = detachedSurfaceHeight;
+  if (fillWidth) {
+    standaloneAnchor |= LayerShellAnchor::Left | LayerShellAnchor::Right;
+    standaloneMarginLeft = screenPadding - detachedShadowBleed.left;
+    standaloneMarginRight = screenPadding - detachedShadowBleed.right;
+    requestedSurfaceWidth = 0;
+    fallbackSurfaceWidth =
+        static_cast<std::uint32_t>(std::max(1, outputWidth - standaloneMarginLeft - standaloneMarginRight));
+  }
+  if (fillHeight) {
+    standaloneAnchor |= LayerShellAnchor::Top | LayerShellAnchor::Bottom;
+    standaloneMarginTop = screenPadding - detachedShadowBleed.up;
+    standaloneMarginBottom = screenPadding - detachedShadowBleed.down;
+    requestedSurfaceHeight = 0;
+    fallbackSurfaceHeight =
+        static_cast<std::uint32_t>(std::max(1, outputHeight - standaloneMarginTop - standaloneMarginBottom));
+  }
+
   const bool useAttachedPlacement = activePlacement == PanelPlacement::Attached
       && !multipleBarsOnEdge
       && (m_attachedPanelAvailabilityCallback == nullptr
@@ -660,16 +711,18 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
       .nameSpace = "noctalia-panel",
       .layer = m_activePanel->layer(),
       .anchor = standaloneAnchor,
-      .width = detachedSurfaceWidth,
-      .height = detachedSurfaceHeight,
-      .exclusiveZone = useCenteredPlacement ? -1 : 0,
+      .width = requestedSurfaceWidth,
+      .height = requestedSurfaceHeight,
+      // Centered panels ignore exclusive zones; filled axes must respect them
+      // (that is what makes the compositor subtract bars and other clients).
+      .exclusiveZone = useCenteredPlacement && !fillWidth && !fillHeight ? -1 : 0,
       .marginTop = standaloneMarginTop,
       .marginRight = standaloneMarginRight,
       .marginBottom = standaloneMarginBottom,
       .marginLeft = standaloneMarginLeft,
       .keyboard = m_activePanel->keyboardMode(),
-      .defaultWidth = detachedSurfaceWidth,
-      .defaultHeight = detachedSurfaceHeight,
+      .defaultWidth = fallbackSurfaceWidth,
+      .defaultHeight = fallbackSurfaceHeight,
       .prewarmBlur = true,
   };
 
@@ -705,6 +758,10 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
     m_panelInsetY = 0;
     m_panelVisualWidth = 0;
     m_panelVisualHeight = 0;
+    m_panelFillWidth = false;
+    m_panelFillHeight = false;
+    m_detachedBleedRight = 0;
+    m_detachedBleedBottom = 0;
     m_attachedBackgroundOpacity = 1.0f;
     m_attachedContactShadow = false;
     m_attachedRevealProgress = 1.0f;
@@ -982,6 +1039,8 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
   m_panelInsetY = detachedShadowBleed.up;
   m_panelVisualWidth = panelWidth;
   m_panelVisualHeight = panelHeight;
+  m_detachedBleedRight = detachedShadowBleed.right;
+  m_detachedBleedBottom = detachedShadowBleed.down;
   m_attachedBackgroundOpacity = 1.0f;
   m_attachedContactShadow = false;
   m_attachedRevealProgress = 1.0f;
@@ -1173,6 +1232,10 @@ void PanelManager::destroyPanel() {
   m_panelInsetY = 0;
   m_panelVisualWidth = 0;
   m_panelVisualHeight = 0;
+  m_panelFillWidth = false;
+  m_panelFillHeight = false;
+  m_detachedBleedRight = 0;
+  m_detachedBleedBottom = 0;
   m_attachedBackgroundOpacity = 1.0f;
   m_attachedContactShadow = false;
   m_attachedRevealProgress = 1.0f;
@@ -1540,10 +1603,6 @@ void PanelManager::onKeyboardEvent(const KeyboardEvent& event) {
           m_surface->requestRedraw();
         }
       }
-      return;
-    }
-    if (m_activePopup != nullptr && m_activePopup->isOpen()) {
-      m_activePopup->close();
       return;
     }
     closePanel();
@@ -2115,6 +2174,27 @@ void PanelManager::buildScene(std::uint32_t width, std::uint32_t height) {
   if (m_detachedRevealContentNode != nullptr) {
     m_detachedRevealContentNode->setFrameSize(w, h);
   }
+
+  // Honor the compositor-configured surface size: a filled axis derives its
+  // visual size from the configure (surface minus shadow bleed), and a fixed
+  // axis the compositor configured smaller than requested lays out at the
+  // configured size instead of overflowing the buffer.
+  if (!m_attachedToBar) {
+    const std::int32_t availW = static_cast<std::int32_t>(width) - m_panelInsetX - m_detachedBleedRight;
+    const std::int32_t availH = static_cast<std::int32_t>(height) - m_panelInsetY - m_detachedBleedBottom;
+    if (availW > 0 && (m_panelFillWidth || m_panelVisualWidth > static_cast<std::uint32_t>(availW))) {
+      m_panelVisualWidth = static_cast<std::uint32_t>(availW);
+    }
+    if (availH > 0 && (m_panelFillHeight || m_panelVisualHeight > static_cast<std::uint32_t>(availH))) {
+      m_panelVisualHeight = static_cast<std::uint32_t>(availH);
+    }
+    if (m_surface != nullptr) {
+      m_surface->setInputRegion({InputRect{
+          m_panelInsetX, m_panelInsetY, static_cast<int>(m_panelVisualWidth), static_cast<int>(m_panelVisualHeight)
+      }});
+    }
+  }
+
   if (m_attachedToBar) {
     applyAttachedReveal(m_attachedRevealProgress);
   } else {
@@ -2207,8 +2287,18 @@ void PanelManager::buildScene(std::uint32_t width, std::uint32_t height) {
     m_contentNode->setPosition(panelX + kPadding, panelY + kPadding);
     m_contentNode->setSize(panelW - kPadding * 2.0f, panelH - kPadding * 2.0f);
   }
+  applyPendingPanelFocus();
   if (m_pointerInside) {
     m_inputDispatcher.syncPointerHover();
+  }
+}
+
+void PanelManager::applyPendingPanelFocus() {
+  if (m_activePanel == nullptr) {
+    return;
+  }
+  if (auto* area = m_activePanel->takePendingFocusArea(); area != nullptr) {
+    m_inputDispatcher.setFocus(area);
   }
 }
 
@@ -2244,6 +2334,9 @@ void PanelManager::prepareFrame(bool needsUpdate, bool needsLayout) {
     if (m_pointerInside) {
       m_inputDispatcher.syncPointerHover();
     }
+  }
+  if (!needsSceneBuild && (needsUpdate || needsLayout)) {
+    applyPendingPanelFocus();
   }
 }
 

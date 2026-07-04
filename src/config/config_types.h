@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config/config_limits.h"
-#include "core/key_chord.h"
+#include "core/input/key_chord.h"
 #include "system/sysmon_threshold_profile.h"
 #include "ui/palette.h"
 #include "ui/style.h"
@@ -552,12 +552,14 @@ struct DockConfig {
   float magnificationScale = 1.45f;    // max icon scale multiplier at the pointer center
   float activeOpacity = 1.0f;          // focused app icon opacity
   float inactiveOpacity = 0.85f;       // non-focused app icon opacity
-  bool showDots = false;               // show optional running window dots beside app icons
+  bool showDots = false;               // show optional running window dots below app icons
   bool showInstanceCount = true;       // show a badge with count when app has >1 window
   DockLauncherPosition launcherPosition = DockLauncherPosition::None;
-  std::string launcherIcon = "grid-dots"; // Tabler glyph name
-  std::vector<std::string> pinned;        // desktop entry IDs to always show
-  std::vector<std::string> monitors;      // connector names to show on; empty = all outputs
+  std::string launcherIcon = "grid-dots";   // Tabler glyph name
+  std::string launcherCustomImage = "";     // image path; overrides launcherIcon glyph when set
+  bool launcherCustomImageColorize = false; // tint the custom image with the icon color role
+  std::vector<std::string> pinned;          // desktop entry IDs to always show
+  std::vector<std::string> monitors;        // connector names to show on; empty = all outputs
   bool operator==(const DockConfig&) const = default;
 };
 
@@ -915,6 +917,7 @@ struct ShellConfig {
   struct PrivacyConfig {
     std::string micFilterRegex;
     std::string camFilterRegex;
+    std::string screenFilterRegex;
 
     bool operator==(const PrivacyConfig&) const = default;
   };
@@ -933,7 +936,7 @@ struct ShellConfig {
   PasswordMaskStyle passwordMaskStyle = PasswordMaskStyle::CircleFilled;
   AnimationConfig animation;
   std::string avatarPath;
-  bool settingsShowAdvanced = false;
+  bool settingsShowAdvanced = true;
   bool middleClickOpensWidgetSettings = true;
   bool showLocation = true;
   bool appIconColorize = false;
@@ -1322,11 +1325,17 @@ struct ThemeConfig {
 struct ControlCenterConfig {
   static constexpr std::int32_t kDefaultWidth = 700;
 
+  struct CalendarTabConfig {
+    bool showEventsCard = true;
+    bool operator==(const CalendarTabConfig&) const = default;
+  };
+
   std::vector<ShortcutConfig> shortcuts;
   std::vector<std::string> hiddenTabs; // tab keys (see kTabs) the user has hidden; empty = all available shown
   ControlCenterSidebarMode sidebarMode = ControlCenterSidebarMode::Compact;
   ControlCenterSidebarMode sidebarSectionMode = ControlCenterSidebarMode::Compact;
   std::int32_t width = kDefaultWidth; // full-sidebar logical width; compact/none modes scale down from this
+  CalendarTabConfig calendarTab;
   bool operator==(const ControlCenterConfig&) const = default;
 };
 

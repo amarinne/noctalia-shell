@@ -38,6 +38,12 @@ namespace {
     void measureTextCursorStops(
         std::string_view, float, const std::vector<std::size_t>&, std::vector<float>&, FontWeight
     ) override {}
+    void measureTextCursorStopsWrapped(
+        std::string_view, float fontSize, const std::vector<std::size_t>& byteOffsets, float,
+        std::vector<TextCursorStop>& outStops, FontWeight
+    ) override {
+      outStops.assign(byteOffsets.size(), TextCursorStop{0.0f, 0.0f, fontSize});
+    }
     TextMetrics measureGlyph(char32_t, float fontSize) override {
       return TextMetrics{.width = fontSize, .bottom = fontSize};
     }
@@ -351,6 +357,31 @@ int main() {
     if (column != nullptr) {
       ok = expect(column->children()[0].get() == inputBefore, "keyed input instance reused") && ok;
       ok = expect(in != nullptr && in->value() == "seed", "uncontrolled input not overwritten on re-render") && ok;
+    }
+  }
+
+  // Multiline input: the prop applies, seeds a multi-line value, and the keyed
+  // instance survives re-renders like any other input.
+  {
+    ui::UiTreeReconciler reconciler;
+    Flex host;
+
+    ui::UiTreeNode tree = makeNode("column");
+    ui::UiTreeNode input = makeNode("input");
+    input.key = "editor";
+    input.props.emplace("value", std::string("line one\nline two"));
+    input.props.emplace("multiline", true);
+    tree.children.push_back(input);
+    (void)reconciler.reconcile(host, tree, renderer);
+
+    auto* column = dynamic_cast<Flex*>(host.children().front().get());
+    auto* in = column != nullptr ? dynamic_cast<Input*>(column->children()[0].get()) : nullptr;
+    ok = expect(in != nullptr && in->value() == "line one\nline two", "multiline input seeded with newline value") && ok;
+    Node* inputBefore = in;
+
+    (void)reconciler.reconcile(host, tree, renderer);
+    if (column != nullptr) {
+      ok = expect(column->children()[0].get() == inputBefore, "keyed multiline input instance reused") && ok;
     }
   }
 

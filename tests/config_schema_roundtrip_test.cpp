@@ -14,7 +14,7 @@
 #include "config/config_types.h"
 #include "config/schema/config_schema.h"
 #include "config/schema/engine.h"
-#include "core/key_chord.h"
+#include "core/input/key_chord.h"
 #include "core/toml.h"
 #include "scripting/plugin_id.h"
 
@@ -344,6 +344,7 @@ location = "https://example.invalid/bad"
     c.battery.deviceThresholds = {{"BAT0", 10}, {"hidpp:1", 25}};
     c.controlCenter.sidebarMode = ControlCenterSidebarMode::Full;
     c.controlCenter.sidebarSectionMode = ControlCenterSidebarMode::None;
+    c.controlCenter.calendarTab.showEventsCard = false;
     c.controlCenter.shortcuts = {{"wifi"}, {"bluetooth"}};
     c.calendar.enabled = true;
     c.calendar.refreshMinutes = 30;

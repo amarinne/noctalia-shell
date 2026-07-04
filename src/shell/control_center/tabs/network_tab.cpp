@@ -79,8 +79,8 @@ namespace {
               .out = &m_title,
               .text = m_ap.ssid,
               .fontSize = Style::fontSizeBody * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
               .fontWeight = m_ap.active ? FontWeight::Bold : FontWeight::Normal,
+              .color = colorSpecFromRole(ColorRole::OnSurface),
               .flexGrow = 1.0f,
           })
       );
@@ -215,8 +215,8 @@ namespace {
               .out = &m_title,
               .text = m_vpn.name,
               .fontSize = Style::fontSizeBody * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
               .fontWeight = m_vpn.active ? FontWeight::Bold : FontWeight::Normal,
+              .color = colorSpecFromRole(ColorRole::OnSurface),
               .flexGrow = 1.0f,
           })
       );
@@ -364,8 +364,8 @@ std::unique_ptr<Flex> NetworkTab::create() {
       ui::label({
           .out = &m_currentTitle,
           .fontSize = Style::fontSizeBody * scale,
-          .color = colorSpecFromRole(ColorRole::OnSurface),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::OnSurface),
       }),
       ui::label({
           .out = &m_currentDetail,
@@ -409,8 +409,8 @@ std::unique_ptr<Flex> NetworkTab::create() {
       ui::label({
           .out = &m_passwordTitle,
           .fontSize = Style::fontSizeBody * scale,
-          .color = colorSpecFromRole(ColorRole::OnSurface),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::OnSurface),
       })
   );
 

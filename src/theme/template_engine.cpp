@@ -1,7 +1,7 @@
 #include "theme/template_engine.h"
 
 #include "core/log.h"
-#include "core/process.h"
+#include "core/process/process.h"
 #include "core/toml.h" // IWYU pragma: keep
 #include "cpp/cam/hct.h"
 #include "cpp/palettes/tones.h"

@@ -1,7 +1,7 @@
 #include "launcher/dmenu_provider.h"
 
 #include "core/log.h"
-#include "core/process.h"
+#include "core/process/process.h"
 #include "util/fuzzy_match.h"
 #include "util/string_utils.h"
 #include "wayland/clipboard_service.h"

@@ -117,9 +117,9 @@ std::unique_ptr<Flex> WeatherTab::create() {
               .out = &m_currentTempLabel,
               .text = "--°C",
               .fontSize = Style::fontSizeTitle * 2.35f * scale,
+              .fontWeight = FontWeight::Bold,
               .color = colorSpecFromRole(ColorRole::OnSurface),
               .maxLines = 1,
-              .fontWeight = FontWeight::Bold,
           }),
           ui::label({
               .out = &m_currentHiLoLabel,
@@ -181,9 +181,9 @@ std::unique_ptr<Flex> WeatherTab::create() {
           ui::label({
               .text = i18n::tr("control-center.weather.no-location-title"),
               .fontSize = Style::fontSizeBody * 1.1f * scale,
+              .fontWeight = FontWeight::Bold,
               .color = colorSpecFromRole(ColorRole::OnSurface),
               .maxLines = 1,
-              .fontWeight = FontWeight::Bold,
           }),
           ui::label({
               .out = &m_locationPromptBody,
@@ -243,8 +243,8 @@ std::unique_ptr<Flex> WeatherTab::create() {
             .out = &valueOut,
             .text = "--",
             .fontSize = Style::fontSizeBody * scale,
-            .color = colorSpecFromRole(ColorRole::OnSurface),
             .fontWeight = FontWeight::Bold,
+            .color = colorSpecFromRole(ColorRole::OnSurface),
             .textAlign = TextAlign::End,
             .flexGrow = 1.0f,
         })
@@ -333,9 +333,9 @@ std::unique_ptr<Flex> WeatherTab::create() {
             .out = &m_forecastMetas[i],
             .text = i18n::tr("control-center.weather.forecast-placeholder.day"),
             .fontSize = Style::fontSizeBody * scale,
+            .fontWeight = FontWeight::Bold,
             .color = colorSpecFromRole(ColorRole::OnSurface),
             .maxLines = 1,
-            .fontWeight = FontWeight::Bold,
         })
     );
     auto topRow = ui::row({

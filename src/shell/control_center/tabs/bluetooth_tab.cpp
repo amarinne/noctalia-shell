@@ -115,8 +115,8 @@ namespace {
           ui::label({
               .text = m_device.alias,
               .fontSize = Style::fontSizeBody * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
               .fontWeight = m_device.connected ? FontWeight::Bold : FontWeight::Normal,
+              .color = colorSpecFromRole(ColorRole::OnSurface),
               .flexGrow = 1.0f,
           })
       );
@@ -285,8 +285,8 @@ std::unique_ptr<Flex> BluetoothTab::create() {
       ui::label({
           .out = &m_pairingTitle,
           .fontSize = Style::fontSizeBody * scale,
-          .color = colorSpecFromRole(ColorRole::OnSurface),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::OnSurface),
       })
   );
 
@@ -302,8 +302,8 @@ std::unique_ptr<Flex> BluetoothTab::create() {
       ui::label({
           .out = &m_pairingCode,
           .fontSize = Style::fontSizeTitle * scale,
-          .color = colorSpecFromRole(ColorRole::Primary),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::Primary),
       })
   );
 

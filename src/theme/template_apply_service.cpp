@@ -1,8 +1,8 @@
 #include "theme/template_apply_service.h"
 
 #include "config/config_service.h"
+#include "core/files/resource_paths.h"
 #include "core/log.h"
-#include "core/resource_paths.h"
 #include "ipc/ipc_service.h"
 #include "theme/community_templates.h"
 #include "theme/template_engine.h"

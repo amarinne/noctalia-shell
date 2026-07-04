@@ -726,6 +726,19 @@ namespace {
     }
   }
 
+  // Hide devices whose active route is unavailable (e.g. an HDMI port with nothing plugged in), but
+  // always keep the current default so the active selection is never hidden.
+  [[nodiscard]] std::vector<AudioNode> availableDevices(std::span<const AudioNode> devices, std::uint32_t defaultId) {
+    std::vector<AudioNode> out;
+    out.reserve(devices.size());
+    for (const auto& device : devices) {
+      if (device.available || device.id == defaultId) {
+        out.push_back(device);
+      }
+    }
+    return out;
+  }
+
   class AudioDeviceRow : public Flex {
   public:
     explicit AudioDeviceRow(float scale, std::function<void()> onSelect) : m_onSelect(std::move(onSelect)) {
@@ -753,8 +766,10 @@ namespace {
           ui::label({
               .out = &m_title,
               .fontSize = Style::fontSizeBody * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
               .fontWeight = FontWeight::Bold,
+              .color = colorSpecFromRole(ColorRole::OnSurface),
+              .maxLines = 1,
+              .ellipsize = TextEllipsize::Middle,
               .flexGrow = 1.0f,
           })
       );
@@ -779,10 +794,8 @@ namespace {
 
     void setDevice(const AudioNode& node) {
       m_radio->setChecked(node.isDefault);
-      const std::string title = !node.description.empty() ? node.description : node.name;
-
       if (m_title != nullptr) {
-        m_title->setText(title);
+        m_title->setText(audioDeviceLabel(node));
       }
     }
 
@@ -905,9 +918,9 @@ namespace {
                           ui::label({
                               .out = &m_appNameLabel,
                               .fontSize = Style::fontSizeBody * scale,
+                              .fontWeight = FontWeight::Bold,
                               .color = colorSpecFromRole(ColorRole::OnSurface),
                               .maxLines = 1,
-                              .fontWeight = FontWeight::Bold,
                           }),
                           ui::label({
                               .out = &m_subtitleLabel,
@@ -921,8 +934,8 @@ namespace {
                           .out = &m_valueLabel,
                           .text = "0%",
                           .fontSize = Style::fontSizeBody * scale,
-                          .minWidth = m_valueLabelMinWidth,
                           .fontWeight = FontWeight::Bold,
+                          .minWidth = m_valueLabelMinWidth,
                           .textAlign = TextAlign::End,
                       })
                   ),
@@ -1257,8 +1270,8 @@ namespace {
             ui::label({
                 .text = title,
                 .fontSize = Style::fontSizeBody * scale,
-                .color = colorSpecFromRole(ColorRole::OnSurface),
                 .fontWeight = FontWeight::Bold,
+                .color = colorSpecFromRole(ColorRole::OnSurface),
             }),
             ui::label({
                 .text = body,
@@ -1275,6 +1288,8 @@ namespace {
       key += std::to_string(device.id);
       key.push_back(':');
       key += device.isDefault ? '1' : '0';
+      key.push_back(':');
+      key += device.available ? '1' : '0';
       key.push_back(':');
       key += device.name;
       key.push_back(':');
@@ -1307,17 +1322,17 @@ void AudioTab::openDeviceMenu(DeviceVolumeCardState& card, const DeviceMenuModel
 
   const AudioState& state = m_audio->state();
 
-  auto entries = menu.devices(state)
+  const std::uint32_t defaultDeviceId = menu.defaultDeviceId(state);
+  auto entries = availableDevices(menu.devices(state), defaultDeviceId)
       | std::views::transform([&](const AudioNode& node) {
-                   const std::string_view selectedPrefix = node.id == menu.defaultDeviceId(state) ? "• " : "";
-                   const std::string_view deviceName = !node.description.empty() ? node.description : node.name;
-
+                   const std::string_view selectedPrefix = node.id == defaultDeviceId ? "• " : "";
                    return ContextMenuControlEntry{
                        .id = static_cast<std::int32_t>(node.id),
-                       .label = std::format("{}{}", selectedPrefix, deviceName),
+                       .label = std::format("{}{}", selectedPrefix, audioDeviceLabel(node)),
                        .enabled = true,
                        .separator = false,
-                       .hasSubmenu = false
+                       .hasSubmenu = false,
+                       .ellipsize = TextEllipsize::Middle,
                    };
                  })
       | std::ranges::to<std::vector>();
@@ -1425,24 +1440,27 @@ std::unique_ptr<Flex> AudioTab::createDeviceVolumeCard(DeviceVolumeCardSpec card
               .justify = FlexJustify::SpaceBetween,
               .gap = Style::spaceXs * scale,
           },
-          ui::row(
+          ui::column(
               {
-                  .align = FlexAlign::Center,
-                  .gap = Style::spaceSm * scale,
+                  .align = FlexAlign::Stretch,
+                  .justify = FlexJustify::Center,
+                  .gap = 0.0f,
                   .flexGrow = 1.0f,
               },
               ui::label({
                   .text = i18n::tr(card.devicePrefixKey),
                   .fontSize = Style::fontSizeTitle * scale,
-                  .color = colorSpecFromRole(ColorRole::OnSurface),
                   .fontWeight = FontWeight::Bold,
+                  .color = colorSpecFromRole(ColorRole::OnSurface),
+                  .maxLines = 1,
               }),
               ui::label({
                   .out = &card.state.deviceLabel,
                   .text = i18n::tr(card.noDeviceKey),
-                  .fontSize = Style::fontSizeBody * scale,
+                  .fontSize = Style::fontSizeCaption * scale,
                   .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                   .maxLines = 1,
+                  .ellipsize = TextEllipsize::Middle,
                   .flexGrow = 1.0f,
               })
           ),
@@ -1513,8 +1531,8 @@ std::unique_ptr<Flex> AudioTab::createDeviceVolumeCard(DeviceVolumeCardSpec card
                   .out = &card.state.valueLabel,
                   .text = "0%",
                   .fontSize = Style::fontSizeBody * scale,
-                  .minWidth = kValueLabelWidth * scale,
                   .fontWeight = FontWeight::Bold,
+                  .minWidth = kValueLabelWidth * scale,
                   .textAlign = TextAlign::End,
               }),
               ui::button({
@@ -1733,14 +1751,12 @@ void AudioTab::doUpdate(Renderer& renderer) {
 
   if (m_outputDeviceVolume.deviceLabel != nullptr) {
     m_outputDeviceVolume.deviceLabel->setText(
-        sink != nullptr ? (!sink->description.empty() ? sink->description : sink->name)
-                        : i18n::tr("control-center.audio.no-output-selected")
+        sink != nullptr ? audioDeviceLabel(*sink) : i18n::tr("control-center.audio.no-output-selected")
     );
   }
   if (m_inputDeviceVolume.deviceLabel != nullptr) {
     m_inputDeviceVolume.deviceLabel->setText(
-        source != nullptr ? (!source->description.empty() ? source->description : source->name)
-                          : i18n::tr("control-center.audio.no-input-selected")
+        source != nullptr ? audioDeviceLabel(*source) : i18n::tr("control-center.audio.no-input-selected")
     );
   }
 
@@ -2123,7 +2139,7 @@ void AudioTab::rebuildLists(Renderer& renderer) {
         i18n::tr("control-center.audio.no-output-devices-body"), scale
     );
   } else {
-    for (const auto& sink : sortedDevices(state.sinks)) {
+    for (const auto& sink : sortedDevices(availableDevices(state.sinks, state.defaultSinkId))) {
       auto row = std::make_unique<AudioDeviceRow>(scale, [this, id = sink.id]() {
         if (m_audio != nullptr) {
           m_audio->setDefaultSink(id);
@@ -2141,7 +2157,7 @@ void AudioTab::rebuildLists(Renderer& renderer) {
         i18n::tr("control-center.audio.no-input-devices-body"), scale
     );
   } else {
-    for (const auto& source : sortedDevices(state.sources)) {
+    for (const auto& source : sortedDevices(availableDevices(state.sources, state.defaultSourceId))) {
       auto row = std::make_unique<AudioDeviceRow>(scale, [this, id = source.id]() {
         if (m_audio != nullptr) {
           m_audio->setDefaultSource(id);

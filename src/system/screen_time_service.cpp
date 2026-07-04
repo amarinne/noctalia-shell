@@ -125,10 +125,7 @@ namespace {
       }
     }
 
-    const auto entry = app_identity::findDesktopEntry(
-        baseKey, desktopEntries(),
-        app_identity::DesktopEntryLookupOptions{.includeHidden = true, .includeNoDisplay = true}
-    );
+    const auto entry = app_identity::findDesktopEntry(baseKey, desktopEntries());
     if (!entry.has_value()) {
       return false;
     }
@@ -180,11 +177,7 @@ namespace {
     }
 
     const std::string baseKey = canonicalAppKey(appKey);
-    const auto lookupOptions = baseKey.starts_with("steam_app_")
-        ? app_identity::DesktopEntryLookupOptions{.includeHidden = true, .includeNoDisplay = true}
-        : app_identity::DesktopEntryLookupOptions{};
-    if (const auto entry = app_identity::findDesktopEntry(baseKey, desktopEntries(), lookupOptions);
-        entry.has_value()) {
+    if (const auto entry = app_identity::findDesktopEntry(baseKey, desktopEntries()); entry.has_value()) {
       if (!entry->name.empty()) {
         return entry->name;
       }

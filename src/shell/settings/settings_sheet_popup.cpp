@@ -184,8 +184,8 @@ namespace settings {
             .out = &m_sheetTitleLabel,
             .text = m_sheetTitle,
             .fontSize = Style::fontSizeBody * m_scale,
-            .color = colorSpecFromRole(ColorRole::OnSurface),
             .fontWeight = FontWeight::Bold,
+            .color = colorSpecFromRole(ColorRole::OnSurface),
         })
     );
     header->addChild(ui::spacer());

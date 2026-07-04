@@ -2,9 +2,9 @@
 
 #include "config/config_service.h"
 #include "core/deferred_call.h"
-#include "core/key_modifiers.h"
-#include "core/key_symbols.h"
-#include "core/keybind_matcher.h"
+#include "core/input/key_modifiers.h"
+#include "core/input/key_symbols.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "i18n/i18n.h"
@@ -1170,17 +1170,31 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                             });
                           },
                   }),
-                  ui::button(
-                      {
-                          .glyph = selectedWidgetEnabled ? "eye" : "eye-off",
-                          .enabled = hasSelectedWidget && !selectedIsLoginBox,
-                          .selected = selectedWidgetEnabled,
-                          .variant = ButtonVariant::Outline,
-                          .tooltip = selectedWidgetEnabled ? i18n::tr("desktop-widgets.editor.actions.hide")
-                                                           : i18n::tr("desktop-widgets.editor.actions.show"),
-                          .onClick = [this]() { deferEditorMutation([this]() { toggleSelectedWidgetEnabled(); }); },
+                  [&]() -> std::unique_ptr<Node> {
+                    bool canToggleVisibility = hasSelectedWidget;
+                    if (hasSelectedWidget
+                        && lockscreen_login_box::isLoginBoxWidget(*selectedWidgetIt)
+                        && selectedWidgetIt->enabled) {
+                      int enabledCount = 0;
+                      for (const auto& w : m_snapshot.widgets) {
+                        if (lockscreen_login_box::isLoginBoxWidget(w) && w.enabled) {
+                          enabledCount++;
+                        }
                       }
-                  ),
+                      if (enabledCount <= 1) {
+                        canToggleVisibility = false;
+                      }
+                    }
+                    return ui::button({
+                        .glyph = selectedWidgetEnabled ? "eye" : "eye-off",
+                        .enabled = canToggleVisibility,
+                        .selected = selectedWidgetEnabled,
+                        .variant = ButtonVariant::Outline,
+                        .tooltip = selectedWidgetEnabled ? i18n::tr("desktop-widgets.editor.actions.hide")
+                                                         : i18n::tr("desktop-widgets.editor.actions.show"),
+                        .onClick = [this]() { deferEditorMutation([this]() { toggleSelectedWidgetEnabled(); }); },
+                    });
+                  }(),
                   ui::button(
                       {
                           .glyph = "trash",
@@ -1559,9 +1573,22 @@ void DesktopWidgetsEditor::toggleSelectedWidgetEnabled() {
     return;
   }
   DesktopWidgetState* state = findWidgetState(m_selectedWidgetId);
-  if (state == nullptr || lockscreen_login_box::isLoginBoxWidget(*state)) {
+  if (state == nullptr) {
     return;
   }
+
+  if (lockscreen_login_box::isLoginBoxWidget(*state) && state->enabled) {
+    int enabledCount = 0;
+    for (const auto& w : m_snapshot.widgets) {
+      if (lockscreen_login_box::isLoginBoxWidget(w) && w.enabled) {
+        enabledCount++;
+      }
+    }
+    if (enabledCount <= 1) {
+      return;
+    }
+  }
+
   state->enabled = !state->enabled;
   requestLayout();
 }

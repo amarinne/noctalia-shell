@@ -681,8 +681,12 @@ namespace settings {
       add(stringSpec("tooltip_format"));
     } else if (type == "clipboard") {
       add(glyphSpec("glyph", "clipboard"));
+      add(stringSpec("custom_image", ""));
+      add(boolSpec("custom_image_colorize", false));
     } else if (type == "screenshot") {
       add(glyphSpec("glyph", "screenshot"));
+      add(stringSpec("custom_image", ""));
+      add(boolSpec("custom_image_colorize", false));
       add(segmentedSpec(
           "primary_click", "region",
           {
@@ -698,6 +702,16 @@ namespace settings {
         auto glyph = glyphSpec("glyph", "keyboard");
         glyph.visibleWhen = WidgetSettingVisibility{"show_icon", {"true"}};
         add(std::move(glyph));
+      }
+      {
+        auto image = stringSpec("custom_image", "");
+        image.visibleWhen = WidgetSettingVisibility{"show_icon", {"true"}};
+        add(std::move(image));
+      }
+      {
+        auto colorize = boolSpec("custom_image_colorize", false);
+        colorize.visibleWhen = WidgetSettingVisibility{"show_icon", {"true"}};
+        add(std::move(colorize));
       }
       add(boolSpec("show_label", true));
       {
@@ -720,6 +734,8 @@ namespace settings {
       add(boolSpec("custom_image_colorize", false));
     } else if (type == "custom_button") {
       add(glyphSpec("glyph", "heart"));
+      add(stringSpec("custom_image", ""));
+      add(boolSpec("custom_image_colorize", false));
       add(stringSpec("label"));
       add(stringSpec("tooltip"));
       add(stringSpec("command"));
@@ -776,8 +792,12 @@ namespace settings {
       add(colorSpec("inactive_color", "outline"));
     } else if (type == "session") {
       add(glyphSpec("glyph", "shutdown"));
+      add(stringSpec("custom_image", ""));
+      add(boolSpec("custom_image_colorize", false));
     } else if (type == "settings") {
       add(glyphSpec("glyph", "settings"));
+      add(stringSpec("custom_image", ""));
+      add(boolSpec("custom_image_colorize", false));
     } else if (type == "spacer") {
       add(intSpec("length", 20, 0.0, 400.0, 1.0));
     } else if (type == "sysmon") {
@@ -787,6 +807,8 @@ namespace settings {
         glyph.descriptionKey = "settings.widgets.settings.glyph.sysmon-description";
         add(std::move(glyph));
       }
+      add(stringSpec("custom_image", ""));
+      add(boolSpec("custom_image_colorize", false));
       {
         auto path = stringSpec("path", "/");
         path.visibleWhen = WidgetSettingVisibility{"stat", {"disk_pct"}};
@@ -934,6 +956,9 @@ namespace settings {
         auto cols = intSpec("drawer_columns", 3, 1.0, 5.0, 1.0);
         cols.visibleWhen = drawerOn;
         add(std::move(cols));
+        auto drawerItemSize = doubleSpec("drawer_item_size", static_cast<double>(Style::baseGlyphSize), 8.0, 64.0, 1.0);
+        drawerItemSize.visibleWhen = drawerOn;
+        add(std::move(drawerItemSize));
         auto detachedPanel = boolSpec("detached_panel", false);
         detachedPanel.visibleWhen = drawerOn;
         add(std::move(detachedPanel));
@@ -946,11 +971,15 @@ namespace settings {
         add(std::move(glyph));
       }
       add(glyphSpec("mute_glyph", ""));
+      add(stringSpec("custom_image", ""));
+      add(boolSpec("custom_image_colorize", false));
       add(stepperIntSpec("scroll_step", 5, 1.0, 25.0, 1.0, "%"));
       add(boolSpec("show_label", true));
       add(colorSpec("mute_color", "error"));
     } else if (type == "wallpaper") {
       add(glyphSpec("glyph", "wallpaper-selector"));
+      add(stringSpec("custom_image", ""));
+      add(boolSpec("custom_image_colorize", false));
     } else if (type == "weather") {
       add(intSpec("max_length", 160, 40.0, 800.0, 1.0));
       add(boolSpec("show_condition", true));

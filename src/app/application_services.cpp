@@ -5,10 +5,10 @@
 #include "config/config_types.h"
 #include "core/build_info.h"
 #include "core/deferred_call.h"
-#include "core/keybind_matcher.h"
+#include "core/files/resource_paths.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
-#include "core/process.h"
-#include "core/resource_paths.h"
+#include "core/process/process.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "dbus/accounts/accounts_service.h"
 #include "dbus/bluetooth/bluetooth_agent.h"
@@ -18,6 +18,8 @@
 #include "dbus/logind/logind_service.h"
 #include "dbus/mpris/mpris_service.h"
 #include "dbus/network/inetwork_service.h"
+#include "dbus/network/iwd_secret_agent.h"
+#include "dbus/network/iwd_service.h"
 #include "dbus/network/network_manager_service.h"
 #include "dbus/network/network_secret_agent.h"
 #include "dbus/network/wpa_supplicant_service.h"
@@ -52,6 +54,7 @@
 #include "pipewire/pipewire_spectrum.h"
 #include "pipewire/pipewire_spectrum_poll_source.h"
 #include "pipewire/sound_player.h"
+#include "pipewire/wireplumber_mixer.h"
 #include "render/animation/motion_service.h"
 #include "render/backend/render_backend.h"
 #include "render/core/texture_manager.h"
@@ -544,6 +547,31 @@ void Application::initStyleThemeAndWayland() {
   });
 }
 
+void Application::reconcileOutputSurfaces() {
+  // Canonical bottom-to-top (re)creation order for per-output layer surfaces.
+  // This is the ONLY place this order is defined: it runs once after initUi()
+  // wiring for first creation and again on every output change, so same-layer
+  // stacking (e.g. screen corners above the dock) is identical in both cases.
+  // Each owner's onOutputChange() reconciles idempotently against the current
+  // output set, so re-running it is safe. initialize() only wires dependencies.
+  m_backdrop.onOutputChange();
+  m_wallpaper.onOutputChange();
+  m_bar.onOutputChange();
+  m_dock.onOutputChange();
+  m_desktopWidgetsController.onOutputChange();
+  m_lockscreenWidgetsController.onOutputChange();
+  m_screenCorners.onOutputChange();
+  m_hotCorners.onOutputChange();
+  m_lockScreen.onOutputChange();
+  m_idleGraceOverlay.onOutputChange();
+  m_idleInhibitor.onOutputChange();
+  m_overviewLauncherCapture.onOutputChange();
+  m_screenshotService.onOutputChange();
+  m_notificationToast.onOutputChange();
+  m_osdOverlay.onOutputChange();
+  m_windowSwitcher.onOutputChange();
+}
+
 void Application::initWaylandCallbacks() {
   auto shouldRefreshControlCenter = [this]() { return m_panelManager.isOpenPanel("control-center"); };
 
@@ -556,28 +584,15 @@ void Application::initWaylandCallbacks() {
     }
     m_gammaService.onOutputsChanged();
     m_pluginServiceHost.onOutputChange();
-    m_wallpaper.onOutputChange();
-    m_backdrop.onOutputChange();
-    m_bar.onOutputChange();
-    m_dock.onOutputChange();
-    m_desktopWidgetsController.onOutputChange();
-    m_lockscreenWidgetsController.onOutputChange();
-    m_screenCorners.onOutputChange();
-    m_hotCorners.onOutputChange();
-    m_lockScreen.onOutputChange();
-    m_idleGraceOverlay.onOutputChange();
-    m_idleInhibitor.onOutputChange();
-    m_overviewLauncherCapture.onOutputChange();
-    m_screenshotService.onOutputChange();
-    m_notificationToast.onOutputChange();
-    m_osdOverlay.onOutputChange();
-    m_windowSwitcher.onOutputChange();
+    reconcileOutputSurfaces();
   });
   m_clipboardService.setChangeCallback([this]() {
+    m_scriptApi.setClipboardText(m_clipboardService.clipboardText());
     if (m_panelManager.isOpenPanel("clipboard")) {
       m_panelManager.refresh();
     }
   });
+  m_scriptApi.setClipboardText(m_clipboardService.clipboardText());
   m_compositorPlatform.setWorkspaceAlertService(&m_workspaceAlertService);
   m_compositorPlatform.setWorkspaceChangeCallback([this]() {
     // Clear alerts for the workspace the user just switched to. Limit to the
@@ -900,8 +915,26 @@ void Application::initSystemBusServices() {
         }
         kLog.info("network service active (wpa_supplicant)");
       } catch (const std::exception& e2) {
-        kLog.warn("network service disabled: {}", e2.what());
-        m_networkService.reset();
+        kLog.warn("wpa_supplicant unavailable ({}), trying iwd", e2.what());
+        try {
+          m_networkService = std::make_unique<IwdService>(*m_systemBus);
+          m_networkService->setChangeCallback(
+              [this, shouldRefreshControlCenter](const NetworkState& state, NetworkChangeOrigin origin) {
+                onNetworkStateChangedForEvents(state, origin);
+                m_bar.refresh();
+                if (shouldRefreshControlCenter()) {
+                  m_panelManager.refresh();
+                }
+              }
+          );
+          if (m_networkService->hasStateSnapshot()) {
+            m_prevWirelessEnabledForEvents = m_networkService->state().wirelessEnabled;
+          }
+          kLog.info("network service active (iwd)");
+        } catch (const std::exception& e3) {
+          kLog.warn("network service disabled: {}", e3.what());
+          m_networkService.reset();
+        }
       }
     }
 
@@ -911,6 +944,17 @@ void Application::initSystemBusServices() {
       } catch (const std::exception& e) {
         kLog.warn("network secret agent disabled: {}", e.what());
         m_networkSecretAgent.reset();
+      }
+    }
+
+    // Initialize iwd secret agent if iwd is the active network service
+    if (auto* iwdService = dynamic_cast<IwdService*>(m_networkService.get())) {
+      try {
+        m_iwdSecretAgent = std::make_unique<IwdSecretAgent>(*m_systemBus);
+        iwdService->setSecretAgent(m_iwdSecretAgent.get());
+      } catch (const std::exception& e) {
+        kLog.warn("iwd secret agent disabled: {}", e.what());
+        m_iwdSecretAgent.reset();
       }
     }
 
@@ -993,6 +1037,11 @@ void Application::initBrightnessAndPipewire() {
 
   try {
     m_pipewireService = std::make_unique<PipeWireService>();
+    m_wirePlumberMixer = std::make_unique<WirePlumberMixer>();
+    m_pipewireService->setWirePlumberMixer(m_wirePlumberMixer.get());
+    m_wirePlumberMixer->setChangeCallback([svc = m_pipewireService.get()](std::uint32_t id, float volume, bool muted) {
+      svc->onMixerVolumeChanged(id, volume, muted);
+    });
     m_easyEffectsService = std::make_unique<EasyEffectsService>();
     m_easyEffectsService->refreshProfiles();
     m_easyEffectsService->refreshActiveEffectsProfiles();
@@ -1053,6 +1102,7 @@ void Application::initBrightnessAndPipewire() {
     m_pipewireSpectrum.reset();
     m_easyEffectsService.reset();
     m_pipewireService.reset();
+    m_wirePlumberMixer.reset();
   }
 }
 

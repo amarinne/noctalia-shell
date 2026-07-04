@@ -1,6 +1,6 @@
-#include "core/key_chord.h"
+#include "core/input/key_chord.h"
 
-#include "core/key_modifiers.h"
+#include "core/input/key_modifiers.h"
 #include "util/string_utils.h"
 
 #include <array>

@@ -661,6 +661,7 @@ void TooltipManager::buildScene(const TooltipContent& content, float w, float h,
           .color = colorSpecFromRole(ColorRole::OnSurface),
           .maxLines = 1,
           .textAlign = TextAlign::End,
+          .ellipsize = row.valueEllipsize,
       });
       const auto vm = m_renderContext->measureText(row.value, Style::fontSizeCaption);
       if (vm.width > columns.value + 0.5f) {

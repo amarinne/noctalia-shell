@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config/config_types.h"
-#include "core/process.h"
+#include "core/process/process.h"
 #include "ui/ui_tree.h"
 
 #include <chrono>

@@ -625,6 +625,47 @@ void CairoTextRenderer::measureCursorStops(
   g_object_unref(layout);
 }
 
+void CairoTextRenderer::measureCursorStopsWrapped(
+    std::string_view text, float fontSize, const std::vector<std::size_t>& byteOffsets, float maxWidth,
+    std::vector<TextCursorStop>& outStops, FontWeight fontWeight
+) {
+  outStops.clear();
+  outStops.reserve(byteOffsets.size());
+
+  if (byteOffsets.empty()) {
+    return;
+  }
+  const float fallbackHeight = fontSize > 0.0f ? fontSize : 1.0f;
+  if (m_pangoContext == nullptr || text.empty()) {
+    outStops.resize(byteOffsets.size(), TextCursorStop{0.0f, 0.0f, fallbackHeight});
+    return;
+  }
+
+  // Same layout parameters as the draw path for a wrapping maxLines=0 text
+  // node, so caret geometry matches rendered pixels.
+  PangoLayout* layout = buildLayout(text, fontSize, fontWeight, maxWidth * m_contentScale, 0, TextAlign::Start);
+  const float invScale = 1.0f / m_contentScale;
+  const float pscale = 1.0f / static_cast<float>(PANGO_SCALE);
+  for (const std::size_t offset : byteOffsets) {
+    const std::size_t clampedOffset = std::min(offset, text.size());
+    const int index = clampedOffset > static_cast<std::size_t>(std::numeric_limits<int>::max())
+        ? std::numeric_limits<int>::max()
+        : static_cast<int>(clampedOffset);
+    PangoRectangle strong{};
+    PangoRectangle weak{};
+    pango_layout_get_cursor_pos(layout, index, &strong, &weak);
+    outStops.push_back(
+        TextCursorStop{
+            static_cast<float>(strong.x) * pscale * invScale,
+            static_cast<float>(strong.y) * pscale * invScale,
+            static_cast<float>(strong.height) * pscale * invScale,
+        }
+    );
+  }
+
+  g_object_unref(layout);
+}
+
 // ── Rasterization ───────────────────────────────────────────────────────────
 
 void CairoTextRenderer::rasterizeLayout(PangoLayout* layout, const Color& color, bool tinted, CacheEntry& entry) {

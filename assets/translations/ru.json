@@ -166,7 +166,7 @@
       "application-volumes": "Громкость приложений",
       "choose-effects-profile": "Выберите профиль",
       "effects-profile": "Эффекты",
-      "input-device-prefix": "Ввод:",
+      "input-device-prefix": "Ввод",
       "no-application-audio": "Нет звука приложений",
       "no-application-audio-body": "Нет доступных потоков воспроизведения из приложений.",
       "no-input-devices": "Нет устройств ввода",
@@ -175,7 +175,7 @@
       "no-output-devices": "Нет устройств вывода",
       "no-output-devices-body": "Сейчас нет устройств воспроизведения.",
       "no-output-selected": "Устройство вывода не выбрано",
-      "output-device-prefix": "Вывод:",
+      "output-device-prefix": "Вывод",
       "unavailable-body": "PipeWire не активен.",
       "unavailable-title": "Звук недоступен"
     },
@@ -2096,7 +2096,7 @@
             "gpu-usage": "Загрузка GPU",
             "gpu-vram": "GPU VRAM",
             "network-rx": "Загрузка",
-            "network-tx": "Отдача",
+            "network-tx": "Выгрузка",
             "ram-usage": "Использование оперативной памяти",
             "swap-usage": "Использование swap"
           },

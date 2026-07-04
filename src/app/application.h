@@ -9,7 +9,7 @@
 #include "compositors/workspace_alert_service.h"
 #include "config/config_poll_source.h"
 #include "config/config_service.h"
-#include "core/file_watcher.h"
+#include "core/files/file_watcher.h"
 #include "core/timer_manager.h"
 #include "dbus/notification/notification_poll_source.h"
 #include "hooks/battery_hook_state.h"
@@ -107,6 +107,7 @@ class BrightnessService;
 class DebugService;
 class EasyEffectsService;
 class INetworkService;
+class IwdSecretAgent;
 class LogindService;
 class MainLoop;
 class MprisService;
@@ -114,6 +115,7 @@ class NetworkSecretAgent;
 class NotificationDBusHost;
 class PipeWirePollSource;
 class PipeWireService;
+class WirePlumberMixer;
 class PipeWireSpectrum;
 class PipeWireSpectrumPollSource;
 class PolkitAgent;
@@ -170,6 +172,10 @@ private:
   void initNotificationAndOsd();
   void initBarDockAndLayout();
   void initWidgetControllersAndCallbacks();
+  // Single source of truth for surface (re)creation order: (re)builds every
+  // per-output layer surface bottom-to-top. Called once after initUi() wiring
+  // and on every output change so first-run stacking matches hot reload.
+  void reconcileOutputSurfaces();
   void initIpc();
   // (Re)register plugin-backed launcher providers from the enabled plugin set.
   void reloadPluginLauncherProviders();
@@ -241,6 +247,7 @@ private:
   std::unique_ptr<PowerProfilesService> m_powerProfilesService;
   std::unique_ptr<INetworkService> m_networkService;
   std::unique_ptr<NetworkSecretAgent> m_networkSecretAgent;
+  std::unique_ptr<IwdSecretAgent> m_iwdSecretAgent;
   std::unique_ptr<BluetoothService> m_bluetoothService;
   std::unique_ptr<BluetoothAgent> m_bluetoothAgent;
   Timer m_bluetoothResumeTimer;
@@ -260,6 +267,7 @@ private:
   std::unique_ptr<sdbus::IProxy> m_notificationBusNameWatchProxy;
   bool m_notificationBusNameWatchInstalled = false;
   std::unique_ptr<PipeWireService> m_pipewireService;
+  std::unique_ptr<WirePlumberMixer> m_wirePlumberMixer;
   std::unique_ptr<EasyEffectsService> m_easyEffectsService;
   std::unique_ptr<PipeWireSpectrum> m_pipewireSpectrum;
   std::unique_ptr<SoundPlayer> m_soundPlayer;

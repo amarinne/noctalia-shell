@@ -1,6 +1,6 @@
-#include "core/keybind_matcher.h"
+#include "core/input/keybind_matcher.h"
 
-#include "core/key_chord.h"
+#include "core/input/key_chord.h"
 
 namespace {
 

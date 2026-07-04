@@ -1,4 +1,4 @@
-#include "core/file_watcher.h"
+#include "core/files/file_watcher.h"
 
 #include "core/log.h"
 

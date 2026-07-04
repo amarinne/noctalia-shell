@@ -2,7 +2,7 @@
 
 #include "config/config_service.h"
 #include "core/deferred_call.h"
-#include "core/key_symbols.h"
+#include "core/input/key_symbols.h"
 #include "core/ui_phase.h"
 #include "render/render_context.h"
 #include "render/scene/node.h"

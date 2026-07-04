@@ -3,7 +3,7 @@
 #include "compositors/compositor_platform.h"
 #include "core/deferred_call.h"
 #include "core/log.h"
-#include "core/process.h"
+#include "core/process/process.h"
 #include "lua.h"
 #include "luacode.h"
 #include "lualib.h"
@@ -453,6 +453,20 @@ namespace {
     return 1;
   }
 
+  int luau_clipboardText(lua_State* L) {
+    auto* host = hostForState(L);
+    if (host == nullptr) {
+      lua_pushnil(L);
+      return 1;
+    }
+    if (const auto text = host->api().clipboardText(); text.has_value()) {
+      lua_pushlstring(L, text->data(), text->size());
+    } else {
+      lua_pushnil(L);
+    }
+    return 1;
+  }
+
   int luau_getenv(lua_State* L) {
     const char* name = luaL_checkstring(L, 1);
     const char* val = std::getenv(name);
@@ -555,6 +569,120 @@ namespace {
     }
     file.write(data, static_cast<std::streamsize>(dataLen));
     lua_pushboolean(L, file.good() ? 1 : 0);
+    return 1;
+  }
+
+  int luau_mkdirAll(lua_State* L) {
+    size_t len = 0;
+    const char* path = luaL_checklstring(L, 1, &len);
+    auto* host = hostForState(L);
+    if (host == nullptr) {
+      lua_pushboolean(L, 0);
+      lua_pushstring(L, "no host");
+      return 2;
+    }
+    const std::filesystem::path dir = resolveHostPath(host, std::string_view(path, len));
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    if (ec) {
+      lua_pushboolean(L, 0);
+      lua_pushstring(L, ec.message().c_str());
+      return 2;
+    }
+    if (!std::filesystem::is_directory(dir, ec)) {
+      lua_pushboolean(L, 0);
+      lua_pushstring(L, "path exists and is not a directory");
+      return 2;
+    }
+    lua_pushboolean(L, 1);
+    return 1;
+  }
+
+  int luau_removeFile(lua_State* L) {
+    size_t len = 0;
+    const char* path = luaL_checklstring(L, 1, &len);
+    auto* host = hostForState(L);
+    if (host == nullptr) {
+      lua_pushboolean(L, 0);
+      lua_pushstring(L, "no host");
+      return 2;
+    }
+    const std::filesystem::path file = resolveHostPath(host, std::string_view(path, len));
+    std::error_code ec;
+    if (std::filesystem::is_directory(file, ec)) {
+      lua_pushboolean(L, 0);
+      lua_pushstring(L, "is a directory");
+      return 2;
+    }
+    if (!std::filesystem::remove(file, ec)) {
+      lua_pushboolean(L, 0);
+      lua_pushstring(L, ec ? ec.message().c_str() : "no such file");
+      return 2;
+    }
+    lua_pushboolean(L, 1);
+    return 1;
+  }
+
+  int luau_renameFile(lua_State* L) {
+    size_t fromLen = 0;
+    const char* from = luaL_checklstring(L, 1, &fromLen);
+    size_t toLen = 0;
+    const char* to = luaL_checklstring(L, 2, &toLen);
+    auto* host = hostForState(L);
+    if (host == nullptr) {
+      lua_pushboolean(L, 0);
+      lua_pushstring(L, "no host");
+      return 2;
+    }
+    std::error_code ec;
+    std::filesystem::rename(
+        resolveHostPath(host, std::string_view(from, fromLen)), resolveHostPath(host, std::string_view(to, toLen)), ec
+    );
+    if (ec) {
+      lua_pushboolean(L, 0);
+      lua_pushstring(L, ec.message().c_str());
+      return 2;
+    }
+    lua_pushboolean(L, 1);
+    return 1;
+  }
+
+  int luau_fileInfo(lua_State* L) {
+    size_t len = 0;
+    const char* path = luaL_checklstring(L, 1, &len);
+    auto* host = hostForState(L);
+    if (host == nullptr) {
+      lua_pushnil(L);
+      lua_pushstring(L, "no host");
+      return 2;
+    }
+    const std::filesystem::path target = resolveHostPath(host, std::string_view(path, len));
+    std::error_code ec;
+    const auto status = std::filesystem::status(target, ec);
+    if (ec || !std::filesystem::exists(status)) {
+      lua_pushnil(L);
+      lua_pushstring(L, "no such path");
+      return 2;
+    }
+    const bool isDir = std::filesystem::is_directory(status);
+    double size = 0.0;
+    if (!isDir) {
+      if (const auto bytes = std::filesystem::file_size(target, ec); !ec) {
+        size = static_cast<double>(bytes);
+      }
+    }
+    double mtime = 0.0;
+    if (const auto writeTime = std::filesystem::last_write_time(target, ec); !ec) {
+      const auto sysTime = std::chrono::clock_cast<std::chrono::system_clock>(writeTime);
+      mtime = std::chrono::duration<double>(sysTime.time_since_epoch()).count();
+    }
+    lua_createtable(L, 0, 3);
+    lua_pushnumber(L, size);
+    lua_setfield(L, -2, "size");
+    lua_pushnumber(L, mtime);
+    lua_setfield(L, -2, "mtime");
+    lua_pushboolean(L, isDir ? 1 : 0);
+    lua_setfield(L, -2, "isDir");
     return 1;
   }
 
@@ -995,13 +1123,18 @@ namespace {
       {"notify", luau_notify},
       {"notifyError", luau_notifyError},
       {"copyToClipboard", luau_copyToClipboard},
+      {"clipboardText", luau_clipboardText},
       {"getenv", luau_getenv},
       {"expandPath", luau_expandPath},
       {"formatTime", luau_formatTime},
       {"setUpdateInterval", luau_setUpdateInterval},
       {"readFile", luau_readFile},
       {"writeFile", luau_writeFile},
+      {"mkdirAll", luau_mkdirAll},
+      {"removeFile", luau_removeFile},
+      {"renameFile", luau_renameFile},
       {"fileExists", luau_fileExists},
+      {"fileInfo", luau_fileInfo},
       {"listDir", luau_listDir},
       {"pluginDir", luau_pluginDir},
       {"tr", luau_tr},

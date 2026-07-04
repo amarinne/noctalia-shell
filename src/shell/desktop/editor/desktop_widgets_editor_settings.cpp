@@ -594,8 +594,8 @@ namespace {
         ui::label({
             .text = i18n::tr(labelKey),
             .fontSize = Style::fontSizeCaption,
-            .color = colorSpecFromRole(ColorRole::Secondary),
             .fontWeight = FontWeight::Bold,
+            .color = colorSpecFromRole(ColorRole::Secondary),
         })
     );
   }

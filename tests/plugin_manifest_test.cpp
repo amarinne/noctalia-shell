@@ -304,6 +304,87 @@ int main() {
     }
   }
 
+  // Panel width/height: number, "fill", or a loud error — never a silent default.
+  const auto fillPanelManifestPath = root / "fill-panel/plugin.toml";
+  ok = writeText(
+           fillPanelManifestPath,
+           "id = \"me/fill-panel\"\n"
+           "name = \"Fill Panel\"\n"
+           "min_noctalia = \"5.0.0\"\n"
+           "[[panel]]\n"
+           "id = \"panel\"\n"
+           "entry = \"panel.luau\"\n"
+           "width = 420\n"
+           "height = \"fill\"\n"
+           "placement = \"floating\"\n"
+           "position = \"center_right\"\n"
+       )
+      && ok;
+  error.clear();
+  const auto fillPanel = scripting::parsePluginManifest(fillPanelManifestPath, &error);
+  ok = expect(fillPanel.has_value(), error.empty() ? "failed to parse fill panel manifest" : error.c_str()) && ok;
+  if (fillPanel.has_value() && expect(fillPanel->entries.size() == 1, "one fill panel entry expected")) {
+    const auto& entry = fillPanel->entries.front();
+    ok = expect(entry.panelWidth == 420.0, "fill panel width should parse") && ok;
+    ok = expect(!entry.panelWidthFill, "numeric width is not fill") && ok;
+    ok = expect(entry.panelHeightFill, "height \"fill\" should set the fill flag") && ok;
+  }
+
+  const auto badFillManifestPath = root / "bad-fill/plugin.toml";
+  ok = writeText(
+           badFillManifestPath,
+           "id = \"me/bad-fill\"\n"
+           "name = \"Bad Fill\"\n"
+           "min_noctalia = \"5.0.0\"\n"
+           "[[panel]]\n"
+           "id = \"panel\"\n"
+           "entry = \"panel.luau\"\n"
+           "height = \"full\"\n"
+       )
+      && ok;
+  error.clear();
+  const auto badFill = scripting::parsePluginManifest(badFillManifestPath, &error);
+  ok = expect(!badFill.has_value(), "height \"full\" should fail loudly") && ok;
+  ok = expectEq(error, "panel entry 'panel': height must be a positive number or \"fill\"", "bad fill error") && ok;
+
+  const auto negativeSizeManifestPath = root / "negative-size/plugin.toml";
+  ok = writeText(
+           negativeSizeManifestPath,
+           "id = \"me/negative-size\"\n"
+           "name = \"Negative Size\"\n"
+           "min_noctalia = \"5.0.0\"\n"
+           "[[panel]]\n"
+           "id = \"panel\"\n"
+           "entry = \"panel.luau\"\n"
+           "width = -5\n"
+       )
+      && ok;
+  error.clear();
+  const auto negativeSize = scripting::parsePluginManifest(negativeSizeManifestPath, &error);
+  ok = expect(!negativeSize.has_value(), "negative width should fail loudly") && ok;
+  ok = expectEq(error, "panel entry 'panel': width must be a positive number or \"fill\"", "negative width error") && ok;
+
+  const auto fillAttachedManifestPath = root / "fill-attached/plugin.toml";
+  ok = writeText(
+           fillAttachedManifestPath,
+           "id = \"me/fill-attached\"\n"
+           "name = \"Fill Attached\"\n"
+           "min_noctalia = \"5.0.0\"\n"
+           "[[panel]]\n"
+           "id = \"panel\"\n"
+           "entry = \"panel.luau\"\n"
+           "height = \"fill\"\n"
+           "placement = \"attached\"\n"
+       )
+      && ok;
+  error.clear();
+  const auto fillAttached = scripting::parsePluginManifest(fillAttachedManifestPath, &error);
+  ok = expect(!fillAttached.has_value(), "fill + attached placement should fail loudly") && ok;
+  ok = expectEq(
+           error, "panel entry 'panel': width/height \"fill\" requires placement = \"floating\"", "fill attached error"
+       )
+      && ok;
+
   const auto missingNameManifestPath = root / "missing-name/plugin.toml";
   ok = writeText(missingNameManifestPath, "id = \"me/missing-name\"\nmin_noctalia = \"5.0.0\"\n") && ok;
   error.clear();

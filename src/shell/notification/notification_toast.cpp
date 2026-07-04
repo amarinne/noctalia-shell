@@ -381,10 +381,10 @@ namespace {
         ui::label({
             .text = StringUtils::trimLeadingBlankLines(summary),
             .fontSize = summaryFontSize(scale),
+            .fontWeight = FontWeight::Bold,
             .color = colorSpecFromRole(ColorRole::OnSurface),
             .maxWidth = topTextMaxWidth,
             .maxLines = std::max(1, summaryLines),
-            .fontWeight = FontWeight::Bold,
         })
     );
 
@@ -2327,10 +2327,10 @@ InputArea* NotificationToast::buildCard(
       ui::label({
           .text = displaySummary,
           .fontSize = summaryFontSize(scale),
+          .fontWeight = FontWeight::Bold,
           .color = colorSpecFromRole(ColorRole::OnSurface),
           .maxWidth = topTextMaxWidth,
           .maxLines = kMaxSummaryLines,
-          .fontWeight = FontWeight::Bold,
       })
   );
   std::unique_ptr<Flex> actionsRow;

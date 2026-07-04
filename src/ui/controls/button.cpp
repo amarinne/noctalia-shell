@@ -1,6 +1,6 @@
 #include "ui/controls/button.h"
 
-#include "core/keybind_matcher.h"
+#include "core/input/keybind_matcher.h"
 #include "render/animation/animation_manager.h"
 #include "render/core/renderer.h"
 #include "render/scene/input_area.h"
@@ -259,6 +259,12 @@ Button::~Button() {
 }
 
 void Button::setText(std::string_view text) {
+  // A glyph-only button must not grow the text-tier chrome (control height,
+  // wider padding) just because its text was cleared: creating the label is
+  // what flips the size tier, so skip it for empty text.
+  if (text.empty() && m_label == nullptr) {
+    return;
+  }
   ensureLabel();
   m_label->setText(text);
   m_label->setVisible(!text.empty());

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
@@ -309,10 +310,39 @@ namespace scripting {
           }
         }
         if (kind == PluginEntryKind::Panel) {
-          entry.panelWidth = std::max(0.0, tableNumber(*entryTable, "width").value_or(0.0));
-          entry.panelHeight = std::max(0.0, tableNumber(*entryTable, "height").value_or(0.0));
+          // width/height: absent = host default, positive number = logical px,
+          // the literal string "fill" = span the output's available extent on
+          // that axis. Anything else is a manifest error, never a default.
+          const auto parsePanelExtent = [&](const char* key, double& outSize, bool& outFill) -> bool {
+            const auto extentNode = (*entryTable)[key];
+            if (!extentNode) {
+              return true;
+            }
+            if (const auto* str = extentNode.as_string()) {
+              if (str->get() == "fill") {
+                outFill = true;
+                return true;
+              }
+            } else if (
+                const auto number = tableNumber(*entryTable, key);
+                number.has_value() && std::isfinite(*number) && *number > 0.0
+            ) {
+              outSize = *number;
+              return true;
+            }
+            error = "panel entry '" + entry.id + "': " + key + " must be a positive number or \"fill\"";
+            return false;
+          };
+          if (!parsePanelExtent("width", entry.panelWidth, entry.panelWidthFill)
+              || !parsePanelExtent("height", entry.panelHeight, entry.panelHeightFill)) {
+            return false;
+          }
           if (const std::string placement = tableString(*entryTable, "placement"); !placement.empty()) {
             entry.panelPlacementDefault = placement;
+          }
+          if ((entry.panelWidthFill || entry.panelHeightFill) && entry.panelPlacementDefault != "floating") {
+            error = "panel entry '" + entry.id + R"(': width/height "fill" requires placement = "floating")";
+            return false;
           }
           if (const std::string position = tableString(*entryTable, "position"); !position.empty()) {
             entry.panelPositionDefault = position;

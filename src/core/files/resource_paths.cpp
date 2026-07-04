@@ -1,4 +1,4 @@
-#include "core/resource_paths.h"
+#include "core/files/resource_paths.h"
 
 #include "core/log.h"
 

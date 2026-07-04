@@ -65,6 +65,10 @@ public:
       std::string_view text, float fontSize, const std::vector<std::size_t>& byteOffsets, std::vector<float>& outStops,
       FontWeight fontWeight = FontWeight::Normal
   ) override;
+  void measureTextCursorStopsWrapped(
+      std::string_view text, float fontSize, const std::vector<std::size_t>& byteOffsets, float maxWidth,
+      std::vector<TextCursorStop>& outStops, FontWeight fontWeight = FontWeight::Normal
+  ) override;
   [[nodiscard]] TextMetrics measureGlyph(char32_t codepoint, float fontSize) override;
   [[nodiscard]] TextureManager& textureManager() override;
   [[nodiscard]] float renderScale() const noexcept override { return m_renderScale; }

@@ -9,6 +9,8 @@
 #include "ui/palette.h"
 #include "ui/style.h"
 
+#include <cmath>
+
 namespace settings {
 
   PluginStoreTile::PluginStoreTile(float scale) : m_scale(scale) {
@@ -50,9 +52,9 @@ namespace settings {
         ui::label({
             .out = &m_nameLabel,
             .fontSize = Style::fontSizeBody * scale,
+            .fontWeight = FontWeight::Medium,
             .color = colorSpecFromRole(ColorRole::OnSurface),
             .maxLines = 1,
-            .fontWeight = FontWeight::Medium,
             .ellipsize = TextEllipsize::End,
         })
     );
@@ -78,8 +80,8 @@ namespace settings {
             ui::label({
                 .out = &m_badgeLabel,
                 .fontSize = Style::fontSizeMini * scale,
-                .color = colorSpecFromRole(ColorRole::Primary),
                 .fontWeight = FontWeight::Bold,
+                .color = colorSpecFromRole(ColorRole::Primary),
             })
         )
     );
@@ -127,10 +129,13 @@ namespace settings {
     // Thumbnail vs icon fallback.
     const bool hasThumbnail = !thumbnailPath.empty() && renderer != nullptr;
     if (hasThumbnail && thumbnailPath != m_boundThumbnailPath) {
+      // The thumbnail is Cover-fit across the grid cell (~200px logical wide); decode to that
+      // size and mipmap so the full-res webp does not alias when minified into the tile.
+      const int targetSize = static_cast<int>(std::ceil(200.0f * m_scale));
       if (textureCache != nullptr) {
-        m_thumbnail->setSourceFileAsync(*renderer, *textureCache, thumbnailPath);
+        m_thumbnail->setSourceFileAsync(*renderer, *textureCache, thumbnailPath, targetSize, true);
       } else {
-        m_thumbnail->setSourceFile(*renderer, thumbnailPath);
+        m_thumbnail->setSourceFile(*renderer, thumbnailPath, targetSize, true);
       }
       m_boundThumbnailPath = thumbnailPath;
     }

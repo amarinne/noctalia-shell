@@ -33,8 +33,8 @@ namespace settings {
       return ui::label({
           .text = std::string(text),
           .fontSize = fontSize,
-          .color = colorSpecFromRole(role),
           .fontWeight = weight,
+          .color = colorSpecFromRole(role),
       });
     }
 
@@ -143,8 +143,8 @@ namespace settings {
           ui::label({
               .text = std::string(label),
               .fontSize = Style::fontSizeCaption * scale,
-              .color = colorSpecFromRole(ColorRole::Primary),
               .fontWeight = FontWeight::Bold,
+              .color = colorSpecFromRole(ColorRole::Primary),
           })
       );
     }

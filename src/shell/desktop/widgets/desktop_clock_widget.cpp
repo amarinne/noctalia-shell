@@ -197,8 +197,8 @@ void DesktopClockWidget::create() {
   auto label = ui::label({
       .out = &m_label,
       .fontSize = clockFontSize(contentScale()),
-      .color = m_color,
       .fontWeight = FontWeight::Bold,
+      .color = m_color,
   });
   m_digitalRoot->addChild(std::move(label));
   rootNode->addChild(std::move(digitalRoot));

@@ -75,6 +75,10 @@ public:
       std::string_view text, float fontSize, const std::vector<std::size_t>& byteOffsets, std::vector<float>& outStops,
       FontWeight fontWeight = FontWeight::Normal
   );
+  void measureCursorStopsWrapped(
+      std::string_view text, float fontSize, const std::vector<std::size_t>& byteOffsets, float maxWidth,
+      std::vector<TextCursorStop>& outStops, FontWeight fontWeight = FontWeight::Normal
+  );
 
   void draw(
       float surfaceWidth, float surfaceHeight, float x, float baselineY, std::string_view text, float fontSize,

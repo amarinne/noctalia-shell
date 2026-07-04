@@ -199,8 +199,8 @@ std::unique_ptr<Flex> MediaTab::create() {
       ui::label({
           .text = i18n::tr("control-center.media.now-playing"),
           .fontSize = Style::fontSizeTitle * scale,
-          .color = colorSpecFromRole(ColorRole::OnSurface),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::OnSurface),
           .flexGrow = 1.0f,
       }),
       ui::button({
@@ -253,8 +253,8 @@ std::unique_ptr<Flex> MediaTab::create() {
               .out = &m_trackTitle,
               .text = i18n::tr("control-center.media.nothing-playing"),
               .fontSize = Style::fontSizeTitle * scale,
-              .color = colorSpecFromRole(ColorRole::Primary),
               .fontWeight = FontWeight::Bold,
+              .color = colorSpecFromRole(ColorRole::Primary),
           }),
           ui::label({
               .out = &m_trackArtist,

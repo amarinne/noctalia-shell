@@ -85,6 +85,7 @@ private:
   void layoutScene(std::uint32_t width, std::uint32_t height);
   void updateCopy();
   [[nodiscard]] lockscreen_login_box::LoginBoxStyle resolveLoginStyle() const;
+  [[nodiscard]] bool isLoginBoxEnabled() const;
   [[nodiscard]] std::string resolveStatusText(const lockscreen_login_box::LoginBoxStyle& style, bool& isError) const;
   [[nodiscard]] bool passwordFieldContainsPoint(float sceneX, float sceneY) const;
   void focusPasswordField();

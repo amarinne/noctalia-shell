@@ -19,6 +19,7 @@
 #include "capture/screenshot_service.h"
 #include "scripting/plugin_manifest.h"
 #include "scripting/plugin_registry.h"
+#include "shell/bar/widget_custom_image.h"
 #include "shell/bar/widgets/idle_inhibitor_widget.h"
 #include "shell/bar/widgets/keyboard_layout_widget.h"
 #include "shell/bar/widgets/launcher_widget.h"
@@ -86,6 +87,13 @@ namespace {
       return MediaTitleScrollMode::OnHover;
     }
     return MediaTitleScrollMode::None;
+  }
+
+  WidgetCustomImage customImageFor(const WidgetConfig* wc) {
+    return WidgetCustomImage{
+        .path = wc != nullptr ? wc->getString("custom_image", "") : std::string{},
+        .colorize = wc != nullptr ? wc->getBool("custom_image_colorize", false) : false,
+    };
   }
 
 } // namespace
@@ -223,7 +231,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
     if (barGlyph.empty()) {
       barGlyph = "clipboard";
     }
-    auto widget = std::make_unique<ClipboardWidget>(output, std::move(barGlyph));
+    auto widget = std::make_unique<ClipboardWidget>(output, std::move(barGlyph), customImageFor(wc));
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -234,11 +242,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
       barGlyph = "search";
     }
 
-    std::string logoPath = wc != nullptr ? wc->getString("custom_image", "") : std::string{};
-    const bool customImageColorize = wc != nullptr ? wc->getBool("custom_image_colorize", false) : false;
-
-    auto widget =
-        std::make_unique<ControlCenterWidget>(output, std::move(barGlyph), std::move(logoPath), customImageColorize);
+    auto widget = std::make_unique<ControlCenterWidget>(output, std::move(barGlyph), customImageFor(wc));
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -256,6 +260,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .middleCommand = trimSetting("middle_command"),
         .scrollUpCommand = trimSetting("scroll_up_command"),
         .scrollDownCommand = trimSetting("scroll_down_command"),
+        .customImage = customImageFor(wc),
     });
     widget->setContentScale(contentScale);
     return widget;
@@ -281,7 +286,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
     }
     auto widget = std::make_unique<KeyboardLayoutWidget>(
         m_platform, cycleCommand, KeyboardLayoutWidget::parseDisplayMode(display), showIcon, showLabel,
-        hideWhenSingleLayout, std::move(customLabels), std::move(glyph)
+        hideWhenSingleLayout, std::move(customLabels), std::move(glyph), customImageFor(wc)
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -293,11 +298,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
       barGlyph = "search";
     }
 
-    std::string logoPath = wc != nullptr ? wc->getString("custom_image", "") : std::string{};
-    const bool customImageColorize = wc != nullptr ? wc->getBool("custom_image_colorize", false) : false;
-
-    auto widget =
-        std::make_unique<LauncherWidget>(output, std::move(barGlyph), std::move(logoPath), customImageColorize);
+    auto widget = std::make_unique<LauncherWidget>(output, std::move(barGlyph), customImageFor(wc));
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -425,7 +426,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
     }
     auto widget = std::make_unique<ScreenshotWidget>(
         output, std::move(barGlyph), *m_screenshots, m_configService, m_platform, *m_renderContext,
-        m_configService.config().shell.shadow, barPosition
+        m_configService.config().shell.shadow, barPosition, customImageFor(wc)
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -436,7 +437,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
     if (barGlyph.empty()) {
       barGlyph = "shutdown";
     }
-    auto widget = std::make_unique<SessionWidget>(output, std::move(barGlyph));
+    auto widget = std::make_unique<SessionWidget>(output, std::move(barGlyph), customImageFor(wc));
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -446,7 +447,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
     if (barGlyph.empty()) {
       barGlyph = "search";
     }
-    auto widget = std::make_unique<SettingsWidget>(output, std::move(barGlyph));
+    auto widget = std::make_unique<SettingsWidget>(output, std::move(barGlyph), customImageFor(wc));
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -511,6 +512,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .showLabel = wc != nullptr ? wc->getBool("show_label", true) : true,
         .labelMinWidth = static_cast<float>(wc != nullptr ? wc->getDouble("label_min_width", 0.0) : 0.0),
         .glyph = wc != nullptr ? wc->getString("glyph", "") : std::string{},
+        .customImage = customImageFor(wc),
     };
     auto widget = std::make_unique<SysmonWidget>(m_sysmon, m_configService, std::move(options));
     widget->setContentScale(contentScale);
@@ -610,7 +612,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
     std::string muteGlyphOverride = wc != nullptr ? wc->getString("mute_glyph", "") : std::string{};
     auto widget = std::make_unique<VolumeWidget>(
         m_audio, m_easyEffects, &m_config, output, showLabel, volumeTarget, scrollStep, muteColor,
-        std::move(glyphOverride), std::move(muteGlyphOverride)
+        std::move(glyphOverride), std::move(muteGlyphOverride), customImageFor(wc)
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -621,7 +623,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
     if (barGlyph.empty()) {
       barGlyph = "wallpaper-selector";
     }
-    auto widget = std::make_unique<WallpaperWidget>(output, std::move(barGlyph));
+    auto widget = std::make_unique<WallpaperWidget>(output, std::move(barGlyph), customImageFor(wc));
     widget->setContentScale(contentScale);
     return widget;
   }

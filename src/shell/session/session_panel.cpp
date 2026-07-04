@@ -1,7 +1,7 @@
 #include "shell/session/session_panel.h"
 
 #include "config/config_service.h"
-#include "core/keybind_matcher.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
 #include "i18n/i18n.h"
 #include "render/scene/input_area.h"

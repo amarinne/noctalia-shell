@@ -56,16 +56,36 @@
         "playing": "Spielt"
       },
       "network": {
+        "active": "Aktiv",
         "connected": "Verbunden",
         "connecting": "Verbinden",
+        "download": "Empfangen",
         "ip": "IP",
         "network": "Netzwerk",
         "networks": "Netzwerke",
-        "wired": "Kabelgebunden"
+        "networks-count": "{count} Netzwerk",
+        "networks-count-plural": "{count} Netzwerke",
+        "no": "Nein",
+        "not-connected": "Nicht verbunden",
+        "off": "Aus",
+        "on": "An",
+        "signal": "Signal",
+        "upload": "Senden",
+        "vpn": "VPN",
+        "wifi": "Wi-Fi",
+        "wired": "Kabelgebunden",
+        "yes": "Ja"
+      },
+      "privacy": {
+        "camera": "Kamera",
+        "microphone": "Mikrofon"
       },
       "scripted": {
         "reload-failed": "Skript-Neuladen fehlgeschlagen",
         "reloaded": "Skript neu geladen"
+      },
+      "sysmon": {
+        "cpu": "CPU"
       },
       "weather": {
         "default": "Wetter",
@@ -314,6 +334,14 @@
       "weather": "Wetter"
     },
     "weather": {
+      "daily": {
+        "tooltip": {
+          "high": "Max.",
+          "low": "Min.",
+          "sunrise": "Sonnenaufgang",
+          "sunset": "Sonnenuntergang"
+        }
+      },
       "data-unavailable": "Wetterdaten nicht verfügbar",
       "details": {
         "elevation": "Höhe",
@@ -322,6 +350,7 @@
         "temp-max": "Maximale Temperatur",
         "temp-min": "Minimale Temperatur",
         "timezone": "Zeitzone",
+        "uv-index": "UV Index",
         "wind": "Wind"
       },
       "disabled": "Aktiviere [weather] in config.toml",
@@ -330,6 +359,10 @@
         "day": "Sonntag",
         "description": "Wetter",
         "temperature": "10 / 4°C"
+      },
+      "forecast-view": {
+        "daily": "Täglich",
+        "hourly": "Stündlich"
       },
       "location-unavailable": "Standort nicht verfügbar",
       "refreshing": "Wetter wird aktualisiert...",

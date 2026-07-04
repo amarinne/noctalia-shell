@@ -90,14 +90,14 @@
       },
       "sysmon": {
         "cpu": "CPU",
-        "cpu-temp": "CPU-hőm.",
+        "cpu-temp": "CPU-hőmérséklet",
         "disk": "Lemez",
         "download": "Letöltés",
-        "gpu-temp": "GPU-hőm.",
+        "gpu-temp": "GPU-hőmérséklet",
         "gpu-usage": "GPU-használat",
         "gpu-vram": "GPU VRAM",
         "ram": "RAM",
-        "swap": "Swap",
+        "swap": "Cserehely",
         "system": "Rendszer",
         "upload": "Feltöltés"
       },
@@ -166,7 +166,7 @@
       "application-volumes": "Alkalmazások hangereje",
       "choose-effects-profile": "Válassz egy profilt",
       "effects-profile": "Effektek",
-      "input-device-prefix": "Bemenet:",
+      "input-device-prefix": "Bemenet",
       "no-application-audio": "Nincs alkalmazáshang",
       "no-application-audio-body": "Jelenleg nincs lejátszási folyam egyetlen alkalmazásban sem.",
       "no-input-devices": "Nincsenek bemeneti eszközök",
@@ -175,7 +175,7 @@
       "no-output-devices": "Nincsenek kimeneti eszközök",
       "no-output-devices-body": "Jelenleg nincsenek elérhető lejátszási kimenetek.",
       "no-output-selected": "Nincs kimeneti eszköz kiválasztva",
-      "output-device-prefix": "Kimenet:",
+      "output-device-prefix": "Kimenet",
       "unavailable-body": "A PipeWire nem aktív.",
       "unavailable-title": "Hang nem érhető el"
     },
@@ -1596,13 +1596,13 @@
           "description": "Belső kitöltés a dokk keresztirányú tengelye mentén (az ikonok és a képernyő széle között)"
         },
         "edge-margin": {
-          "description": "Távolság a legközelebbi képernyőszéltől; a pozitív értékek lebegtetik a Dockot tőle"
+          "description": "Távolság a legközelebbi képernyőszéltől; a pozitív értékek lebegtetik a dokkot tőle"
         },
         "enabled": {
           "description": "A dokk megjelenítése vagy elrejtése"
         },
         "ends-margin": {
-          "description": "Behúzás a Dokk mindkét végéről, a főtengelye mentén"
+          "description": "Behúzás a dokk mindkét végéről, a főtengelye mentén"
         },
         "icon-size": {
           "description": "A dokk ikonok mérete pixelben",
@@ -1610,15 +1610,19 @@
         },
         "inactive-icon-opacity": {
           "description": "Nem fókuszált dokk ikonok átlátszatlansága",
-          "label": "Inaktív Ikon Átlátszatlanság"
+          "label": "Inaktív ikon átlátszatlanság"
         },
         "inactive-icon-scale": {
           "description": "Nem fókuszált dokkikonok méretaránya",
           "label": "Inaktív Ikon Méretarány"
         },
         "item-spacing": {
-          "description": "Térköz a dokk elemek között",
+          "description": "Térköz a dokkelemek között",
           "label": "Elemtávolság"
+        },
+        "launcher-custom-image": {
+          "label": "Egyéni indító-kép",
+          "placeholder": "Útvonal a képhez"
         },
         "launcher-icon": {
           "description": "A dokkindító gombján megjelenő Tabler ikon",
@@ -1640,7 +1644,7 @@
           "description": "Belső kitöltés a dokk fő tengelye mentén (az ikonok és a kapszula rövid végei között)"
         },
         "monitors": {
-          "description": "Válaszd ki, mely monitorokon jelenjen meg a Dock (hagyd üresen az összeshez); az aktív monitor szűrése ezeken a monitorokon belül érvényesül",
+          "description": "Válaszd ki, mely monitorokon jelenjen meg a dokk (hagyd üresen az összeshez); az aktív monitor szűrése ezeken a monitorokon belül érvényesül",
           "label": "Monitorok"
         },
         "pinned-apps": {
@@ -1847,7 +1851,7 @@
           "description": "Mégis mutassa a kritikus értesítéseket a feketelistára tett küldőktől"
         },
         "collapse-on-dismiss": {
-          "description": "A megmaradt Toastok elcsúsztatása, hogy kitöltsék a helyet, ha egyet bezárnak",
+          "description": "A megmaradt felugró értesítések elcsúsztatása, hogy kitöltsék a helyet, ha egyet bezárnak",
           "label": "Összecsukás elvetéskor"
         },
         "daemon": {
@@ -1859,7 +1863,7 @@
           "label": "Értesítési szűrők"
         },
         "layer": {
-          "description": "Az Átfedés segítségével jeleníthetsz meg értesítési felugró üzeneteket a teljes képernyős alkalmazások felett",
+          "description": "Az Átfedés segítségével jeleníthetsz meg felugró értesítéseket a teljes képernyős alkalmazások felett",
           "label": "Wayland réteg"
         },
         "monitors": {
@@ -1875,23 +1879,23 @@
           "label": "Függőleges margó"
         },
         "position": {
-          "description": "Képernyő pozíció a Toast értesítésekhez",
+          "description": "Képernyőpozíció a felugró értesítésekhez",
           "label": "Képernyő pozíció"
         },
         "scale": {
-          "description": "Értesítési Toastok skálázása a shell UI skálájához képest",
+          "description": "Felugró értesítések skálázása a shell felületi skálájához képest",
           "label": "Méret"
         },
         "show-actions": {
-          "description": "Műveletgombok megjelenítése az értesítési Toast-okban; ha le van tiltva, a Toast-ra kattintás elindítja az alapértelmezett műveletét",
+          "description": "Műveletgombok megjelenítése a felugró értesítésekben; ha le van tiltva, a felugró értesítésekre kattintás elindítja az alapértelmezett műveletét",
           "label": "Műveletgombok megjelenítése"
         },
         "show-app-name": {
-          "description": "Mutasd a küldő alkalmazás nevét a gyorsértesítésekben",
+          "description": "A küldőalkalmazás nevének megjelenítése a felugró értesítésekben",
           "label": "Alkalmazás nevének megjelenítése"
         },
         "toast-opacity": {
-          "description": "Értesítési toastok háttér átlátszatlansága",
+          "description": "Felugró értesítések háttér átlátszatlansága",
           "label": "Háttér átlátszatlanság"
         }
       },

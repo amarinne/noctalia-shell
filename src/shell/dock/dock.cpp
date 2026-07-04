@@ -245,7 +245,6 @@ bool Dock::initialize(CompositorPlatform& platform, ConfigService* config, Rende
   }
 
   refreshPinnedAppsIfNeeded();
-  syncInstances();
   return true;
 }
 

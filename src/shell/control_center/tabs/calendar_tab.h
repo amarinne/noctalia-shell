@@ -17,6 +17,7 @@ public:
   explicit CalendarTab(ConfigService* config = nullptr, CalendarService* calendar = nullptr);
 
   std::unique_ptr<Flex> create() override;
+  std::unique_ptr<Flex> createHeaderActions() override;
   void setActive(bool active) override;
   void onClose() override;
 
@@ -31,12 +32,14 @@ private:
   void doUpdate(Renderer& renderer) override;
   void rebuild();
   void rebuildEventList(float scale);
+  void toggleEventsCard();
 
   ConfigService* m_config = nullptr;
   CalendarService* m_calendar = nullptr;
   bool m_changeCallbackRegistered = false;
   bool m_eventsDirty = false;
   Flex* m_rootLayout = nullptr;
+  Button* m_toggleEventsCardButton = nullptr;
   InputArea* m_calendarArea = nullptr;
   Flex* m_card = nullptr;
   Flex* m_header = nullptr;
@@ -68,4 +71,5 @@ private:
   int m_pendingMonthDelta = 0;
   bool m_startMonthSlideIn = false;
   AnimationManager::Id m_monthSlideAnimId = 0;
+  bool m_showEventsCard = true;
 };

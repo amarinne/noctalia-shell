@@ -31,6 +31,7 @@
       "choose-display": "Выбраць дысплэй",
       "confirm-region": "Enter або Прабел каб зняць · Esc каб скасаваць · перацягніце, каб выбраць зноў",
       "fullscreen": "Увесь экран",
+      "overlay-alloc-failed": "Не ўдалося адлюстраваць накладку здымка экрана (у ГП скончылася відэапамяць?)",
       "region": "Выбраць рэгіён"
     },
     "widgets": {
@@ -166,7 +167,7 @@
       "application-volumes": "Гучнасць праграм",
       "choose-effects-profile": "Выберыце профіль",
       "effects-profile": "Эфекты",
-      "input-device-prefix": "Увод:",
+      "input-device-prefix": "Увод",
       "no-application-audio": "Аўдыя не прайграваецца",
       "no-application-audio-body": "Зараз няма праграм, якія прайграваюць аўдыя.",
       "no-input-devices": "Няма прылад уводу",
@@ -175,7 +176,7 @@
       "no-output-devices": "Няма прылад вываду",
       "no-output-devices-body": "Зараз няма даступных крыніц прайгравання.",
       "no-output-selected": "Прылады вываду не выбрана",
-      "output-device-prefix": "Вывад:",
+      "output-device-prefix": "Вывад",
       "unavailable-body": "PipeWire неактыўны.",
       "unavailable-title": "Аўдыя недаступна"
     },
@@ -370,6 +371,7 @@
     "weather": {
       "daily": {
         "tooltip": {
+          "condition": "Стан",
           "high": "Макс.",
           "low": "Мiн.",
           "sunrise": "Усход",
@@ -384,6 +386,7 @@
         "temp-max": "Максімальная тэмпература",
         "temp-min": "Мінімальная тэмпература",
         "timezone": "Часавы пояс",
+        "uv-index": "Узровень УФ",
         "wind": "Вецер"
       },
       "disabled": "Уключыце [weather] у config.toml",
@@ -393,13 +396,22 @@
         "description": "Надвор'е",
         "temperature": "10 / 4C"
       },
+      "forecast-view": {
+        "daily": "Па дням",
+        "hourly": "Па гадзінам"
+      },
       "hourly": {
+        "summary": "{condition} / Дождж {precip}%",
         "tooltip": {
+          "condition": "Стан",
           "humidity": "Вільг.",
+          "rain": "Дождж",
           "wind": "Вецер"
         }
       },
       "location-unavailable": "Месцазнаходжанне недаступна",
+      "no-location-body": "Дадайце ваш адрас або ўключыце аўтавызначэнне ў наладах месцазнаходжання.",
+      "no-location-title": "Месцазнаходжання не задана",
       "refreshing": "Абнаўленне надвор'я...",
       "waiting": "Чаканне дадзеных аб надвор'і"
     }
@@ -471,6 +483,11 @@
         "label-min-width": "Мінімальная шырыня загалоўка",
         "layout": "Макет",
         "mirrored": "Адлюстраванне",
+        "network-speed-compact": "Хуткасць кампактнай сеткі",
+        "network-speed-unit": "Адзінка хуткасці сеткі",
+        "network-speed-unit-auto": "Аўтаматычна",
+        "network-speed-unit-kilobytes": "кБ/с",
+        "network-speed-unit-megabytes": "МБ/с",
         "opacity": "Непразрыстасць",
         "primary-color": "Асноўны колер",
         "reset-defaults": "Скінуць да прадвызначэнняў",
@@ -479,9 +496,12 @@
         "secondary-color": "Другасны колер",
         "sensitivity": "Адчувальнасць",
         "shadow": "Цень",
+        "show-caps-lock": "Папярэджанне: Caps Lock",
         "show-forecast": "Паказаць прагноз",
+        "show-keyboard-layout": "Раскладка клавіятуры",
         "show-label": "Паказваць подпіс",
         "show-login-button": "Кнопка ўваходу",
+        "show-password-hint": "Падказка да пароля",
         "show-when-idle": "Паказваць пры неактыўнасці",
         "stat": "Статыстыка",
         "stat-cpu-temp": "Тэмпература ЦП",
@@ -632,6 +652,7 @@
   "lockscreen": {
     "authenticating": "Аўтарызацыя...",
     "authentication-failed": "Аўтарызацыя не ўдалася",
+    "caps-lock-on": "Caps Lock уключаны",
     "password-cleared": "Пароль ачышчаны",
     "password-placeholder": "Пароль",
     "ready": "Увядзіце ваш пароль і націсніце Enter.",
@@ -738,6 +759,13 @@
       "on": "Wi-Fi уключаны"
     }
   },
+  "plugins": {
+    "auto-disabled": {
+      "body-errors": "{plugin} выклікала надта шмат памылак і была адключана. Уключыце яе ізноў пасля выпраўлення праблемы.",
+      "body-timeouts": "{plugin} перастала адказваць і была адключана. Уключыце яе ізноў пасля выпраўлення праблемы.",
+      "title": "Убудова адключана"
+    }
+  },
   "power": {
     "battery": {
       "states": {
@@ -786,6 +814,7 @@
     },
     "badges": {
       "advanced": "Пашыранае",
+      "community": "Ад супольнасці",
       "inherited": "Узята з іншых налад",
       "monitor": "Манітор",
       "official": "Афіцыйны",
@@ -1035,6 +1064,7 @@
         "general": "Агульныя",
         "grouping": "Групіраванне",
         "home": "Дамашняя",
+        "hot-corners": "Гарачыя куты",
         "idle": "Неактыўнасць",
         "interface": "Інтэрфейс",
         "keybinds": "Спалучэнні клавішаў",
@@ -1084,6 +1114,7 @@
         "desktop": "Працоўны стол",
         "dock": "Док",
         "hooks": "Хукі",
+        "keybinds": "Спалучэнні клавішаў",
         "location": "Месцазнаходжанне",
         "niri": "Niri",
         "notifications": "Апавяшчэнні",
@@ -1165,6 +1196,13 @@
         "ultra-heavy": "Ультрашырокі",
         "ultra-light": "Ультрасветлы"
       },
+      "hot-corners": {
+        "command": "Выканаць каманду",
+        "control-center": "Цэнтр кіравання",
+        "launcher": "Меню запуску",
+        "none": "Нічога",
+        "window-switcher": "Пераключальнік вокнаў"
+      },
       "layer": {
         "overlay": "Накладка",
         "top": "Верх"
@@ -1226,15 +1264,149 @@
         "source": {
           "built-in": "Убудаваныя",
           "community": "Супольныя",
-          "custom": "Карыстацкiя"
+          "custom": "Карыстацкiя",
+          "wallpaper": "Шпалеры"
         }
       },
       "theme-role": {
         "custom": "Карыстацкiя...",
         "default": "Па змаўчанні"
+      },
+      "wallpaper": {
+        "fill": {
+          "center": "Цэнтраванне",
+          "crop": "Абрэзка",
+          "fit": "Уцісканне",
+          "repeat": "Паўтарэнне",
+          "span": "Запаўненне",
+          "stretch": "Расцягванне"
+        },
+        "order": {
+          "alphabetical": "Алфавітная",
+          "random": "Выпадковая"
+        },
+        "transition": {
+          "disc": "Дыск",
+          "fade": "Затуханне",
+          "honeycomb": "Соты",
+          "stripes": "Палосы",
+          "wipe": "Сціранне",
+          "zoom": "Маштабаванне"
+        }
+      },
+      "weather": {
+        "unit": {
+          "imperial": "Імперскія",
+          "metric": "Метрычныя"
+        }
+      }
+    },
+    "plugins": {
+      "browse-store": "Даследаванне ўбудоў",
+      "panels": {
+        "open-near-click": {
+          "description": "Адкрываць панэль побач з віджэтам, які яе актывіраваў",
+          "label": "Адкрываць побач з націсканнем"
+        },
+        "placement": {
+          "description": "Ці прымацоўваць панэль да краю",
+          "label": "Размяшчэнне"
+        },
+        "position": {
+          "description": "Пазіцыя экрана пры нефіксаванай панэлі",
+          "label": "Пазіцыя"
+        }
+      },
+      "plugins": {
+        "configure": "Наладзіць",
+        "deprecated": "састарэлая",
+        "empty": "Няма ўключаных убудоў.",
+        "loading": "Загрузка ўбудоў...",
+        "refreshing": "Абнаўленне сіпсу ўбудоў...",
+        "remove": "Выдаліць убудову",
+        "requires": "Патрабуе {dependencies}",
+        "requires-newer-noctalia": "патрабуе больш новую версію Noctalia",
+        "title": "Убудовы"
+      },
+      "settings": {
+        "empty": "Няма даступных налад."
+      },
+      "sources": {
+        "add": "Дадаць крыніцу",
+        "add-title": "Дадаць крыніцу ўбудоў",
+        "edit": "Рэдагаваць крыніцу",
+        "edit-title": "Рэдагаваць крыніцу ўбудоў",
+        "empty": "Няма сканфігураваных крыніц.",
+        "errors": {
+          "duplicate-name": "Крыніца з гэтым ID ужо існуе.",
+          "invalid-name": "ID крыніцы павінна змяшчаць літары, лічбы, кропкі, ‹_› або ‹-›, а таксама пачынацца з літары або лічбы.",
+          "location-required": "Патрабуецца месцазнаходжанне крыніцы."
+        },
+        "kind": {
+          "git": "Git",
+          "path": "Шлях"
+        },
+        "kind-label": "Тып",
+        "location-label": "Месцазнаходжанне",
+        "location-placeholder-git": "https://github.com/ja/ubudovy-noctalia",
+        "location-placeholder-path": "~/dev/ubudovy-noctalia",
+        "name-label": "ID крыніцы",
+        "name-placeholder": "maje-ubudovy",
+        "precedence-hint": "Крыніцы ніжэй перавызначаюць крыніцы вышэй, калі ёсць аднолькавыя ўбудовы.",
+        "remove": "Выдаліць крыніцы",
+        "save": "Захаваць",
+        "title": "Крыніцы",
+        "update": "Абнавіць",
+        "update-on-startup": "Абнаўляць на запуску"
+      },
+      "store": {
+        "add": "Дадаць у Noctalia",
+        "category-all": "Усе",
+        "empty": "Убудоў не знойдзена",
+        "incompatible": "Несумяшчальная",
+        "loading": "Загрузка каталога...",
+        "no-readme": "Апісання няма",
+        "results-count": "{count} убудовы(-оў)",
+        "search-placeholder": "Шукаць убудовы...",
+        "title": "Крама ўбудоў"
       }
     },
     "schema": {
+      "appearance": {
+        "animation-speed": {
+          "description": "Множнік хуткасці для ўсіх анімацый",
+          "label": "Хуткасць анімацыі"
+        },
+        "animations": {
+          "description": "Уключэнне або выключэнне анімацый інтэрфейсу",
+          "label": "Анімацыі"
+        },
+        "app-icon-color": {
+          "description": "Колер з палітры, які выкарыстоўваецца для значкоў праграм",
+          "label": "Колер значка праграмы"
+        },
+        "app-icon-colorize": {
+          "description": "Змяняць колер значкоў праграм па ўсёй абалонцы, каб ён адпавядаў колеру з палітры",
+          "label": "Надаць колер значкам праграм"
+        },
+        "builtin-palette": {
+          "description": "Выберыце палітру з гатовага каталога",
+          "label": "Убудаваная палітра"
+        },
+        "community-palette": {
+          "description": "Выберыце палітру з каталога супольнасці",
+          "label": "Каталог супольнасці",
+          "search-placeholder": "Пошук палітраў..."
+        },
+        "corner-roundness": {
+          "description": "Радыус кутоў у інтэрфейсе кантэйнераў і кіравання",
+          "label": "Скругленасць кутоў"
+        },
+        "custom-palette": {
+          "description": "Выберыце палітру з ~/.config/noctalia/palettes/",
+          "label": "Уласная палітра"
+        }
+      },
       "shell": {
         "osd-kinds-dnd": {
           "description": "Паказваць усплывальнае акно OSD пры пераключэнні рэжыму «Не турбаваць»",

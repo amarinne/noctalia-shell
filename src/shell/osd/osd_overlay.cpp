@@ -599,10 +599,10 @@ void OsdOverlay::buildScene(Instance& inst, std::uint32_t width, std::uint32_t h
       .out = &inst.value,
       .text = "100%",
       .fontSize = valueFontSize(s),
+      .fontWeight = FontWeight::Bold,
       .color = colorSpecFromRole(ColorRole::OnSurface),
       .maxWidth = vertical ? cw - pad * 2.0f : 0.0f,
       .maxLines = 1,
-      .fontWeight = FontWeight::Bold,
       .textAlign = vertical ? TextAlign::Center : TextAlign::End,
       .configure = [](Label& label) { label.setZIndex(1); },
   });

@@ -53,9 +53,6 @@ bool Backdrop::initialize(
     return true;
   }
 
-  if (shouldHaveInstances()) {
-    syncInstances();
-  }
   cacheReloadBaseline();
   return true;
 }

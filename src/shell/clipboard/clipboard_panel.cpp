@@ -2,9 +2,9 @@
 
 #include "config/config_service.h"
 #include "core/deferred_call.h"
-#include "core/keybind_matcher.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
-#include "core/process.h"
+#include "core/process/process.h"
 #include "core/ui_phase.h"
 #include "i18n/i18n.h"
 #include "render/core/async_texture_cache.h"
@@ -263,8 +263,8 @@ namespace {
               ui::label({
                   .out = &m_title,
                   .fontSize = Style::fontSizeBody * scale,
-                  .maxLines = 1,
                   .fontWeight = FontWeight::SemiBold,
+                  .maxLines = 1,
                   .baselineMode = LabelBaselineMode::StableFont,
                   .configure = [](Label& label) { label.setHitTestVisible(false); },
               }),
@@ -601,8 +601,8 @@ void ClipboardPanel::create() {
           .out = &m_sidebarTitle,
           .text = i18n::tr("clipboard.title"),
           .fontSize = Style::fontSizeTitle * scale,
-          .color = colorSpecFromRole(ColorRole::Primary),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::Primary),
       }),
       makeCompactIconButton(&m_clearHistoryButton, "trash", ButtonVariant::Destructive, scale, [this]() {
         requestClearUnpinnedHistory();
@@ -615,8 +615,8 @@ void ClipboardPanel::create() {
       ui::label({
           .text = i18n::tr("clipboard.confirm.clear-title"),
           .fontSize = Style::fontSizeBody * scale,
-          .color = colorSpecFromRole(ColorRole::Error),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::Error),
       })
   );
   clearConfirmPanel->addChild(
@@ -737,8 +737,8 @@ void ClipboardPanel::create() {
           .out = &m_previewTitle,
           .text = i18n::tr("clipboard.entry.title"),
           .fontSize = Style::fontSizeTitle * scale,
-          .color = colorSpecFromRole(ColorRole::Primary),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::Primary),
           .flexGrow = 1.0f,
       }),
       std::move(previewActions)
@@ -758,8 +758,8 @@ void ClipboardPanel::create() {
       ui::label({
           .text = i18n::tr("clipboard.confirm.delete-title"),
           .fontSize = Style::fontSizeBody * scale,
-          .color = colorSpecFromRole(ColorRole::Error),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::Error),
       })
   );
   deleteConfirmPanel->addChild(

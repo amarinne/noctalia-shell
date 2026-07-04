@@ -7,6 +7,7 @@
 #include <vector>
 
 class Flex;
+class InputArea;
 class Node;
 class Renderer;
 
@@ -42,6 +43,9 @@ namespace ui {
     using CallbackSink = std::function<void(const ControlCallback& callback)>;
     // Resolves a tree-supplied path (e.g. image source) to an absolute path.
     using PathResolver = std::function<std::string(const std::string& path)>;
+    // Receives the input area of a freshly created control whose `focus` prop
+    // is true. The host decides how (and whether) to grant keyboard focus.
+    using FocusRequestSink = std::function<void(InputArea* area)>;
 
     UiTreeReconciler();
     ~UiTreeReconciler();
@@ -51,6 +55,7 @@ namespace ui {
 
     void setCallbackSink(CallbackSink sink) { m_sink = std::move(sink); }
     void setPathResolver(PathResolver resolver) { m_resolver = std::move(resolver); }
+    void setFocusRequestSink(FocusRequestSink sink) { m_focusSink = std::move(sink); }
     // Content scale multiplied into size-like props (fonts, gaps, sizes, radii).
     void setScale(float scale) { m_scale = scale; }
 
@@ -75,6 +80,7 @@ namespace ui {
 
     CallbackSink m_sink;
     PathResolver m_resolver;
+    FocusRequestSink m_focusSink;
     float m_scale = 1.0f;
     std::vector<Slot> m_rootSlots;
   };

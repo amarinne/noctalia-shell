@@ -3,7 +3,7 @@
 #include "config/config_service.h"
 #include "core/build_info.h"
 #include "core/deferred_call.h"
-#include "core/keybind_matcher.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "dbus/accounts/accounts_service.h"
@@ -326,8 +326,8 @@ std::unique_ptr<Flex> HomeTab::create() {
           ui::label({
               .text = displayName,
               .fontSize = Style::fontSizeTitle * 1.12f * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
               .fontWeight = FontWeight::Bold,
+              .color = colorSpecFromRole(ColorRole::OnSurface),
               .configure =
                   [scale](Label& label) { label.setShadow(Color{0.0f, 0.0f, 0.0f, 0.42f}, 0.0f, 1.0f * scale); },
           }),
@@ -472,8 +472,8 @@ std::unique_ptr<Flex> HomeTab::create() {
           .out = &m_timeLabel,
           .text = formatShellTime(m_config),
           .fontSize = Style::fontSizeTitle * 1.7f * scale,
-          .color = colorSpecFromRole(ColorRole::Primary),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::Primary),
       }),
       ui::column(
           {.align = FlexAlign::Start, .justify = FlexJustify::Center, .gap = Style::spaceXs * 0.5f * scale},

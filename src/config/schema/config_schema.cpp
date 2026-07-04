@@ -3,7 +3,7 @@
 #include "config/config_types.h"
 #include "config/schema/engine.h"
 #include "config/schema/ranges.h"
-#include "core/key_chord.h"
+#include "core/input/key_chord.h"
 #include "notification/notification_filter.h"
 #include "scripting/plugin_id.h"
 #include "util/file_utils.h"
@@ -393,6 +393,8 @@ namespace noctalia::config::schema {
         field(&DockConfig::showInstanceCount, "show_instance_count"),
         enumField(&DockConfig::launcherPosition, "launcher_position", kDockLauncherPositions),
         field(&DockConfig::launcherIcon, "launcher_icon"),
+        field(&DockConfig::launcherCustomImage, "launcher_custom_image"),
+        field(&DockConfig::launcherCustomImageColorize, "launcher_custom_image_colorize"),
         field(&DockConfig::pinned, "pinned"),
         field(&DockConfig::monitors, "monitors"),
     };
@@ -494,6 +496,13 @@ namespace noctalia::config::schema {
       static const Schema<ShortcutConfig> s = {field(&ShortcutConfig::type, "type")};
       return s;
     }
+
+    const Schema<ControlCenterConfig::CalendarTabConfig>& calendarTabSchema() {
+      static const Schema<ControlCenterConfig::CalendarTabConfig> s = {
+          field(&ControlCenterConfig::CalendarTabConfig::showEventsCard, "show_events_card"),
+      };
+      return s;
+    }
   } // namespace
 
   const Schema<ControlCenterConfig>& controlCenterSchema() {
@@ -502,6 +511,7 @@ namespace noctalia::config::schema {
         enumField(&ControlCenterConfig::sidebarSectionMode, "sidebar_section", kControlCenterSidebarModes),
         field(&ControlCenterConfig::width, "width", kControlCenterWidthRange),
         field(&ControlCenterConfig::hiddenTabs, "hidden_tabs"),
+        subTable(&ControlCenterConfig::calendarTab, "calendar", calendarTabSchema()),
         arrayOf<ControlCenterConfig, ShortcutConfig>(
             &ControlCenterConfig::shortcuts, "shortcuts", shortcutSchema(),
             [](const ShortcutConfig& sc) { return !sc.type.empty(); }
@@ -1256,6 +1266,7 @@ namespace noctalia::config::schema {
       static const Schema<ShellConfig::PrivacyConfig> s = {
           field(&ShellConfig::PrivacyConfig::micFilterRegex, "mic_filter_regex"),
           field(&ShellConfig::PrivacyConfig::camFilterRegex, "cam_filter_regex"),
+          field(&ShellConfig::PrivacyConfig::screenFilterRegex, "screen_filter_regex"),
       };
       return s;
     }

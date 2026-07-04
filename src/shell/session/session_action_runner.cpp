@@ -3,7 +3,7 @@
 #include "compositors/compositor_detect.h"
 #include "compositors/compositor_platform.h"
 #include "core/log.h"
-#include "core/process.h"
+#include "core/process/process.h"
 #include "i18n/i18n.h"
 #include "notification/notifications.h"
 #include "shell/lockscreen/lock_screen.h"

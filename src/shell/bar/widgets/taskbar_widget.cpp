@@ -517,10 +517,10 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       auto label = ui::label({
           .text = task.title,
           .fontSize = Style::fontSizeCaption * m_contentScale,
+          .fontWeight = fontWeight,
           .fontFamily = fontFamily,
           .maxWidth = windowTitleWidth,
           .maxLines = 1,
-          .fontWeight = fontWeight,
       });
       label->measure(renderer);
       label->setPosition(std::round(tileSize + tilePadding), 0);
@@ -645,9 +645,9 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       auto badgeText = ui::label({
           .text = ws.label,
           .fontSize = badgeFontSize,
+          .fontWeight = fontWeight,
           .fontFamily = fontFamily,
           .color = workspaceTextColor(ws.workspace),
-          .fontWeight = fontWeight,
       });
       badgeText->measure(renderer);
       badgeText->setPosition(
@@ -691,9 +691,9 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       auto badgeText = ui::label({
           .text = ws.label,
           .fontSize = badgeFontSize,
+          .fontWeight = fontWeight,
           .fontFamily = fontFamily,
           .color = workspaceTextColor(ws.workspace),
-          .fontWeight = fontWeight,
       });
       badgeText->measure(renderer);
       badgeText->setPosition(
@@ -2077,6 +2077,7 @@ void TaskbarWidget::openTaskContextMenu(const TaskModel& task, InputArea& area) 
               PopupSurfaceParent{
                   .layerSurface = layerSurface,
                   .output = m_output,
+                  .wlSurface = pointerSurface,
               },
           .placement = placement,
       }
@@ -2189,11 +2190,7 @@ std::string TaskbarWidget::resolveIconPath(const std::string& appId, const std::
   }
 
   if (appId.starts_with("steam_app_")) {
-    const app_identity::DesktopEntryLookupOptions steamLookup{
-        .includeHidden = true,
-        .includeNoDisplay = true,
-    };
-    if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries(), steamLookup);
+    if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries());
         entry.has_value() && !entry->icon.empty()) {
       if (const std::string steamIcon = resolveIconName(entry->icon); !steamIcon.empty()) {
         return steamIcon;
