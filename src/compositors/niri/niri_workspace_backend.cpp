@@ -244,9 +244,34 @@ NiriWorkspaceBackend::appIdsByWorkspace(const std::string& outputName) const {
     workspacesById.emplace(id, &workspace);
   }
 
+  std::vector<std::pair<std::uint64_t, const WindowState*>> orderedWindows;
+  orderedWindows.reserve(m_windows.size());
+  for (const auto& [windowId, window] : m_windows) {
+    orderedWindows.emplace_back(windowId, &window);
+  }
+  std::ranges::stable_sort(orderedWindows, [&](const auto& lhs, const auto& rhs) {
+    const auto lhsWorkspaceId = lhs.second->workspaceId.value_or(0);
+    const auto rhsWorkspaceId = rhs.second->workspaceId.value_or(0);
+    const auto lhsWorkspace = workspacesById.find(lhsWorkspaceId);
+    const auto rhsWorkspace = workspacesById.find(rhsWorkspaceId);
+    const auto lhsIdx = lhsWorkspace != workspacesById.end() ? lhsWorkspace->second->idx : 0;
+    const auto rhsIdx = rhsWorkspace != workspacesById.end() ? rhsWorkspace->second->idx : 0;
+    if (lhsIdx != rhsIdx) {
+      return lhsIdx < rhsIdx;
+    }
+    if (lhs.second->x != rhs.second->x) {
+      return lhs.second->x < rhs.second->x;
+    }
+    if (lhs.second->y != rhs.second->y) {
+      return lhs.second->y < rhs.second->y;
+    }
+    return lhs.first < rhs.first;
+  });
+
   std::unordered_map<std::string, std::vector<std::string>> result;
   std::unordered_map<std::string, std::unordered_set<std::string>> seen;
-  for (const auto& [windowId, window] : m_windows) {
+  for (const auto& [windowId, windowPtr] : orderedWindows) {
+    const auto& window = *windowPtr;
     if (!window.workspaceId.has_value() || window.appId.empty()) {
       continue;
     }
@@ -275,6 +300,11 @@ std::vector<WorkspaceWindow> NiriWorkspaceBackend::workspaceWindows(const std::s
 
   std::vector<WorkspaceWindow> result;
   result.reserve(m_windows.size());
+  std::unordered_map<std::string, std::uint8_t> workspaceIndexByKey;
+  workspaceIndexByKey.reserve(workspacesById.size());
+  for (const auto& [_, workspace] : workspacesById) {
+    workspaceIndexByKey.emplace(workspaceKey(*workspace), workspace->idx);
+  }
   for (const auto& [windowId, window] : m_windows) {
     (void)windowId;
     if (!window.workspaceId.has_value() || window.appId.empty()) {
@@ -293,9 +323,26 @@ std::vector<WorkspaceWindow> NiriWorkspaceBackend::workspaceWindows(const std::s
             .x = window.x,
             .y = window.y,
             .outputName = {},
+            .active = workspaceIt->second->activeWindowId.has_value() && *workspaceIt->second->activeWindowId == windowId,
         }
     );
   }
+  std::ranges::stable_sort(result, [&](const WorkspaceWindow& lhs, const WorkspaceWindow& rhs) {
+    const auto lhsIt = workspaceIndexByKey.find(lhs.workspaceKey);
+    const auto rhsIt = workspaceIndexByKey.find(rhs.workspaceKey);
+    const auto lhsIdx = lhsIt != workspaceIndexByKey.end() ? lhsIt->second : 0;
+    const auto rhsIdx = rhsIt != workspaceIndexByKey.end() ? rhsIt->second : 0;
+    if (lhsIdx != rhsIdx) {
+      return lhsIdx < rhsIdx;
+    }
+    if (lhs.x != rhs.x) {
+      return lhs.x < rhs.x;
+    }
+    if (lhs.y != rhs.y) {
+      return lhs.y < rhs.y;
+    }
+    return lhs.windowId < rhs.windowId;
+  });
   return result;
 }
 
@@ -547,6 +594,7 @@ std::optional<NiriWorkspaceBackend::WorkspaceState> NiriWorkspaceBackend::parseW
       .idx = static_cast<std::uint8_t>(*idx),
       .name = jsonOptionalString(json, "name"),
       .output = jsonOptionalString(json, "output"),
+      .activeWindowId = jsonOptionalUnsigned(json, "active_window_id"),
   };
 }
 

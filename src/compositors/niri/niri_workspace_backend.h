@@ -60,6 +60,7 @@ private:
     std::uint8_t idx = 0;
     std::string name;
     std::string output;
+    std::optional<std::uint64_t> activeWindowId;
 
     bool operator==(const WorkspaceState&) const = default;
   };

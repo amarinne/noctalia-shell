@@ -1227,6 +1227,7 @@ std::vector<WorkspaceWindowAssignment> CompositorPlatform::workspaceWindowAssign
             .title = window.title,
             .x = window.x,
             .y = window.y,
+            .active = window.active,
         }
     );
   }
@@ -1529,7 +1530,8 @@ bool CompositorPlatform::sameWorkspaceModelSnapshot(
         && a.appId == b.appId
         && a.title == b.title
         && a.x == b.x
-        && a.y == b.y;
+        && a.y == b.y
+        && a.active == b.active;
   };
 
   if (lhs.size() != rhs.size()) {

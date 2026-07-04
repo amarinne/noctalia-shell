@@ -1327,6 +1327,9 @@ void TaskbarWidget::updateModels() {
         const auto& assigned = assignedIt->second;
         task.workspaceKey = assigned.workspaceKey;
         task.workspaceWindowId = assigned.windowId;
+        if (assigned.active) {
+          task.active = true;
+        }
 
         for (std::size_t assignmentIndex = 0; assignmentIndex < workspaceAssignments.size(); ++assignmentIndex) {
           if (representedAssignments[assignmentIndex]) {
@@ -1389,6 +1392,7 @@ void TaskbarWidget::updateModels() {
           task.workspaceKey = assignment.workspaceKey;
           task.workspaceWindowId = assignment.windowId;
           task.workspaceOrder = i;
+          task.active = assignment.active;
           nextTasks.push_back(std::move(task));
         }
       }
