@@ -212,7 +212,8 @@
       "all-day": "Tutto il giorno",
       "events": "Eventi",
       "no-events": "Nessun evento.",
-      "today": "Oggi"
+      "today": "Oggi",
+      "toggle-events-card": "Attiva/disattiva la scheda eventi"
     },
     "display": {
       "disabled": "Disabilitato",
@@ -250,6 +251,7 @@
     "network": {
       "connect": "Connetti",
       "current-connection": "Connessione corrente",
+      "external-ip": "WAN {ip}",
       "no-networks": "Nessuna rete nel raggio d'azione",
       "not-connected": "Non connesso",
       "password": "Password",
@@ -815,6 +817,7 @@
     "badges": {
       "advanced": "Avanzato",
       "community": "Community",
+      "deprecated": "Deprecato",
       "inherited": "Ereditato",
       "monitor": "Monitor",
       "official": "Ufficiale",
@@ -914,6 +917,8 @@
           "fill-description": "Ruolo colore dello sfondo capsula; sono supportati anche codici colore in formato esadecimale",
           "foreground": "Primo piano",
           "foreground-description": "Ruolo colore di icone ed etichette per i widget in questo gruppo",
+          "hide": "Nascondi gruppo",
+          "hide-widget": "Nascondi widget",
           "hint": "Parte di un gruppo capsula",
           "members": "{count} widget",
           "opacity": "Opacità",
@@ -924,6 +929,8 @@
           "radius": "Raggio",
           "radius-description": "Raggio degli angoli capsula in pixel; Auto eredita il raggio capsula della barra",
           "selected": "{count} selezionati",
+          "show": "Mostra gruppo",
+          "show-widget": "Mostra widget",
           "style": "Stile",
           "title": "Gruppo capsula",
           "ungroup": "Separa gruppo"
@@ -1043,6 +1050,7 @@
     "navigation": {
       "groups": {
         "audio": "Audio",
+        "authentication": "Autenticazione",
         "automation": "Automazione",
         "backdrop": "Sfondo pannelli",
         "background": "Sfondo",
@@ -1062,6 +1070,7 @@
         "focus-styling": "Stile focus",
         "formats": "Formati",
         "general": "Generale",
+        "greeter": "Greeter",
         "grouping": "Raggruppamento",
         "home": "Home",
         "hot-corners": "Angoli attivi",
@@ -1088,7 +1097,7 @@
         "pinned-apps": "App fissate",
         "polkit": "Polkit",
         "power": "Energia",
-        "privacy-security": "Privacy e sicurezza",
+        "privacy": "Privacy",
         "profile": "Profilo",
         "screen-corners": "Angoli schermo",
         "screen-time": "Tempo schermo",
@@ -1115,6 +1124,7 @@
         "dock": "Dock",
         "hooks": "Hook",
         "keybinds": "Scorciatoie",
+        "launcher": "Launcher",
         "location": "Posizione",
         "niri": "Niri",
         "notifications": "Notifiche",
@@ -1319,6 +1329,9 @@
       },
       "plugins": {
         "configure": "Configura",
+        "delete": "Cancella",
+        "delete-confirm-desc": "Questo plugin verrà disinstallato e rimosso dal disco.",
+        "delete-confirm-title": "Cancellare \"{name}\"?",
         "deprecated": "deprecato",
         "empty": "Nessun plugin trovato. Aggiungi una sorgente o controlla la rete",
         "loading": "Caricamento plugin...",
@@ -1570,6 +1583,10 @@
           "description": "Peso predefinito per le etichette widget su questa barra.",
           "label": "Peso carattere"
         },
+        "hover-highlight": {
+          "description": "Colora leggermente il widget sotto il puntatore del mouse con il proprio colore di primo piano",
+          "label": "Evidenzia al passaggio del mouse"
+        },
         "layer": {
           "description": "Usa Sovrapposto per mostrare la barra sopra le app a schermo intero. I pannelli attaccati seguono la barra.",
           "label": "Layer Wayland"
@@ -1692,6 +1709,10 @@
         },
         "background-opacity": {
           "description": "Opacità dello sfondo della dock"
+        },
+        "concave-edge-corners": {
+          "description": "Scolpisci gli angoli verso l'interno sul lato che tocca il bordo dello schermo; richiede che il margine rispetto al bordo dello schermo sia 0",
+          "label": "Bordo angoli concavo"
         },
         "corner-bottom-left": {
           "description": "Raggio angolo in basso a sinistra della dock"
@@ -2158,6 +2179,14 @@
         "session-actions": {
           "description": "Voci del menu energia, ordine, comandi personalizzati e icone",
           "label": "Voci"
+        },
+        "session-grid": {
+          "description": "Visualizza le azioni del pannello sessione in un layout a griglia",
+          "label": "Layout griglia"
+        },
+        "session-grid-columns": {
+          "description": "Numero di colonne per il layout a griglia",
+          "label": "Colonne"
         }
       },
       "services": {
@@ -2406,6 +2435,10 @@
           "description": "Formato data predefinito per la shell UI senza impostazione propria",
           "label": "Formato data"
         },
+        "external-ip": {
+          "description": "Risolvi l'IP WAN pubblico della connessione (tramite api.noctalia.dev) e mostralo nella scheda rete del Control Center",
+          "label": "Mostra IP WAN"
+        },
         "greeter-sync-auto": {
           "description": "Sincronizza automaticamente il Greeter ogni volta che cambiano lo sfondo, i colori o la modalità del tema",
           "label": "Sincronizza Greeter in automatico"
@@ -2538,6 +2571,10 @@
         "privacy-mic-filter-regex": {
           "description": "Regex per le app del microfono da ignorare negli indicatori di privacy e OSD",
           "label": "Filtro Regex microfono"
+        },
+        "privacy-screen-filter-regex": {
+          "description": "Regex per ignorare le app di condivisione dello schermo negli indicatori di privacy e OSD",
+          "label": "Filtro Regex condivisone schermo"
         },
         "screen-time-enabled": {
           "description": "Monitora l'uso per app e lo mostra nel centro di controllo",
@@ -2911,6 +2948,10 @@
         "drawer-columns": {
           "description": "Numero di icone vassoio per riga nel pannello cassetto",
           "label": "Colonne cassetto"
+        },
+        "drawer-item-size": {
+          "description": "Dimensioni in pixel delle icone nella tray all'interno del drawer",
+          "label": "Dimensioni icona drawer"
         },
         "empty-color": {
           "description": "Ruolo colore usato per workspace vuoti; sono supportati anche codici colore in formato esadecimale",

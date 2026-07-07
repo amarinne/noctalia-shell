@@ -196,6 +196,22 @@ namespace {
     return custom != config->getWallpaperPath(std::string(connectorName));
   }
 
+  const WaylandOutput* outputAtGlobalPoint(const WaylandConnection& wayland, double globalX, double globalY) {
+    for (const auto& output : wayland.outputs()) {
+      if (!output.done || output.output == nullptr || !output.hasUsableGeometry()) {
+        continue;
+      }
+      const double left = static_cast<double>(output.logicalX);
+      const double top = static_cast<double>(output.logicalY);
+      const double right = left + static_cast<double>(output.effectiveLogicalWidth());
+      const double bottom = top + static_cast<double>(output.effectiveLogicalHeight());
+      if (globalX >= left && globalX < right && globalY >= top && globalY < bottom) {
+        return &output;
+      }
+    }
+    return nullptr;
+  }
+
 } // namespace
 
 DesktopWidgetsEditor::DesktopWidgetsEditor(DesktopWidgetsEditorProfile profile) : m_profile(profile) {}
@@ -1678,7 +1694,8 @@ std::vector<DesktopWidgetState> DesktopWidgetsEditor::selectedWidgetTemplates() 
 }
 
 std::vector<std::string> DesktopWidgetsEditor::insertWidgetCopies(
-    const std::vector<DesktopWidgetState>& templates, float offsetX, float offsetY, bool selectInserted
+    const std::vector<DesktopWidgetState>& templates, float offsetX, float offsetY, bool selectInserted,
+    const std::string& targetOutputName
 ) {
   if (templates.empty() || m_wayland == nullptr) {
     return {};
@@ -1693,6 +1710,9 @@ std::vector<std::string> DesktopWidgetsEditor::insertWidgetCopies(
 
     DesktopWidgetState copy = templateState;
     copy.id = nextWidgetId();
+    if (!targetOutputName.empty()) {
+      copy.outputName = targetOutputName;
+    }
     copy.cx += offsetX;
     copy.cy += offsetY;
 
@@ -1738,10 +1758,25 @@ void DesktopWidgetsEditor::pasteWidgets() {
   if (m_widgetClipboard.empty()) {
     return;
   }
+  const std::string targetOutputName = currentPointerOutputName();
   ++m_pasteCount;
   const float step = duplicateOffset();
   const float offset = step * static_cast<float>(m_pasteCount);
-  insertWidgetCopies(m_widgetClipboard, offset, offset, true);
+  insertWidgetCopies(m_widgetClipboard, offset, offset, true, targetOutputName);
+}
+
+std::string DesktopWidgetsEditor::currentPointerOutputName() const {
+  for (const auto& surface : m_surfaces) {
+    if (surface->pointerInside) {
+      return surface->outputName;
+    }
+  }
+  if (m_wayland != nullptr) {
+    if (const OverlaySurface* surface = findSurface(m_wayland->lastPointerSurface()); surface != nullptr) {
+      return surface->outputName;
+    }
+  }
+  return {};
 }
 
 void DesktopWidgetsEditor::startToolbarDrag(const std::string& outputName) {
@@ -1847,6 +1882,11 @@ void DesktopWidgetsEditor::startDrag(
   if (OverlaySurface* surface = findSurfaceForWidget(widgetId); surface != nullptr) {
     m_drag.surfaceOutputName = surface->outputName;
   }
+  if (mode == DragMode::Move) {
+    m_drag.moveSourceOutputName = m_drag.surfaceOutputName;
+    m_drag.movePointerOffsetX = state->cx - m_drag.startSceneX;
+    m_drag.movePointerOffsetY = state->cy - m_drag.startSceneY;
+  }
 
   m_drag.groupInitialStates.clear();
   if (mode == DragMode::Move && m_selectedWidgetIds.size() > 1 && isWidgetSelected(widgetId)) {
@@ -1920,6 +1960,26 @@ void DesktopWidgetsEditor::updateDrag() {
   float outputHeight = 0.0f;
   std::vector<float> snapLinesX;
   std::vector<float> snapLinesY;
+
+  float dragSceneX = m_currentEventSceneX;
+  float dragSceneY = m_currentEventSceneY;
+  if (m_drag.mode == DragMode::Move && m_wayland != nullptr) {
+    const WaylandOutput* sourceOutput = desktop_widgets::findOutputByKey(*m_wayland, m_drag.moveSourceOutputName);
+    if (sourceOutput == nullptr) {
+      sourceOutput = desktop_widgets::resolveStateOutput(*m_wayland, *state);
+    }
+    if (sourceOutput != nullptr) {
+      const double globalX = static_cast<double>(sourceOutput->logicalX) + static_cast<double>(m_currentEventSceneX);
+      const double globalY = static_cast<double>(sourceOutput->logicalY) + static_cast<double>(m_currentEventSceneY);
+      if (const WaylandOutput* targetOutput = outputAtGlobalPoint(*m_wayland, globalX, globalY);
+          targetOutput != nullptr) {
+        m_drag.surfaceOutputName = desktop_widgets::outputKey(*targetOutput);
+        dragSceneX = static_cast<float>(globalX - static_cast<double>(targetOutput->logicalX));
+        dragSceneY = static_cast<float>(globalY - static_cast<double>(targetOutput->logicalY));
+      }
+    }
+  }
+
   OverlaySurface* dragSurface = findSurface(m_drag.surfaceOutputName);
   if (dragSurface == nullptr) {
     dragSurface = findSurfaceForWidget(m_drag.widgetId);
@@ -1952,10 +2012,15 @@ void DesktopWidgetsEditor::updateDrag() {
     }
   }
   const float guideThreshold = snapGuideThreshold(m_snapshot.grid.cellSize);
+  bool outputAssignmentChanged = false;
 
   if (m_drag.mode == DragMode::Move) {
-    state->cx = m_drag.initialState.cx + (m_currentEventSceneX - m_drag.startSceneX);
-    state->cy = m_drag.initialState.cy + (m_currentEventSceneY - m_drag.startSceneY);
+    state->cx = dragSceneX + m_drag.movePointerOffsetX;
+    state->cy = dragSceneY + m_drag.movePointerOffsetY;
+    if (!m_drag.surfaceOutputName.empty()) {
+      outputAssignmentChanged = outputAssignmentChanged || (state->outputName != m_drag.surfaceOutputName);
+      state->outputName = m_drag.surfaceOutputName;
+    }
     if (shouldSnap()) {
       const WidgetTransformBounds bounds = computeWidgetTransformBounds(
           state->cx, state->cy, m_drag.intrinsicWidth, m_drag.intrinsicHeight, 1.0f, state->rotationRad
@@ -1984,6 +2049,10 @@ void DesktopWidgetsEditor::updateDrag() {
       }
       groupState->cx = initialState.cx + deltaX;
       groupState->cy = initialState.cy + deltaY;
+      if (!m_drag.surfaceOutputName.empty()) {
+        outputAssignmentChanged = outputAssignmentChanged || (groupState->outputName != m_drag.surfaceOutputName);
+        groupState->outputName = m_drag.surfaceOutputName;
+      }
       if (m_wayland != nullptr) {
         if (EditorWidgetView* groupView = findView(groupId); groupView != nullptr) {
           desktop_widgets::clampStateToOutput(
@@ -2071,6 +2140,11 @@ void DesktopWidgetsEditor::updateDrag() {
     desktop_widgets::clampStateToOutput(*m_wayland, *state, clampWidth, clampHeight);
   }
 
+  if (outputAssignmentChanged) {
+    requestLayout();
+    return;
+  }
+
   // For a resize, preview the new box as a cheap GPU scale of the dragged widget (its content is
   // re-fitted crisply once, on release, in finishDrag()); otherwise just reposition the views.
   if (m_drag.mode == DragMode::Scale) {
@@ -2150,6 +2224,7 @@ bool DesktopWidgetsEditor::onPointerEvent(const PointerEvent& event) {
     return false;
   }
 
+  m_currentEventOutputName = surface->outputName;
   m_currentEventSceneX = static_cast<float>(event.sx);
   m_currentEventSceneY = static_cast<float>(event.sy);
 

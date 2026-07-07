@@ -183,6 +183,8 @@ namespace scripting {
     bool hasOnIpcKnown = false;
     bool hasOnActivate = false;
     bool hasOnActivateKnown = false;
+    bool hasOnConfigChanged = false;
+    bool hasOnConfigChangedKnown = false;
     bool unhealthy = false;
     int consecutiveTimeouts = 0;
 
@@ -488,6 +490,18 @@ namespace scripting {
         return collectResult(event, "stream callback", ok);
       }
 
+      if (event.kind == ScriptEventKind::SettingsChanged) {
+        // Swap the live snapshot first, so getConfig() returns the new values
+        // both inside onConfigChanged and on the next update().
+        settings = event.newSettings;
+        if (!host->hasGlobal("onConfigChanged")) {
+          return std::nullopt;
+        }
+        bindingContext.beginCall(event.snapshot);
+        const bool ok = host->callGlobalWithBudget("onConfigChanged", event.budget);
+        return collectResult(event, "onConfigChanged", ok);
+      }
+
       bindingContext.beginCall(event.snapshot);
       bool ok = false;
       switch (event.kind) {
@@ -590,12 +604,15 @@ namespace scripting {
       result.hasOnIpc = host != nullptr && host->hasGlobal("onIpc");
       result.hasOnIpcKnown = true;
       const bool onActivatePresent = host != nullptr && host->hasGlobal("onActivate");
+      const bool onConfigChangedPresent = host != nullptr && host->hasGlobal("onConfigChanged");
       {
         std::scoped_lock lock(mutex);
         hasOnIpc = result.hasOnIpc;
         hasOnIpcKnown = true;
         hasOnActivate = onActivatePresent;
         hasOnActivateKnown = true;
+        hasOnConfigChanged = onConfigChangedPresent;
+        hasOnConfigChangedKnown = true;
       }
       return result;
     }
@@ -818,6 +835,15 @@ namespace scripting {
     return true;
   }
 
+  bool ScriptRuntime::enqueueSettingsChanged(ScriptSettings newSettings, ScriptSnapshot snapshot) {
+    ScriptEvent event;
+    event.kind = ScriptEventKind::SettingsChanged;
+    event.newSettings = std::move(newSettings);
+    event.snapshot = std::move(snapshot);
+    event.budget = kCallbackBudget;
+    return m_state != nullptr && m_state->enqueue(std::move(event));
+  }
+
   bool ScriptRuntime::hasOnIpc() const {
     if (m_state == nullptr) {
       return false;
@@ -832,6 +858,14 @@ namespace scripting {
     }
     std::scoped_lock lock(m_state->mutex);
     return m_state->hasOnActivateKnown && m_state->hasOnActivate;
+  }
+
+  bool ScriptRuntime::hasOnConfigChanged() const {
+    if (m_state == nullptr) {
+      return false;
+    }
+    std::scoped_lock lock(m_state->mutex);
+    return m_state->hasOnConfigChangedKnown && m_state->hasOnConfigChanged;
   }
 
   bool ScriptRuntime::unhealthy() const {

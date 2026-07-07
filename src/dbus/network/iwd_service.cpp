@@ -31,7 +31,7 @@ namespace {
   using VariantMap = std::map<std::string, sdbus::Variant>;
   using ObjectInterfaces = std::map<std::string, VariantMap>;
   using ManagedObjects = std::map<sdbus::ObjectPath, ObjectInterfaces>;
-  using OrderedNetwork = std::tuple<sdbus::ObjectPath, std::int16_t>;
+  using OrderedNetwork = sdbus::Struct<sdbus::ObjectPath, std::int16_t>;
 
   template <typename T> std::optional<T> variantGet(const sdbus::Variant& value) {
     try {

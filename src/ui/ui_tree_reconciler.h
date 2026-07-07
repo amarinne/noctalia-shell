@@ -10,6 +10,7 @@ class Flex;
 class InputArea;
 class Node;
 class Renderer;
+enum class FontWeight : int;
 
 namespace ui {
 
@@ -58,6 +59,16 @@ namespace ui {
     void setFocusRequestSink(FocusRequestSink sink) { m_focusSink = std::move(sink); }
     // Content scale multiplied into size-like props (fonts, gaps, sizes, radii).
     void setScale(float scale) { m_scale = scale; }
+    // Host text defaults for label/glyph props the tree leaves unset, so
+    // declarative text matches the host's imperative text (e.g. the bar's
+    // per-widget font family/weight). Empty family = renderer-global font.
+    void setTextDefaults(std::string fontFamily, FontWeight fontWeight) {
+      m_defaultFontFamily = std::move(fontFamily);
+      m_defaultFontWeight = fontWeight;
+    }
+    // Compact control chrome for space-tight hosts (bar widgets): buttons drop
+    // the settings-tier min-height/padding and hug their content instead.
+    void setCompactControls(bool compact) { m_compactControls = compact; }
 
     // Reconciles `tree` as the single child of `host`. Props are (re)applied on
     // every call — setters are change-checked, and the scale may differ between
@@ -82,6 +93,9 @@ namespace ui {
     PathResolver m_resolver;
     FocusRequestSink m_focusSink;
     float m_scale = 1.0f;
+    std::string m_defaultFontFamily;
+    FontWeight m_defaultFontWeight; // initialized in the ctor (opaque enum here)
+    bool m_compactControls = false;
     std::vector<Slot> m_rootSlots;
   };
 

@@ -23,6 +23,7 @@
 #include "ui/style.h"
 #include "ui/ui_tree.h"
 
+#include <charconv>
 #include <cmath>
 #include <format>
 #include <linux/input-event-codes.h>
@@ -60,14 +61,35 @@ namespace ui {
       return it != node.props.end() ? std::get_if<std::vector<std::string>>(&it->second) : nullptr;
     }
 
-    // Role token ("primary", "on_surface", …) or hex ("#rrggbb[aa]").
+    // Role token ("primary", "on_surface", …) with an optional alpha suffix
+    // ("primary/0.6" → the role at 60% alpha, resolved live against the palette),
+    // or hex ("#rrggbb[aa]"). Alpha is 0.0–1.0; hex carries its own alpha byte.
     std::optional<ColorSpec> parseColor(const UiTreeNode& node, const char* key) {
       const std::string* token = strProp(node, key);
       if (token == nullptr) {
         return std::nullopt;
       }
-      if (auto role = colorRoleFromToken(*token); role.has_value()) {
-        return colorSpecFromRole(*role);
+      std::string_view base = *token;
+      float alpha = 1.0f;
+      if (const auto slash = base.find('/'); slash != std::string_view::npos) {
+        const std::string_view alphaText = base.substr(slash + 1);
+        base = base.substr(0, slash);
+        const auto* end = alphaText.data() + alphaText.size();
+        if (const auto res = std::from_chars(alphaText.data(), end, alpha);
+            res.ec != std::errc{} || res.ptr != end || alpha < 0.0f || alpha > 1.0f) {
+          kLog.warn(
+              "ui node '{}': invalid alpha '{}' in color '{}' for prop '{}' (expected 0.0-1.0)", node.type, alphaText,
+              *token, key
+          );
+          return std::nullopt;
+        }
+      }
+      if (auto role = colorRoleFromToken(base); role.has_value()) {
+        return colorSpecFromRole(*role, alpha);
+      }
+      if (base.size() != token->size()) {
+        kLog.warn("ui node '{}': alpha suffix requires a color role, got '{}' for prop '{}'", node.type, base, key);
+        return std::nullopt;
       }
       Color fixed;
       if (tryParseHexColor(*token, fixed)) {
@@ -345,7 +367,7 @@ namespace ui {
     std::vector<Slot> children;
   };
 
-  UiTreeReconciler::UiTreeReconciler() = default;
+  UiTreeReconciler::UiTreeReconciler() : m_defaultFontWeight(FontWeight::Normal) {}
   UiTreeReconciler::~UiTreeReconciler() = default;
 
   bool UiTreeReconciler::reconcile(Flex& host, const UiTreeNode& tree, Renderer& renderer) {
@@ -641,17 +663,22 @@ namespace ui {
 
     if (desired.type == "label") {
       auto* label = static_cast<Label*>(node);
+      label->setFontFamily(m_defaultFontFamily);
       if (const std::string* text = strProp(desired, "text")) {
         label->setText(*text);
       }
       if (const double* fontSize = numProp(desired, "fontSize")) {
         label->setFontSize(scaled(*fontSize));
+      } else {
+        label->setFontSize(Style::fontSizeBody * m_scale);
       }
       if (auto color = parseColor(desired, "color")) {
         label->setColor(*color);
       }
       if (auto weight = parseFontWeight(desired)) {
         label->setFontWeight(*weight);
+      } else {
+        label->setFontWeight(m_defaultFontWeight);
       }
       if (const double* maxWidth = numProp(desired, "maxWidth")) {
         label->setMaxWidth(scaled(*maxWidth));
@@ -672,6 +699,8 @@ namespace ui {
       }
       if (const double* size = numProp(desired, "size")) {
         glyph->setGlyphSize(scaled(*size));
+      } else {
+        glyph->setGlyphSize(Style::baseGlyphSize * m_scale);
       }
       if (auto color = parseColor(desired, "color")) {
         glyph->setColor(*color);
@@ -794,9 +823,15 @@ namespace ui {
       }
       if (const double* fontSize = numProp(desired, "fontSize")) {
         button->setFontSize(scaled(*fontSize));
+      } else if (text != nullptr && !text->empty()) {
+        // Guarded on non-empty text: setFontSize creates the label, which
+        // would flip a glyph-only button to the taller text chrome tier.
+        button->setFontSize(Style::fontSizeBody * m_scale);
       }
       if (const double* glyphSize = numProp(desired, "glyphSize")) {
         button->setGlyphSize(scaled(*glyphSize));
+      } else if (glyph != nullptr) {
+        button->setGlyphSize(Style::fontSizeBody * m_scale);
       }
       if (auto variant = parseButtonVariant(desired)) {
         button->setVariant(*variant);
@@ -835,6 +870,15 @@ namespace ui {
             m_sink(ControlCallback{name});
           }
         });
+      }
+      // Compact hosts (bar widgets): drop the settings-tier control chrome
+      // (min-height, wide padding) and hug the content — a bar capsule is
+      // barely one control height tall. Applied after setText/setGlyph, whose
+      // label creation re-applies the text-tier chrome. Explicit width/height
+      // below still override.
+      if (m_compactControls) {
+        button->setMinHeight(0.0f);
+        button->setPadding(Style::spaceXs * m_scale);
       }
       if (width != nullptr) {
         button->setMinWidth(scaled(*width));

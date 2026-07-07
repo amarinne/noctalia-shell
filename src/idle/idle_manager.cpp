@@ -223,11 +223,13 @@ void IdleManager::createBehavior(const IdleBehaviorConfig& config) {
   m_behaviors.push_back(std::move(behavior));
 }
 
-void IdleManager::runBehavior(BehaviorState& behavior) {
+bool IdleManager::runBehavior(BehaviorState& behavior) {
   const ResolvedIdleBehavior resolved = resolveIdleBehaviorActions(behavior.config);
-  if (!runAction(behavior.config, resolved.idleAction)) {
+  const bool ok = runAction(behavior.config, resolved.idleAction);
+  if (!ok) {
     kLog.warn("idle behavior '{}' action failed", behavior.config.name);
   }
+  return ok;
 }
 
 void IdleManager::runResumeBehavior(BehaviorState& behavior) {
@@ -254,16 +256,18 @@ void IdleManager::cancelActiveGrace(bool userCancelled) {
   if (!hasActiveGrace()) {
     return;
   }
+  const bool willLockSession = m_activeGraceWillLock;
   for (auto* behavior : m_graceBehaviors) {
     if (behavior != nullptr) {
       behavior->phase = BehaviorPhase::Waiting;
     }
   }
   m_graceBehaviors.clear();
+  m_activeGraceWillLock = false;
   m_graceFallbackTimer.stop();
   ++m_graceGeneration;
   if (m_onGraceEnd) {
-    m_onGraceEnd(userCancelled);
+    m_onGraceEnd(userCancelled, willLockSession);
   }
 }
 
@@ -275,22 +279,33 @@ void IdleManager::graceFadeComplete() {
   m_graceBehaviors.clear();
   m_graceFallbackTimer.stop();
   m_graceFallbackTimer.stop();
-  if (m_onGraceEnd) {
-    m_onGraceEnd(false);
-  }
+  bool dispatchedLockAction = false;
   for (auto* behavior : behaviors) {
     if (behavior == nullptr || behavior->phase != BehaviorPhase::Fading) {
       continue;
     }
     behavior->phase = BehaviorPhase::Idled;
     kLog.info("idle behavior '{}' triggered after pre-action fade", behavior->config.name);
-    runBehavior(*behavior);
+    const IdleActionKind idleKind = resolveIdleBehaviorActions(behavior->config).idleAction.kind;
+    const bool isLockAction = idleKind == IdleActionKind::Lock || idleKind == IdleActionKind::LockAndSuspend;
+    const bool ok = runBehavior(*behavior);
+    if (isLockAction && ok) {
+      dispatchedLockAction = true;
+    }
+  }
+  m_activeGraceWillLock = false;
+  if (m_onGraceEnd) {
+    m_onGraceEnd(false, dispatchedLockAction);
   }
 }
 
 void IdleManager::joinActiveGrace(BehaviorState& behavior) {
   if (std::ranges::contains(m_graceBehaviors, &behavior)) {
     return;
+  }
+  const IdleActionKind idleKind = resolveIdleBehaviorActions(behavior.config).idleAction.kind;
+  if (idleKind == IdleActionKind::Lock || idleKind == IdleActionKind::LockAndSuspend) {
+    m_activeGraceWillLock = true;
   }
   behavior.phase = BehaviorPhase::Fading;
   m_graceBehaviors.push_back(&behavior);

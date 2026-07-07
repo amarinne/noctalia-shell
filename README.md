@@ -179,10 +179,11 @@ sudo xbps-install meson ninja pkg-config git \
 ```
 
 Vendored dependencies, with no system package needed: `Wuffs`,
-`nlohmann/json`, `Luau`, `dr_wav`, `fzy`, `stb_image_resize2`, and Material Color Utilities.
+`Luau`, `dr_wav`, `fzy`, and Material Color Utilities.
 
-Dependencies that are vendored by default, with a meson option to instead use the system package: `md4c`,
-`tomlplusplus`
+Dependencies that are vendored by default, with a meson boolean to instead use the system package: `md4c`,
+`tomlplusplus`, `nlohmann/json`. `stb` is also vendored by default, but since it ships no pkg-config file it is switched by pointing
+`-Dstb_headers=<path>` at system headers (e.g. `-Dstb_headers=/usr/include/stb`) rather than a boolean toggle.
 
 System packages required beyond the Wayland/GL stack: `libwebp` handles WebP decoding and thumbnail encoding. Wuffs
 handles the other supported raster image formats. `libqalculate` powers the launcher calculator (arithmetic, unit and

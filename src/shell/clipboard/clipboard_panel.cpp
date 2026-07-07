@@ -32,7 +32,7 @@
 
 namespace {
 
-  constexpr float kRowHeight = 46.0f;
+  constexpr float kRowHeightEstimate = 46.0f;
   constexpr float kPreviewImageHeight = 280.0f;
   constexpr float kListGlyphSize = 24.0f;
   constexpr float kListThumbSize = 40.0f;
@@ -41,6 +41,15 @@ namespace {
   constexpr auto kPreviewPayloadDebounceInterval = std::chrono::milliseconds(75);
   constexpr auto kFilterDebounceInterval = std::chrono::milliseconds(120);
   constexpr Logger kLog("clipboard");
+
+  // Row height derives from measured font metrics so fonts with oversized
+  // declared line extents still fit the title + meta stack.
+  [[nodiscard]] float listRowHeight(Renderer& renderer, float scale) {
+    const TextMetrics title = renderer.measureFont(Style::fontSizeBody * scale, FontWeight::SemiBold);
+    const TextMetrics meta = renderer.measureFont(Style::fontSizeCaption * scale, FontWeight::Normal);
+    const float textHeight = std::round(title.bottom - title.top) + std::round(meta.bottom - meta.top);
+    return std::ceil(std::max(kListThumbSize * scale, textHeight) + Style::spaceXs * scale * 2.0f);
+  }
 
   [[nodiscard]] bool isDescendantOf(const Node* node, const Node* ancestor) {
     if (node == nullptr || ancestor == nullptr) {
@@ -257,7 +266,7 @@ namespace {
               {
                   .out = &m_textColumn,
                   .align = FlexAlign::Start,
-                  .gap = Style::spaceXs * scale,
+                  .gap = 0.0f,
                   .flexGrow = 1.0f,
               },
               ui::label({
@@ -311,7 +320,7 @@ namespace {
       m_pinned = entry.pinned;
       setVisible(true);
       setEnabled(true);
-      setSize(width, kRowHeight * m_scale);
+      setSize(width, listRowHeight(renderer, m_scale));
 
       const std::string nextThumbPath = m_isImage ? entry.payloadPath : std::string();
       if (m_thumbnailPath != nextThumbPath) {
@@ -679,7 +688,7 @@ void ClipboardPanel::create() {
       ui::virtualGridView({
           .out = &m_listGrid,
           .columns = 1,
-          .cellHeight = kRowHeight * scale,
+          .cellHeight = kRowHeightEstimate * scale,
           .squareCells = false,
           .columnGap = 0.0f,
           .rowGap = Style::spaceXs * scale,
@@ -837,6 +846,12 @@ void ClipboardPanel::doLayout(Renderer& renderer, float width, float height) {
 
   if (m_listAdapter != nullptr) {
     m_listAdapter->setRenderer(&renderer);
+  }
+
+  const float rowHeight = listRowHeight(renderer, contentScale());
+  if (std::abs(rowHeight - m_listRowHeight) >= 0.5f) {
+    m_listRowHeight = rowHeight;
+    m_listGrid->setCellHeight(rowHeight);
   }
 
   // Flex layout handles all sizing: sidebar title is measured automatically,

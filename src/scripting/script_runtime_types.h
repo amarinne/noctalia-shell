@@ -14,6 +14,8 @@
 
 namespace scripting {
 
+  using ScriptSettings = std::unordered_map<std::string, WidgetSettingValue>;
+
   struct ScriptColorPatch {
     std::string role;
     std::string mode;
@@ -166,6 +168,7 @@ namespace scripting {
     AsyncHttpResult,
     StateWatchResult,
     StreamLine,
+    SettingsChanged,
     Stop,
   };
 
@@ -194,6 +197,8 @@ namespace scripting {
     std::string httpBody;
     // StateWatchResult payload (the changed value as JSON).
     std::string stateJson;
+    // SettingsChanged payload: the new seeded settings snapshot to swap in.
+    ScriptSettings newSettings;
     ScriptSnapshot snapshot;
     std::chrono::milliseconds budget{12};
   };
@@ -211,7 +216,6 @@ namespace scripting {
     std::string error;
   };
 
-  using ScriptSettings = std::unordered_map<std::string, WidgetSettingValue>;
   using ScriptResultCallback = std::function<void(ScriptResult)>;
 
 } // namespace scripting

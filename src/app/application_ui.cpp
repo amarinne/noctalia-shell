@@ -315,6 +315,7 @@ void Application::initLockScreenAndSession() {
   });
   m_lockScreen.setSessionHooks(
       [this]() {
+        m_idleGraceOverlay.hide();
         m_lockscreenWidgetsController.onLockStateChanged();
         m_hookManager.fire(HookKind::SessionLocked);
       },
@@ -652,7 +653,7 @@ void Application::initNotificationAndOsd() {
   m_configService.setNotificationManager(&m_notificationManager);
   m_notificationManager.setSoundPlayer(m_soundPlayer.get());
 
-  TooltipManager::instance().initialize(m_wayland, &m_renderContext);
+  TooltipManager::instance().initialize(m_wayland, &m_configService, &m_renderContext);
   m_osdOverlay.initialize(m_wayland, &m_configService, &m_renderContext);
   m_windowSwitcher.initialize(
       m_wayland, &m_renderContext, m_compositorPlatform, &m_configService, &m_asyncTextureCache
@@ -675,9 +676,11 @@ void Application::initNotificationAndOsd() {
           m_idleGraceOverlay.show(fadeIn, std::move(done));
         });
       },
-      [this](bool userCancelled) {
-        DeferredCall::callLater([this, userCancelled]() {
-          m_idleGraceOverlay.hide();
+      [this](bool userCancelled, bool willLockSession) {
+        DeferredCall::callLater([this, userCancelled, willLockSession]() {
+          if (userCancelled || !willLockSession) {
+            m_idleGraceOverlay.hide();
+          }
           if (userCancelled) {
             m_lockScreen.clearPrimedDesktopCaptures();
           }

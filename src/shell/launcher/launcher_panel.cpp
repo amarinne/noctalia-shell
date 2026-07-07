@@ -123,7 +123,7 @@ namespace {
 
   [[nodiscard]] float launcherTextStackHeight(Renderer& renderer, const LauncherListStyle& style) {
     const float bodySize = Style::fontSizeBody * style.scale;
-    float textHeight = stableLabelHeight(renderer.measureFont(bodySize, FontWeight::Bold));
+    float textHeight = stableLabelHeight(renderer.measureFont(bodySize, FontWeight::SemiBold));
     if (!style.compact) {
       const float captionSize = Style::fontSizeCaption * style.scale;
       textHeight += stableLabelHeight(renderer.measureFont(captionSize, FontWeight::Normal));
@@ -256,7 +256,7 @@ namespace {
               ui::label({
                   .out = &m_title,
                   .fontSize = Style::fontSizeBody * m_style.scale,
-                  .fontWeight = FontWeight::Bold,
+                  .fontWeight = FontWeight::SemiBold,
                   .color = colorSpecFromRole(ColorRole::OnSurface),
                   .maxLines = 1,
                   .baselineMode = LabelBaselineMode::StableFont,
@@ -274,7 +274,8 @@ namespace {
 
     void setListStyle(LauncherListStyle style) { m_style = style; }
 
-    void bind(Renderer& renderer, const LauncherResult& result, float width, bool selected, bool hovered) {
+    void
+    bind(Renderer& renderer, const LauncherResult& result, float width, float height, bool selected, bool hovered) {
       m_selected = selected;
       m_hovered = hovered;
       m_iconPath = result.iconPath;
@@ -282,10 +283,10 @@ namespace {
       const float iconSize = launcherIconSize(m_style);
       m_iconTargetSize = static_cast<int>(std::round(iconSize));
       m_badgeVisible = !result.badge.empty();
-      m_rowHeight = launcherRowHeight(renderer, m_style);
+      m_rowHeight = height;
 
-      setSize(width, m_rowHeight);
-      m_row->setFrameSize(width, m_rowHeight);
+      setSize(width, height);
+      m_row->setFrameSize(width, height);
 
       m_badgeLabel->setVisible(false);
       m_badgeLabel->setParticipatesInLayout(false);
@@ -603,7 +604,7 @@ public:
     }
     auto* row = static_cast<LauncherResultRow*>(&tile);
     row->setListStyle(m_style);
-    row->bind(*m_renderer, (*m_results)[index], tile.width(), selected, hovered);
+    row->bind(*m_renderer, (*m_results)[index], tile.width(), tile.height(), selected, hovered);
   }
 
   void onActivate(std::size_t index) override {
@@ -923,7 +924,12 @@ void LauncherPanel::syncLauncherViewLayout(Renderer* renderer) {
     m_grid->setColumns(1);
     m_grid->setColumnGap(0.0f);
     m_grid->setRowGap(Style::spaceXs * scale);
-    m_grid->setCellHeight(launcherRowHeightEstimate(style));
+    const float listCellHeight =
+        renderer != nullptr ? launcherRowHeight(*renderer, style) : launcherRowHeightEstimate(style);
+    m_grid->setCellHeight(listCellHeight);
+    if (renderer != nullptr) {
+      m_launcherRowHeight = listCellHeight;
+    }
     if (modeChanged) {
       m_grid->setAdapter(m_listAdapter.get());
     }

@@ -14,6 +14,8 @@
 
 namespace {
 
+  constexpr Logger kLog("dmenu");
+
   constexpr std::chrono::milliseconds kCommandTimeout{2000};
   constexpr std::size_t kMaxOutputBytes = 256 * 1024;
   constexpr std::size_t kMaxResults = 200;
@@ -67,7 +69,7 @@ void DmenuProvider::ensureLoaded() const {
   const auto result =
       process::runSyncWithTimeoutAndOutputLimit({"/bin/sh", "-lc", m_entry.command}, kCommandTimeout, kMaxOutputBytes);
   if (!result) {
-    logWarn("dmenu[{}]: command failed (exit {})", m_entry.id, result.exitCode);
+    kLog.warn("[{}] command failed (exit {})", m_entry.id, result.exitCode);
     return;
   }
 

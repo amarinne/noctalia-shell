@@ -125,6 +125,10 @@ private:
   bool m_measureCached = false;
   LabelBaselineMode m_baselineMode = LabelBaselineMode::StableLogical;
 
+  // Line count from the last measure pass; the arrange re-measure must agree
+  // (line breaking is decided once, on measure). -1 until first measure.
+  int m_measuredLineCount = -1;
+
   float m_userMaxWidth = 0.0f;
   int m_userMaxLines = 0;
   bool m_autoScroll = false;

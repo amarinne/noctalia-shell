@@ -15,24 +15,6 @@
 #include <string>
 #include <utility>
 
-namespace {
-
-  const char* volumeGlyphName(float volume, bool muted, VolumeWidgetTarget target) {
-    if (target == VolumeWidgetTarget::Input) {
-      return muted ? "microphone-mute" : "microphone";
-    }
-
-    if (muted || volume <= 0.0f) {
-      return "volume-mute";
-    }
-    if (volume < 0.4f) {
-      return "volume-low";
-    }
-    return "volume-high";
-  }
-
-} // namespace
-
 VolumeWidget::VolumeWidget(
     PipeWireService* audio, EasyEffectsService* easyEffects, const Config* config, wl_output* /*output*/,
     bool showLabel, VolumeWidgetTarget target, int scrollStepPercent, ColorSpec muteColor, std::string glyphOverride,
@@ -229,5 +211,5 @@ std::string VolumeWidget::glyphName(float volume, bool muted) const {
     return m_glyphOverride;
   }
 
-  return volumeGlyphName(volume, muted, m_target);
+  return audioVolumeGlyph(volume, muted, m_target == VolumeWidgetTarget::Input);
 }

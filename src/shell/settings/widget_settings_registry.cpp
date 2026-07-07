@@ -188,6 +188,22 @@ namespace settings {
       return std::nullopt;
     }
 
+    // Display label for a plugin [[widget]] entry: the plugin name, plus the
+    // entry id when the plugin ships more than one widget so same-plugin
+    // widgets stay distinguishable.
+    std::string pluginWidgetDisplayLabel(const scripting::ResolvedPluginEntry& entry) {
+      if (entry.manifest->name.empty()) {
+        return entry.fullId();
+      }
+      const auto widgetEntries = std::ranges::count_if(entry.manifest->entries, [](const scripting::PluginEntry& e) {
+        return e.kind == scripting::PluginEntryKind::Widget;
+      });
+      if (widgetEntries > 1) {
+        return entry.manifest->name + " · " + entry.entry->id;
+      }
+      return entry.manifest->name;
+    }
+
     std::string appendVersion(std::string text, std::string_view version) {
       if (version.empty()) {
         return text;
@@ -426,7 +442,7 @@ namespace settings {
       std::string detail = it->second.type.empty() ? tr("settings.entities.widget.detail.custom") : it->second.type;
       if (auto pw = resolvePluginWidget(it->second.type)) {
         if (!pw->manifest->name.empty()) {
-          title = pw->manifest->name;
+          title = pluginWidgetDisplayLabel(*pw);
         }
         if (includeManifestVersion) {
           detail = appendVersion(std::move(detail), pw->manifest->version);
@@ -490,8 +506,10 @@ namespace settings {
       if (!seen.insert(entryId).second) {
         continue;
       }
-      std::string label = entry.manifest->name.empty() ? entryId : entry.manifest->name;
+      std::string label = pluginWidgetDisplayLabel(entry);
+      // Lead with the entry id so same-plugin widgets stay distinguishable.
       std::string description = appendVersion(entry.manifest->description, entry.manifest->version);
+      description = description.empty() ? entryId : entryId + " — " + description;
       entries.push_back(
           WidgetPickerEntry{
               .value = entryId,

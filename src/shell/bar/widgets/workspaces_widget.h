@@ -46,6 +46,7 @@ public:
   ~WorkspacesWidget() override;
 
   void create() override;
+  [[nodiscard]] bool wantsBarHoverHighlight() const noexcept override { return false; }
 
 private:
   void doLayout(Renderer& renderer, float containerWidth, float containerHeight) override;

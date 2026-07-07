@@ -230,6 +230,12 @@ void OsdOverlay::show(const OsdContent& content) {
   }
 }
 
+bool OsdOverlay::isVisible() const {
+  return std::ranges::any_of(m_instances, [](const auto& inst) {
+    return inst->visible || inst->showPending || inst->showAnimId != 0;
+  });
+}
+
 OsdOverlay::SurfaceMargins OsdOverlay::surfaceMarginsForPosition(const std::string& position) const {
   const int marginH = (m_config != nullptr) ? std::max(0, m_config->config().osd.offsetX) : 0;
   const int marginV = (m_config != nullptr) ? std::max(0, m_config->config().osd.offsetY) : 0;

@@ -129,7 +129,13 @@ void PolkitPanel::create() {
           .maxLines = 4,
       }),
       ui::row(
-          {.align = FlexAlign::Center, .justify = FlexJustify::End, .gap = Style::spaceSm * scale},
+          {
+              .align = FlexAlign::Center,
+              .justify = FlexJustify::End,
+              .wrap = true,
+              .gap = Style::spaceSm * scale,
+              .fillWidth = true,
+          },
           ui::button({
               .out = &m_cancelButton,
               .text = i18n::tr("common.actions.cancel"),

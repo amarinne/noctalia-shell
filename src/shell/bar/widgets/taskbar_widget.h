@@ -56,6 +56,7 @@ public:
 
   void create() override;
   [[nodiscard]] bool onPointerEvent(const PointerEvent& event) override;
+  [[nodiscard]] bool wantsBarHoverHighlight() const noexcept override { return false; }
 
 private:
   struct TaskModel {

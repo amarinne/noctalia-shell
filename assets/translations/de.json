@@ -85,7 +85,9 @@
         "reloaded": "Skript neu geladen"
       },
       "sysmon": {
-        "cpu": "CPU"
+        "cpu": "CPU",
+        "ram": "RAM",
+        "swap": "Swap"
       },
       "weather": {
         "default": "Wetter",
@@ -963,7 +965,6 @@
         "overview": "Übersicht",
         "pinned-apps": "Angeheftete Apps",
         "power": "Energie",
-        "privacy-security": "Datenschutz & Sicherheit",
         "profile": "Profil",
         "screen-corners": "Bildschirmecken",
         "screen-time": "Bildschirmzeit",

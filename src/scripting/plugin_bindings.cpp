@@ -211,6 +211,10 @@ namespace {
     return 0;
   }
 
+  // Shared render(tree) binding for bar widgets, desktop widgets, and panels
+  // (defined after readUiTreeNode below).
+  int luau_ui_render(lua_State* L);
+
   const luaL_Reg kWidgetLib[] = {
       {"setText", luau_setText},
       {"setGlyph", luau_setGlyph},
@@ -222,6 +226,7 @@ namespace {
       {"setGlyphColor", luau_setGlyphColor},
       {"isVertical", luau_isVertical},
       {"setVisible", luau_setVisible},
+      {"render", luau_ui_render},
       {"getConfig", scripting::luau_getConfig},
       {nullptr, nullptr},
   };
@@ -479,8 +484,9 @@ namespace {
     return true;
   }
 
-  // desktopWidget.render(tree) — replaces the widget's declarative control tree.
-  int luau_desktop_render(lua_State* L) {
+  // render(tree) — replaces the entry's declarative control tree. Shared by
+  // barWidget.render, desktopWidget.render, and panel.render.
+  int luau_ui_render(lua_State* L) {
     luaL_checktype(L, 1, LUA_TTABLE);
     auto* context = getContext(L);
     if (context == nullptr) {
@@ -510,7 +516,7 @@ namespace {
   }
 
   const luaL_Reg kDesktopWidgetLib[] = {
-      {"render", luau_desktop_render},
+      {"render", luau_ui_render},
       {"setWantsSecondTicks", luau_desktop_setWantsSecondTicks},
       {"setNeedsFrameTick", luau_desktop_setNeedsFrameTick},
       {"getConfig", scripting::luau_getConfig},
@@ -518,20 +524,6 @@ namespace {
   };
 
   // ── panel.* — declarative UI tree for a [[panel]] entry ──
-
-  // panel.render(tree) — replaces the panel's declarative control tree.
-  int luau_panel_render(lua_State* L) {
-    luaL_checktype(L, 1, LUA_TTABLE);
-    auto* context = getContext(L);
-    if (context == nullptr) {
-      return 0;
-    }
-    ui::UiTreeNode tree;
-    if (readUiTreeNode(L, 1, tree, 0, context->ownerId)) {
-      context->patch.uiTree = std::move(tree);
-    }
-    return 0;
-  }
 
   // panel.close() — request the host close this panel.
   int luau_panel_close(lua_State* L) {
@@ -550,7 +542,7 @@ namespace {
   }
 
   const luaL_Reg kPanelLib[] = {
-      {"render", luau_panel_render},
+      {"render", luau_ui_render},
       {"close", luau_panel_close},
       {"setWantsSecondTicks", luau_panel_setWantsSecondTicks},
       {"getConfig", scripting::luau_getConfig},

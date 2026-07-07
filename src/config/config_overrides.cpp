@@ -274,6 +274,9 @@ namespace {
     if (ovr.widgetCapsuleOpacity) {
       resolved.widgetCapsuleOpacity = std::clamp(static_cast<float>(*ovr.widgetCapsuleOpacity), 0.0f, 1.0f);
     }
+    if (ovr.hoverHighlight) {
+      resolved.hoverHighlight = *ovr.hoverHighlight;
+    }
     if (ovr.deadZone.command) {
       resolved.deadZone.command = *ovr.deadZone.command;
     }
@@ -478,6 +481,7 @@ namespace {
               }
               toml::table row;
               row.insert_or_assign("id", item.id);
+              row.insert_or_assign("enabled", item.enabled);
               toml::array members;
               for (const auto& member : item.members) {
                 members.push_back(member);

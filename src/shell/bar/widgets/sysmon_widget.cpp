@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <format>
 #include <optional>
@@ -21,10 +22,37 @@
 namespace {
 
   [[nodiscard]] std::string displaySysmonLabel(const std::string& raw, bool verticalBar) {
-    if (!verticalBar || raw.size() < 2 || raw.back() != '%') {
+    if (!verticalBar) {
       return raw;
     }
-    return raw.substr(0, raw.size() - 1);
+
+    if (raw.size() >= 2 && raw.back() == '%') {
+      return raw.substr(0, raw.size() - 1);
+    }
+
+    const auto isSpace = [](char ch) { return std::isspace(static_cast<unsigned char>(ch)) != 0; };
+
+    std::size_t end = raw.size();
+    while (end > 0 && isSpace(raw[end - 1])) {
+      --end;
+    }
+    if (end == 0) {
+      return raw;
+    }
+
+    std::size_t lastDigit = end;
+    while (lastDigit > 0 && !std::isdigit(static_cast<unsigned char>(raw[lastDigit - 1]))) {
+      --lastDigit;
+    }
+    if (lastDigit == 0) {
+      return raw;
+    }
+
+    std::string compact = raw.substr(0, lastDigit);
+    while (!compact.empty() && isSpace(compact.back())) {
+      compact.pop_back();
+    }
+    return compact.empty() ? raw : compact;
   }
 
   // The gauge track is a dimmed version of the gauge fill so it inherits the

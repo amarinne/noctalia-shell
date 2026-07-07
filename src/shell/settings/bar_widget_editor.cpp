@@ -1375,7 +1375,6 @@ namespace settings {
             .control = TextSetting{},
             .advanced = spec.advanced,
             .searchText = {},
-            .visibleWhen = std::nullopt,
         };
 
         const auto makeGlyphTextControl = [&ctx, path](std::string currentValue) -> std::unique_ptr<Node> {
@@ -2117,7 +2116,6 @@ namespace settings {
             .path = std::move(fieldPath),
             .control = {},
             .searchText = {},
-            .visibleWhen = std::nullopt,
         };
       };
 
@@ -2636,6 +2634,9 @@ namespace settings {
         wireDrag(*dragBtn, dragBtnPtr, cardPtr, homeZoneIndex, itemIndex);
         row->addChild(std::move(dragBtn));
       }
+      row->addChild(
+          makeGlyph(widgetBadgeGlyph(info.kind), Style::fontSizeCaption * ctx.scale, widgetBadgeGlyphColor(info.kind))
+      );
       {
         auto titleLabel = makeLabel(
             info.title, Style::fontSizeCaption * ctx.scale, colorSpecFromRole(ColorRole::OnSurface),
@@ -2645,9 +2646,6 @@ namespace settings {
         titleLabel->setFlexGrow(1.0f);
         row->addChild(std::move(titleLabel));
       }
-      row->addChild(
-          makeGlyph(widgetBadgeGlyph(info.kind), Style::fontSizeCaption * ctx.scale, widgetBadgeGlyphColor(info.kind))
-      );
       if (!widgetTypeForReference(ctx.config, name).empty()) {
         row->addChild(
             ui::button({
@@ -2661,6 +2659,32 @@ namespace settings {
                 .onClick = [openWidgetInspector = ctx.openWidgetInspector, laneListPath = entry.path, name]() {
                   if (openWidgetInspector) {
                     openWidgetInspector(laneListPath, name);
+                  }
+                },
+            })
+        );
+      }
+      {
+        bool widgetEnabled = true;
+        if (auto it = ctx.config.widgets.find(name); it != ctx.config.widgets.end()) {
+          widgetEnabled = it->second.getBool("enabled", true);
+        }
+        row->addChild(
+            ui::button({
+                .glyph = widgetEnabled ? "eye" : "eye-off",
+                .glyphSize = Style::fontSizeCaption * ctx.scale,
+                .variant = ButtonVariant::Ghost,
+                .tooltip = widgetEnabled ? i18n::tr("settings.entities.widget.group.hide-widget")
+                                         : i18n::tr("settings.entities.widget.group.show-widget"),
+                .minWidth = iconSize,
+                .minHeight = iconSize,
+                .padding = iconPad,
+                .radius = Style::scaledRadiusSm(ctx.scale),
+                .opacity = widgetEnabled ? 1.0f : 0.38f,
+                .onClick = [setOverride = ctx.setOverride, requestRebuild = ctx.requestRebuild, name, widgetEnabled]() {
+                  setOverride({"widget", name, "enabled"}, !widgetEnabled);
+                  if (requestRebuild) {
+                    requestRebuild();
                   }
                 },
             })
@@ -2865,6 +2889,7 @@ namespace settings {
               .fill = groupFillTint,
               .radius = Style::scaledRadiusSm(ctx.scale),
               .border = groupBorder,
+              .opacity = group->enabled ? 1.0f : 0.45f,
           });
           auto* containerPtr = container.get();
 
@@ -2898,6 +2923,37 @@ namespace settings {
             groupLabel->setFlexGrow(1.0f);
             groupHeader->addChild(std::move(groupLabel));
           }
+          groupHeader->addChild(
+              ui::button({
+                  .glyph = group->enabled ? "eye" : "eye-off",
+                  .glyphSize = Style::fontSizeCaption * ctx.scale,
+                  .variant = ButtonVariant::Ghost,
+                  .tooltip = group->enabled ? i18n::tr("settings.entities.widget.group.hide")
+                                            : i18n::tr("settings.entities.widget.group.show"),
+                  .minWidth = iconSize,
+                  .minHeight = iconSize,
+                  .padding = iconPad,
+                  .radius = Style::scaledRadiusSm(ctx.scale),
+                  .opacity = group->enabled ? 1.0f : 0.38f,
+                  .onClick = [setOverrides = ctx.setOverrides, groups = laneGroups, lanePathCopy = lanePath, gid,
+                              requestRebuild = ctx.requestRebuild]() {
+                    std::vector<BarCapsuleGroupStyle> updated = groups;
+                    for (auto& g : updated) {
+                      if (g.id == gid) {
+                        g.enabled = !g.enabled;
+                        break;
+                      }
+                    }
+                    const std::vector<std::string> groupPath = capsuleGroupPathForLanePath(lanePathCopy);
+                    if (!groupPath.empty()) {
+                      setOverrides({{groupPath, updated}});
+                      if (requestRebuild) {
+                        requestRebuild();
+                      }
+                    }
+                  },
+              })
+          );
           groupHeader->addChild(
               ui::button({
                   .glyph = "settings",

@@ -109,7 +109,7 @@
       },
       "weather": {
         "default": "Clima",
-        "error": "Error de Clima",
+        "error": "Error del Clima",
         "loading": "Clima...",
         "no-location": "Sin ubicación",
         "off": "Clima apagado"
@@ -190,7 +190,7 @@
       "pair-title": "Emparejar con {device}",
       "pairing-detail": {
         "authorize": "Aceptas la solicitud de emparejamiento entrante?",
-        "authorize-service": "Permitir acceso a servicio {uuid}?",
+        "authorize-service": "Permitir acceso al servicio {uuid}?",
         "confirm": "Verifica que este código coincida con el que aparece en el dispositivo:",
         "display-passkey": "Ingresa este código en el dispositivo:",
         "display-pin": "Ingresa este PIN en el dispositivo:",
@@ -238,7 +238,7 @@
       "uptime": "Tiempo de actividad  - {uptime}",
       "weather": {
         "data-unavailable": "Datos meteorológicos no disponibles",
-        "disabled": "Pronóstico desabilitado en la configuracion.",
+        "disabled": "Clima deshabilitado en la configuracion.",
         "fetching": "Cargando previsión..."
       }
     },
@@ -251,6 +251,7 @@
     "network": {
       "connect": "Conectar",
       "current-connection": "Conexión actual",
+      "external-ip": "WAN {ip}",
       "no-networks": "No hay redes disponibles cerca",
       "not-connected": "No conectado",
       "password": "Contraseña",
@@ -332,7 +333,7 @@
       "session": "Sesión",
       "system": "Sistema",
       "wallpaper": "Fondo de Pantalla",
-      "weather": "Pronóstico",
+      "weather": "Clima",
       "wifi": "Wi-Fi"
     },
     "system": {
@@ -394,7 +395,7 @@
       "fetching": "Obteniendo pronóstico",
       "forecast-placeholder": {
         "day": "Domingo",
-        "description": "Pronóstico",
+        "description": "Clima",
         "temperature": "10 / 4C"
       },
       "forecast-view": {
@@ -413,8 +414,8 @@
       "location-unavailable": "Ubicación no disponible",
       "no-location-body": "Añade tu dirección o activa la localización automática en la configuración de ubicación.",
       "no-location-title": "Ubicación no establecida",
-      "refreshing": "Actualizando el tiempo",
-      "waiting": "Esperando por la información del pronóstico"
+      "refreshing": "Actualizando Clima...",
+      "waiting": "Esperando por la información del Clima"
     }
   },
   "desktop-widgets": {
@@ -550,7 +551,7 @@
         "media-player": "Reproductor Multimedia",
         "sticker": "Pegatina",
         "system-monitor": "Monitor de sistema",
-        "weather": "Pronóstico"
+        "weather": "Clima"
       }
     },
     "media": {
@@ -560,7 +561,7 @@
       "error": "Error",
       "loading": "Cargando",
       "no-location": "Sin ubicación",
-      "off": "Pronóstico apagado"
+      "off": "Clima apagado"
     }
   },
   "dock": {
@@ -765,6 +766,12 @@
       "body-errors": "{plugin} alcanzó demasiados errores y se desactivó. Recárgalo después de solucionar el problema.",
       "body-timeouts": "{plugin} dejó de responder y se desactivó. Recárgalo después de solucionar el problema.",
       "title": "Plugin desactivado"
+    },
+    "enable-failed": {
+      "body-error": "{plugin}: {error}",
+      "body-incompatible": "{plugin} requiere Noctalia {version} o más reciente",
+      "body-timeout": "{plugin} tardó demasiado en instalarse.",
+      "title": "Complemento no habilitado"
     }
   },
   "power": {
@@ -916,6 +923,8 @@
           "fill-description": "Rol de color de fondo de la cápsula; también se admiten colores hexadecimales fijos",
           "foreground": "Primer plano",
           "foreground-description": "Rol de color de icono y etiqueta para los widgets de este grupo",
+          "hide": "Ocultar este grupo",
+          "hide-widget": "Ocultar este widget",
           "hint": "Parte de un grupo de cápsulas",
           "members": "{count} widgets",
           "opacity": "Opacidad",
@@ -926,6 +935,8 @@
           "radius": "Radio",
           "radius-description": "Radio de esquina de la cápsula en píxeles; Auto hereda el radio de cápsula de la barra",
           "selected": "{count} seleccionados",
+          "show": "Mostrar este grupo",
+          "show-widget": "Mostrar este widget",
           "style": "Estilo",
           "title": "Grupo de cápsulas",
           "ungroup": "Desagrupar"
@@ -1045,6 +1056,7 @@
     "navigation": {
       "groups": {
         "audio": "Sonido",
+        "authentication": "Autenticacion",
         "automation": "Automatizacion",
         "backdrop": "Fondo",
         "background": "Fondo",
@@ -1064,6 +1076,7 @@
         "focus-styling": "Estilo de enfoque",
         "formats": "Formatos",
         "general": "General",
+        "greeter": "Greeter",
         "grouping": "Agrupación",
         "home": "Inicio",
         "hot-corners": "Esquinas activas",
@@ -1090,7 +1103,7 @@
         "pinned-apps": "Aplicaciones fijadas",
         "polkit": "Polkit",
         "power": "Energía",
-        "privacy-security": "Privacidad & Seguridad",
+        "privacy": "Privacidad",
         "profile": "Perfil",
         "screen-corners": "Esquinas de pantalla",
         "screen-time": "Tiempo de pantalla",
@@ -1104,7 +1117,7 @@
         "transition": "Transición",
         "user": "Usuario",
         "wallpaper": "Fondo de Pantalla",
-        "weather": "Pronóstico",
+        "weather": "Clima",
         "widget-list": "Lista de widgets",
         "widgets": "Widgets"
       },
@@ -1115,8 +1128,9 @@
         "control-center": "Centro de control",
         "desktop": "Escritorio",
         "dock": "Dock",
-        "hooks": "Ganchos",
+        "hooks": "Hooks",
         "keybinds": "Atajos de teclado",
+        "launcher": "Lanzador",
         "location": "Localizacion",
         "niri": "Niri",
         "notifications": "Notificaciones",
@@ -1321,6 +1335,9 @@
       },
       "plugins": {
         "configure": "Configurar",
+        "delete": "Eliminar",
+        "delete-confirm-desc": "Este plugin será desinstalado y removido del disco.",
+        "delete-confirm-title": "¿Borrar \"{name}\"?",
         "deprecated": "obsoleto",
         "empty": "No hay plugins activados.",
         "loading": "Cargando plugins...",
@@ -1388,8 +1405,8 @@
           "label": "Color del icono de la aplicación"
         },
         "app-icon-colorize": {
-          "description": "Decolorar los iconos de aplicaciones en todo el shell para que coincidan con la paleta activa",
-          "label": "Decolorar iconos de apps"
+          "description": "Recolorear los iconos de aplicaciones en todo el shell para que coincidan con la paleta activa",
+          "label": "Colorear iconos de apps"
         },
         "builtin-palette": {
           "description": "Elige una paleta del catálogo incluido",
@@ -1415,8 +1432,8 @@
           "label": "Exportar paleta del fondo de pantalla"
         },
         "font-family": {
-          "description": "Familia de fuente para la interfaz del shell",
-          "label": "Familia de fuente"
+          "description": "Familia tipográfica para la interfaz del shell",
+          "label": "Familia tipográfica"
         },
         "global-shadow-alpha": {
           "description": "Opacidad de la sombra global de superficie"
@@ -1572,6 +1589,10 @@
           "description": "Grosor predeterminado para las etiquetas de widgets en esta barra.",
           "label": "Grosor de fuente"
         },
+        "hover-highlight": {
+          "description": "Suave decoloracion del widget bajo el puntero del raton con su  propio color de fondo",
+          "label": "Destacar al pasar el cursor"
+        },
         "layer": {
           "description": "Usar superposición para mostrar la barra por encima de aplicaciones a pantalla completa. Los paneles anclados siguen a la barra.",
           "label": "Capa de Wayland"
@@ -1695,6 +1716,10 @@
         "background-opacity": {
           "description": "Opacidad de fondo del dock"
         },
+        "concave-edge-corners": {
+          "description": "Interior concavo en el lado que toca el limite de pantalla; requiere que el margen del borde de pantalla sea 0",
+          "label": "Esquinas concavas"
+        },
         "corner-bottom-left": {
           "description": "Radio de la esquina inferior izquierda del dock"
         },
@@ -1744,7 +1769,7 @@
           "placeholder": "Ruta a una imagen"
         },
         "launcher-custom-image-colorize": {
-          "description": "Teñir la imagen personalizada con el color del icono",
+          "description": "Decolorar la imagen personalizada con el color del icono",
           "label": "Decolorar imagen personalizada"
         },
         "launcher-icon": {
@@ -2160,6 +2185,14 @@
         "session-actions": {
           "description": "Entradas del menú de energía, orden, comandos personalizados e iconos",
           "label": "Entradas"
+        },
+        "session-grid": {
+          "description": "Mostrar acciones del panel de sesion en una rejilla",
+          "label": "Plantilla de la rejilla"
+        },
+        "session-grid-columns": {
+          "description": "Numero de columnas para la disposicion de la rejilla",
+          "label": "Columnas"
         }
       },
       "services": {
@@ -2258,7 +2291,7 @@
         },
         "system-monitor": {
           "cpu-poll": {
-            "description": "Segundos entre muestras de uso de CPU, temperatura de CPU y carga media (0 desactiva)",
+            "description": "Segundos entre muestras de uso de CPU, temperatura de CPU y carga promedio (0 desactiva)",
             "label": "Intervalo de consulta de CPU"
           },
           "description": "Muestrear estadísticas de CPU, memoria, red, carga, temperatura y disco",
@@ -2302,19 +2335,19 @@
           "placeholder": "/path/to/sound.wav"
         },
         "weather": {
-          "description": "Habilitar el servicio de pronóstico",
-          "label": "Pronóstico"
+          "description": "Habilitar el servicio de clima via open-meteo.com",
+          "label": "Clima"
         },
         "weather-effects": {
-          "description": "Mostrar efectos visuales del pronóstico",
-          "label": "Efectos del pronóstico"
+          "description": "Mostrar efectos visuales del clima",
+          "label": "Efectos del Clima"
         },
         "weather-refresh-interval": {
           "description": "Con qué frecuencia actualizar los datos meteorológicos (minutos)",
           "label": "Intervalo de actualizacion"
         },
         "weather-unit": {
-          "description": "Sistema de unidades utilizado en el pronóstico",
+          "description": "Sistema de unidades usado en la pantalla del clima",
           "label": "Unidades"
         }
       },
@@ -2408,6 +2441,10 @@
           "description": "Formato de fecha predeterminado para la interfaz del shell sin configuración propia",
           "label": "Formato de fecha"
         },
+        "external-ip": {
+          "description": "Resuelve IP publica WAN (via api.noctalia.dev) y se muestra en el panel de Red del Panel de Control",
+          "label": "Mostrar IP WAN"
+        },
         "greeter-sync-auto": {
           "description": "Sincronizar automáticamente la pantalla de inicio cuando cambien el fondo de pantalla, los colores o el modo de tema",
           "label": "Sincronizar pantalla de inicio automáticamente"
@@ -2427,7 +2464,7 @@
         },
         "middle-click-opens-widget-settings": {
           "description": "Abrir la configuración de un widget de la barra desde la barra con clic central",
-          "label": "El clic central abre la configuración del widget"
+          "label": "El clic central (click en tu rueda de mouse)  abre la configuración del widget"
         },
         "niri-overview-type-to-launch": {
           "description": "Abrir el lanzador al escribir en la vista general de niri; usa una pequeña superficie de foco de teclado mientras la vista general está abierta",
@@ -2451,7 +2488,7 @@
         },
         "osd-kinds-caffeine": {
           "description": "Mostrar una ventana emergente OSD cuando cambie el estado de cafeína (inhibidor de inactividad)",
-          "label": "Caffeine"
+          "label": "Cafeína"
         },
         "osd-kinds-dnd": {
           "description": "Mostrar una ventana emergente OSD al alternar No molestar",
@@ -2534,12 +2571,16 @@
           "label": "Agente Polkit"
         },
         "privacy-cam-filter-regex": {
-          "description": "Expresión regular para aplicaciones de cámara a ignorar en los indicadores de privacidad y OSD",
-          "label": "Expresión regular de filtro de cámara"
+          "description": "Patrón para aplicaciones de cámara a ignorar en los indicadores de privacidad y OSD",
+          "label": "Patrón para filtro de cámara"
         },
         "privacy-mic-filter-regex": {
           "description": "Expresión regular para aplicaciones de micrófono a ignorar en los indicadores de privacidad y OSD",
-          "label": "Expresión regular de filtro de micrófono"
+          "label": "Patrón de filtro de micrófono"
+        },
+        "privacy-screen-filter-regex": {
+          "description": "Patrón para ignorar apps al compartir pantalla en indicadores y OSDs",
+          "label": "Patrón de filtro de pantalla compartida"
         },
         "screen-time-enabled": {
           "description": "Rastrear el uso por aplicación y mostrarlo en el Centro de control",
@@ -2548,7 +2589,7 @@
         "screen-time-reset": {
           "button": "Restablecer",
           "description": "Borrar el historial de uso en primer plano almacenado por aplicación",
-          "label": "Restablecer datos de tiempo de pantalla"
+          "label": "Restablecer datos de tiempo en pantalla"
         },
         "screenshot-confirm-region": {
           "description": "Después de dibujar una región, mantén la superposición abierta hasta confirmar con Intro o Espacio",
@@ -2819,8 +2860,8 @@
           "label": "Bandas"
         },
         "cam-filter-regex": {
-          "description": "Expresión regular para nombres de procesos de cámara a ignorar",
-          "label": "Expresión regular de filtro de cámara"
+          "description": "Patrón para nombres de procesos de cámara a ignorar",
+          "label": "Patrón de filtro de cámara"
         },
         "capsule": {
           "description": "Dibujar una cápsula detrás de este widget",
@@ -2873,13 +2914,13 @@
           "label": "Comando de clic izquierdo"
         },
         "custom-image": {
-          "description": "Ruta a una imagen personalizada. Deja vacío para usar el glifo del icono.",
+          "description": "Ruta a una imagen personalizada. Déjela en blanco para usar el glifo del icono.",
           "dialog-title": "Seleccionar imagen personalizada",
           "label": "Imagen personalizada"
         },
         "custom-image-colorize": {
           "description": "Teñir la imagen personalizada con la configuración de color de icono del widget",
-          "label": "Decolorar imagen personalizada"
+          "label": "Colorear imagen personalizada"
         },
         "custom-labels": {
           "description": "Asignar nombres de distribución de teclado a etiquetas personalizadas",
@@ -3079,8 +3120,8 @@
           "label": "Longitud máxima"
         },
         "mic-filter-regex": {
-          "description": "Expresión regular para nombres de aplicaciones de micrófono a ignorar",
-          "label": "Expresión regular de filtro de micrófono"
+          "description": "Patrón para nombres de aplicaciones de micrófono a ignorar",
+          "label": "Patrón de filtro de micrófono"
         },
         "middle-command": {
           "description": "Comando del shell ejecutado al hacer clic central en este botón. Si se establece, el clic central abre este comando en lugar de la configuración del widget.",
@@ -3301,7 +3342,7 @@
         "tray": "Tray",
         "volume": "Volumen",
         "wallpaper": "Fondo de pantalla",
-        "weather": "Pronóstico",
+        "weather": "Clima",
         "workspaces": "Espacios de trabajo"
       }
     },
@@ -3352,7 +3393,7 @@
       "m3-monochrome": "M3 Monocromo",
       "m3-rainbow": "M3 Arcoíris",
       "m3-tonal-spot": "M3 Punto tonal",
-      "muted": "Silenciado",
+      "muted": "Atenuado",
       "soft": "Suave",
       "vibrant": "Vibrante"
     }
@@ -3483,7 +3524,7 @@
         "snow": "Nieve",
         "snow-showers": "Chubascos de nieve",
         "storm": "Tormenta",
-        "weather": "Pronóstico"
+        "weather": "Clima"
       }
     },
     "errors": {

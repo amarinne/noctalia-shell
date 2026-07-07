@@ -1,6 +1,7 @@
 #include "ui/controls/label.h"
 
 #include "core/deferred_call.h"
+#include "core/log.h"
 #include "render/animation/animation.h"
 #include "render/animation/animation_manager.h"
 #include "render/core/renderer.h"
@@ -13,6 +14,8 @@
 #include <memory>
 
 namespace {
+
+  constexpr Logger kLog("label");
 
   constexpr const char* kMarqueeGap = " ";
 
@@ -412,7 +415,14 @@ void Label::measure(Renderer& renderer) {
 LayoutSize Label::measureWithConstraints(Renderer& renderer, const LayoutConstraints& constraints, bool fromArrange) {
   const float configuredMaxWidth = m_userMaxWidth;
   float measureMaxWidth = configuredMaxWidth;
-  if (constraints.hasMaxWidth) {
+  if (fromArrange) {
+    // Measure with the wrap budget paint will use (the text node's budget from
+    // the measure pass), never the arrange width: the arrange width is a box
+    // size, not a wrap intent. Re-deciding line breaking here with a different
+    // budget can flip the line count — and with it the baseline mode — between
+    // measure and paint, bouncing the rendered baseline by a pixel per string.
+    measureMaxWidth = m_textNode->maxWidth();
+  } else if (constraints.hasMaxWidth) {
     measureMaxWidth =
         configuredMaxWidth > 0.0f ? std::min(configuredMaxWidth, constraints.maxWidth) : constraints.maxWidth;
   }
@@ -463,6 +473,18 @@ LayoutSize Label::measureWithConstraints(Renderer& renderer, const LayoutConstra
       m_plainText, m_textNode->fontSize(), fontWeight, measureMaxWidth, effectiveMaxLines, align,
       m_textNode->fontFamily(), m_textNode->ellipsize(), m_textNode->useMarkup()
   );
+  // Line breaking is decided once, on the measure pass. A divergent line count
+  // on arrange means the wrap budget drifted between phases — the baseline mode
+  // would flip between measure and paint (renders as ±1px vertical jitter), so
+  // surface it loudly instead of letting it land as pixel drift.
+  if (!fromArrange) {
+    m_measuredLineCount = metrics.lineCount;
+  } else if (m_measuredLineCount > 0 && metrics.lineCount != m_measuredLineCount) {
+    kLog.warn(
+        "label '{}': line count changed between measure ({}) and arrange ({}) — wrap budgets diverged", m_plainText,
+        m_measuredLineCount, metrics.lineCount
+    );
+  }
   // Single- vs multi-line is decided by the measured layout, not by the requested
   // width/line budget: a label with no explicit budget wraps freely, so only the
   // measured line count tells us whether to apply single-line cap-band centering
@@ -535,7 +557,11 @@ LayoutSize Label::measureWithConstraints(Renderer& renderer, const LayoutConstra
     } else {
       finalWidth = hasAssignedWidth ? std::max(assignedWidth, m_minWidth) : std::max(measuredWidth, m_minWidth);
     }
-    setSize(std::round(finalWidth), height);
+    // Ceil, never round: the box width is fed back to us as an exact arrange
+    // constraint, so it must never under-report the text it holds — a box a
+    // fraction of a pixel narrower than its own text turns into a wrap/ellipsis
+    // trigger downstream.
+    setSize(std::ceil(finalWidth), height);
   } else {
     m_baselineOffset = -metrics.top;
     const float inkSpan = inkHeight > 0.0f ? (metrics.inkBottom - metrics.inkTop) : actualHeight;
@@ -557,10 +583,10 @@ LayoutSize Label::measureWithConstraints(Renderer& renderer, const LayoutConstra
     } else {
       finalWidth = hasAssignedWidth ? std::max(assignedWidth, m_minWidth) : std::max(measuredWidth, m_minWidth);
     }
-    setSize(std::round(finalWidth), std::round(height));
+    setSize(std::ceil(finalWidth), std::round(height));
   }
   if (width() < m_minWidth) {
-    setSize(std::round(m_minWidth), height());
+    setSize(std::ceil(m_minWidth), height());
   }
   const float layoutWidth = width();
   const bool overflow = m_autoScroll && m_fullTextWidth > layoutWidth + 0.5f;

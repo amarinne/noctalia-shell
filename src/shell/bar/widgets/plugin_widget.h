@@ -8,6 +8,8 @@
 #include "scripting/script_runtime.h"
 #include "shell/bar/widget.h"
 #include "ui/palette.h"
+#include "ui/ui_tree.h"
+#include "ui/ui_tree_reconciler.h"
 
 #include <chrono>
 #include <cstdint>
@@ -87,6 +89,7 @@ private:
   void reloadImage();
   void handleScriptResult(scripting::ScriptResult result);
   void applyScriptPatch(const scripting::ScriptPatch& patch);
+  void applyUiTreePatch(const ui::UiTreeNode& patchTree);
   [[nodiscard]] scripting::ScriptSnapshot makeScriptSnapshot() const;
   [[nodiscard]] std::string focusedOutputName() const;
   void syncImage(Renderer& renderer);
@@ -138,6 +141,12 @@ private:
   Glyph* m_glyph = nullptr;
   Image* m_image = nullptr;
   Label* m_label = nullptr;
+  // Declarative mode: barWidget.render(tree) reconciles into m_uiHost and hides
+  // the imperative glyph/image/label row.
+  Flex* m_uiHost = nullptr;
+  ui::UiTreeReconciler m_reconciler;
+  std::optional<ui::UiTreeNode> m_tree;
+  bool m_warnedImperativeWhileDeclarative = false;
   ScriptColorState m_textColor;
   ScriptColorState m_glyphColor;
   std::string m_imagePath;

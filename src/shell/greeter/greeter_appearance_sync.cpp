@@ -16,8 +16,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <json.hpp>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>

@@ -701,10 +701,13 @@ void CairoTextRenderer::rasterizeLayout(PangoLayout* layout, const Color& color,
   pxWidth = std::max(1, pxWidth);
   pxHeight = std::max(1, pxHeight);
 
-  // Baseline from top of layout, in raster pixels (shifted by any ink overhang above).
+  // Baseline from top of layout, in raster pixels (shifted by any ink overhang
+  // above). Integer division to match the row the line is actually drawn at
+  // (the per-line translate below uses the same floored baseline), so draw()'s
+  // quad placement and the rasterized ink agree even when Pango reports a
+  // fractional baseline (hint metrics off).
   const int baselinePango = pango_layout_get_baseline(layout);
-  entry.baselinePx =
-      static_cast<float>(baselinePango) / static_cast<float>(PANGO_SCALE) + static_cast<float>(extraTopPx);
+  entry.baselinePx = static_cast<float>(baselinePango / PANGO_SCALE + extraTopPx);
 
   if (m_glMaxTextureSize <= 0 && m_backend != nullptr) {
     m_glMaxTextureSize = m_backend->maxTextureSize();

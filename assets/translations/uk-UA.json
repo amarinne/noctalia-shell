@@ -1,44 +1,80 @@
 {
   "auth": {
+    "fingerprint": {
+      "disconnected": "Втрачено зв'язок із датчиком відбитків пальців.",
+      "error": "Помилка автентифікації за відбиком пальця.",
+      "no-match": "Відбиток пальця не збігся.",
+      "not-centered": "Прикладіть палець до центру датчика та спробуйте знову.",
+      "present": "Зчитування відбитку пальця…",
+      "ready": "Прикладіть палець до датчика.",
+      "remove-and-retry": "Приберіть палець із датчика та спробуйте знову.",
+      "retry": "Відскануйте відбиток пальця повторно.",
+      "swipe-too-short": "Ви занадто швидко прибрали палець. Спробуйте ще раз.",
+      "too-many-attempts": "Зчитування відбитків пальців вимкнено (забагато спроб)."
+    },
     "pam": {
-      "authentication-failed": "Автентифікація не вдалася",
+      "authentication-failed": "Не вдалося виконати автентифікацію.",
       "start-failed": "Збій запуску PAM",
       "user-unavailable": "Не вдалося визначити поточного користувача"
     },
     "polkit": {
       "authenticate": "Автентифікувати",
-      "authenticating": "Автентифікація...",
-      "default-message": "Потрібна автентифікація",
-      "invalid-password": "Невірний пароль",
+      "authenticating": "Виконання автентифікації…",
+      "default-message": "Пройдіть автентифікацію.",
+      "invalid-password": "Пароль неправильний.",
       "password-placeholder": "Пароль",
-      "title": "Автентифікація потрібна"
+      "title": "Автентифікуйтеся"
     }
   },
   "bar": {
     "screenshot": {
-      "choose-display": "Оберіть екран",
-      "fullscreen": "Повноекранний",
+      "choose-display": "Виберіть екран",
+      "confirm-region": "Enter або пробіл: зробити знімок · Esc: скасувати · Натисніть ЛКМ і протягніть курсор, щоб вибрати область.",
+      "fullscreen": "Весь екран",
       "region": "Вибрати регіон"
     },
     "widgets": {
+      "active-window": {
+        "no-active-window": "Немає активного вікна"
+      },
+      "bluetooth": {
+        "connected": "З'єднані"
+      },
+      "brightness": {
+        "brightness": "Яскравість",
+        "display": "Дисплей"
+      },
       "lock-keys": {
         "caps": "Caps",
         "caps-short": "C",
         "num": "Num",
-        "num-short": "Н",
-        "scroll": "Прокрутка",
-        "scroll-short": "С"
+        "num-short": "N",
+        "scroll": "Scroll",
+        "scroll-short": "S"
       },
       "media": {
         "nothing-playing": "Нічого не грає",
         "playing": "Відтворення"
       },
       "network": {
+        "active": "Активна",
+        "connecting": "Триває з'єднання…",
+        "ip": "IP-адреса",
+        "no": "Ні",
+        "not-connected": "Не під'єднано",
+        "off": "Вимк.",
+        "on": "Увімк.",
         "wired": "Дротове"
       },
       "scripted": {
         "reload-failed": "Перезавантаження скрипта не вдалося",
         "reloaded": "Скрипт перезавантажено"
+      },
+      "sysmon": {
+        "cpu-temp": "Температура ЦП"
+      },
+      "volume": {
+        "volume": "Гучність"
       },
       "weather": {
         "default": "Погода",
@@ -401,7 +437,7 @@
   },
   "internal-apps": {
     "settings": {
-      "display-name": "Налаштування"
+      "display-name": "Параметри"
     }
   },
   "launcher": {
@@ -560,10 +596,10 @@
   "power": {
     "battery": {
       "states": {
-        "battery": "Батарея",
+        "battery": "Акумулятор",
         "charging": "Заряджається",
         "discharging": "Розряджається",
-        "empty": "Порожньо",
+        "empty": "Розряджений",
         "pending-discharge": "Очікується розрядка",
         "plugged-in": "Підключено"
       },
@@ -865,7 +901,6 @@
         "overview": "Огляд",
         "pinned-apps": "Закріплені застосунки",
         "power": "Живлення",
-        "privacy-security": "Приватність та Безпека",
         "profile": "Профіль",
         "screen-corners": "Кути екрана",
         "screen-time": "Екранний час",

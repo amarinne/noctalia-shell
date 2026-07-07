@@ -211,6 +211,7 @@ void HyprlandWorkspaceBackend::focusWindow(const std::string& windowId) {
   } else {
     (void)m_runtime.request(std::format("dispatch focuswindow {}", target));
   }
+  (void)m_runtime.request(std::format("dispatch alterzorder top,{}", target));
 }
 
 void HyprlandWorkspaceBackend::notifyCleanup() {

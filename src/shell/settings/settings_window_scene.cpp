@@ -1029,11 +1029,23 @@ void SettingsWindow::rebuildSettingsContent() {
                 [this](std::string id) {
                   if (m_pluginManager != nullptr) {
                     m_pluginManager->remove(id);
+                    m_pendingDeletePluginId.clear();
                     markPluginListDirty();
                     requestSceneRebuild();
                   }
                 },
             .openStore = [this]() { openPluginStore(); },
+            .pendingDeletePluginId = m_pendingDeletePluginId,
+            .requestDeleteConfirm =
+                [this](std::string id) {
+                  m_pendingDeletePluginId = std::move(id);
+                  requestSceneRebuild();
+                },
+            .cancelDelete =
+                [this]() {
+                  m_pendingDeletePluginId.clear();
+                  requestSceneRebuild();
+                },
         }
     );
   }
@@ -1376,16 +1388,13 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
 
   if (m_syncGreeterAppearance && env.greeterSyncAvailable) {
     auto it = std::ranges::find_if(m_settingsRegistry, [](const settings::SettingEntry& e) {
-      return e.section == settings::SettingsSection::Shell
-          && e.group == "privacy-security"
-          && e.path == std::vector<std::string>{"shell", "password_style"};
+      return e.section == settings::SettingsSection::Security
+          && e.group == "greeter"
+          && e.path == std::vector<std::string>{"shell", "greeter_sync", "privilege_command"};
     });
-    if (it != m_settingsRegistry.end()) {
-      ++it;
-    }
     settings::SettingEntry btn{
         .section = settings::SettingsSection::Security,
-        .group = "privacy-security",
+        .group = "greeter",
         .title = i18n::tr("settings.schema.shell.sync-greeter.label"),
         .subtitle = i18n::tr("settings.schema.shell.sync-greeter.description"),
         .path = {},
@@ -1396,34 +1405,32 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
                 .glyph = {},
             },
         .searchText = "greeter login sync appearance wallpaper colors security",
-        .visibleWhen = std::nullopt,
     };
     auto insertedIt = m_settingsRegistry.insert(it, std::move(btn));
     ++insertedIt;
     settings::SettingEntry toggle{
         .section = settings::SettingsSection::Security,
-        .group = "privacy-security",
+        .group = "greeter",
         .title = i18n::tr("settings.schema.shell.greeter-sync-auto.label"),
         .subtitle = i18n::tr("settings.schema.shell.greeter-sync-auto.description"),
         .path = {"shell", "greeter_sync", "auto_sync"},
         .control = settings::ToggleSetting{cfg.shell.greeterSync.autoSync},
         .searchText = "greeter sync auto automatic",
-        .visibleWhen = std::nullopt,
     };
     m_settingsRegistry.insert(insertedIt, std::move(toggle));
   }
 
   if (m_resetLauncherUsage) {
     auto it = std::ranges::find_if(m_settingsRegistry, [](const settings::SettingEntry& e) {
-      return e.section == settings::SettingsSection::Panels
+      return e.section == settings::SettingsSection::Launcher
           && e.group == "launcher"
-          && e.path == std::vector<std::string>{"shell", "panel", "launcher_sort_by_usage"};
+          && e.path == std::vector<std::string>{"shell", "launcher", "sort_by_usage"};
     });
     if (it != m_settingsRegistry.end()) {
       ++it;
     }
     settings::SettingEntry btn{
-        .section = settings::SettingsSection::Panels,
+        .section = settings::SettingsSection::Launcher,
         .group = "launcher",
         .title = i18n::tr("settings.schema.panels.launcher-reset-usage.label"),
         .subtitle = i18n::tr("settings.schema.panels.launcher-reset-usage.description"),
@@ -1435,7 +1442,6 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
                 .glyph = "refresh",
             },
         .searchText = "launcher reset usage recently used launch count history clear",
-        .visibleWhen = std::nullopt,
     };
     m_settingsRegistry.insert(it, std::move(btn));
   }
@@ -1462,7 +1468,7 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
                 .glyph = "refresh",
             },
         .searchText = "screen time reset usage history clear tracking",
-        .visibleWhen = settings::SettingVisibility{{"shell", "screen_time_enabled"}, {"true"}},
+        .visibleWhen = [](const Config& c) { return c.shell.screenTimeEnabled; },
     };
     m_settingsRegistry.insert(it, std::move(btn));
   }
@@ -1489,7 +1495,6 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
                 .glyph = {},
             },
         .searchText = "wallpaper palette export custom save colors theme",
-        .visibleWhen = std::nullopt,
     };
     m_settingsRegistry.insert(it, std::move(btn));
   }
@@ -1513,7 +1518,6 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
                 .glyph = "wallpaper-selector"
             },
         .searchText = "wallpaper panel open selector browse",
-        .visibleWhen = std::nullopt,
     };
     m_settingsRegistry.insert(it, std::move(btn));
   }
@@ -1538,7 +1542,6 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
                 .glyph = {}
             },
         .searchText = "desktop widgets editor edit",
-        .visibleWhen = std::nullopt,
     };
     m_settingsRegistry.insert(it, std::move(btn));
   }
@@ -1565,10 +1568,7 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
                 .glyph = {}
             },
         .searchText = "lockscreen widgets editor edit layout",
-        .visibleWhen = settings::SettingVisibility{std::vector<settings::SettingVisibilityCondition>{
-            {{"lockscreen", "enabled"}, {"true"}},
-            {{"lockscreen_widgets", "enabled"}, {"true"}},
-        }},
+        .visibleWhen = [](const Config& c) { return c.lockscreen.enabled && c.lockscreenWidgets.enabled; },
     };
     m_settingsRegistry.insert(it, std::move(btn));
   }
@@ -1582,7 +1582,7 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
     if (it != m_settingsRegistry.end()) {
       ++it;
     }
-    const settings::SettingVisibility calendarOn{{"calendar", "enabled"}, {"true"}};
+    const settings::SettingVisibility calendarOn = [](const Config& c) { return c.calendar.enabled; };
     settings::SettingEntry addBtn{
         .section = settings::SettingsSection::Services,
         .group = "calendar",
@@ -1596,7 +1596,6 @@ void SettingsWindow::refreshSettingsRegistry(const Config& cfg) {
                 .glyph = "plus",
             },
         .searchText = "calendar add account icloud caldav google",
-        .visibleWhen = std::nullopt,
     };
     it = m_settingsRegistry.insert(it, std::move(addBtn));
     ++it;

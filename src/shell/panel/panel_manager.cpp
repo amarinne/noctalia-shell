@@ -694,7 +694,6 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
   }
 
   const bool useAttachedPlacement = activePlacement == PanelPlacement::Attached
-      && !multipleBarsOnEdge
       && (m_attachedPanelAvailabilityCallback == nullptr
           || m_attachedPanelAvailabilityCallback(request.output, m_sourceBarName))
       && barConfig.thickness > 0
@@ -720,7 +719,11 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
       .marginRight = standaloneMarginRight,
       .marginBottom = standaloneMarginBottom,
       .marginLeft = standaloneMarginLeft,
-      .keyboard = m_activePanel->keyboardMode(),
+      .keyboard = (m_platform != nullptr
+                   && m_platform->focusGrabService() != nullptr
+                   && m_platform->focusGrabService()->available())
+          ? LayerShellKeyboard::Exclusive
+          : m_activePanel->keyboardMode(),
       .defaultWidth = fallbackSurfaceWidth,
       .defaultHeight = fallbackSurfaceHeight,
       .prewarmBlur = true,
@@ -1070,13 +1073,19 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
       {InputRect{m_panelInsetX, m_panelInsetY, static_cast<int>(panelWidth), static_cast<int>(panelHeight)}}
   );
   m_surface->setBlurRegion({});
-  // Defer the focus grab to the next tick. See attached-path comment above.
+  // Activate outside-click dismissal (focus grab or click shield).
+  const bool hasFocusGrab =
+      m_platform != nullptr && m_platform->focusGrabService() != nullptr && m_platform->focusGrabService()->available();
   const std::uint64_t gen = m_destroyGeneration;
-  DeferredCall::callLater([this, gen]() {
-    if (m_destroyGeneration == gen) {
-      activateFocusGrab();
-    }
-  });
+  if (hasFocusGrab) {
+    activateFocusGrab();
+    m_keyboardRelaxTimer.start(std::chrono::milliseconds(100), [this, gen]() {
+      if (m_destroyGeneration != gen || m_layerSurface == nullptr || m_closing) {
+        return;
+      }
+      m_layerSurface->setKeyboardInteractivity(LayerShellKeyboard::OnDemand);
+    });
+  }
   kLog.debug("panel manager: opened \"{}\"", panelId);
   if (m_panelOpenedCallback) {
     m_panelOpenedCallback();

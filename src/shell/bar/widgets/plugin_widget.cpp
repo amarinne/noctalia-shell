@@ -57,6 +57,23 @@ namespace {
     return value != nullptr ? *value : def;
   }
 
+  // The bar surface never takes keyboard focus and clips to bar thickness, so
+  // keyboard/scroll controls cannot work in a bar tree. Removes them in place,
+  // recording each dropped type; returns false when `node` itself is dropped.
+  bool filterUnsupportedBarControls(ui::UiTreeNode& node, std::vector<std::string>& dropped) {
+    const bool unsupported = node.type == "input" || node.type == "select" || node.type == "scroll";
+    if (unsupported) {
+      if (std::ranges::find(dropped, node.type) == dropped.end()) {
+        dropped.push_back(node.type);
+      }
+      return false;
+    }
+    std::erase_if(node.children, [&dropped](ui::UiTreeNode& child) {
+      return !filterUnsupportedBarControls(child, dropped);
+    });
+    return true;
+  }
+
   std::string joinSpectrumValues(const std::vector<float>& values) {
     std::ostringstream out;
     out.setf(std::ios::fixed, std::ios::floatfield);
@@ -238,6 +255,27 @@ void PluginWidget::create() {
   );
 
   area->addChild(std::move(flex));
+
+  // Declarative host: barWidget.render(tree) reconciles into this Flex and
+  // hides the imperative row above.
+  area->addChild(
+      ui::row({
+          .out = &m_uiHost,
+          .align = FlexAlign::Center,
+          .visible = false,
+      })
+  );
+
+  m_reconciler.setCallbackSink([this](const ui::UiTreeReconciler::ControlCallback& callback) {
+    if (m_runtime != nullptr) {
+      (void)m_runtime->enqueueCallStrings(
+          callback.fn, callback.arg1, callback.arg2, makeScriptSnapshot(), callback.coalesce
+      );
+    }
+  });
+  m_reconciler.setPathResolver([this](const std::string& path) { return resolvePluginPath(path).string(); });
+  m_reconciler.setCompactControls(true);
+
   m_area = area.get();
   setRoot(std::move(area));
 
@@ -311,6 +349,17 @@ void PluginWidget::doLayout(Renderer& renderer, float containerWidth, float cont
   if (m_fontConfigDirty) {
     renderer.notifyFontConfigChanged();
     m_fontConfigDirty = false;
+  }
+
+  if (m_tree.has_value() && m_uiHost != nullptr) {
+    m_uiHost->setDirection(m_isVertical ? FlexDirection::Vertical : FlexDirection::Horizontal);
+    m_reconciler.setScale(contentScale());
+    m_reconciler.setTextDefaults(labelFontFamily(), labelFontWeight());
+    (void)m_reconciler.reconcile(*m_uiHost, *m_tree, renderer);
+    m_uiHost->layout(renderer);
+    if (m_area)
+      m_area->setSize(m_uiHost->width(), m_uiHost->height());
+    return;
   }
 
   m_label->setColor(resolveScriptColor(m_textColor));
@@ -639,6 +688,23 @@ void PluginWidget::handleScriptResult(scripting::ScriptResult result) {
 }
 
 void PluginWidget::applyScriptPatch(const scripting::ScriptPatch& patch) {
+  if (patch.uiTree.has_value()) {
+    applyUiTreePatch(*patch.uiTree);
+  }
+  const bool imperativeContent = patch.text.has_value()
+      || patch.glyph.has_value()
+      || patch.image.has_value()
+      || patch.fontFamily.has_value()
+      || patch.textColor.has_value()
+      || patch.glyphColor.has_value();
+  if (m_tree.has_value() && imperativeContent && !m_warnedImperativeWhileDeclarative) {
+    m_warnedImperativeWhileDeclarative = true;
+    kLog.warn(
+        "plugin widget '{}': setText/setGlyph/setImage/setFont/setColor have no visible effect while a render() tree "
+        "is active",
+        m_entryId
+    );
+  }
   if (patch.fontFamily.has_value()) {
     luaSetFont(*patch.fontFamily);
   }
@@ -666,6 +732,33 @@ void PluginWidget::applyScriptPatch(const scripting::ScriptPatch& patch) {
   if (patch.updateIntervalMs.has_value()) {
     luaSetUpdateInterval(static_cast<float>(*patch.updateIntervalMs));
   }
+}
+
+void PluginWidget::applyUiTreePatch(const ui::UiTreeNode& patchTree) {
+  if (m_uiHost == nullptr || m_flex == nullptr) {
+    return;
+  }
+  ui::UiTreeNode filtered = patchTree;
+  std::vector<std::string> dropped;
+  const bool rootAllowed = filterUnsupportedBarControls(filtered, dropped);
+  const bool changed = !m_tree.has_value() || filtered != *m_tree;
+  if (!dropped.empty() && changed) {
+    std::string typeList;
+    for (const auto& type : dropped) {
+      if (!typeList.empty()) {
+        typeList += ", ";
+      }
+      typeList += type;
+    }
+    kLog.warn("plugin widget '{}': ui control(s) not supported in bar widgets, skipped: {}", m_entryId, typeList);
+  }
+  if (!rootAllowed || !changed) {
+    return;
+  }
+  m_tree = std::move(filtered);
+  m_flex->setVisible(false);
+  m_uiHost->setVisible(true);
+  m_dirty = true;
 }
 
 scripting::ScriptSnapshot PluginWidget::makeScriptSnapshot() const {
@@ -814,6 +907,12 @@ void PluginWidget::reloadScript() {
     m_label->setText("");
     m_label->setVisible(false);
   }
+  m_tree.reset();
+  m_warnedImperativeWhileDeclarative = false;
+  if (m_uiHost)
+    m_uiHost->setVisible(false);
+  if (m_flex)
+    m_flex->setVisible(true);
 
   m_hasOnIpc = false;
   m_hasOnIpcKnown = false;
