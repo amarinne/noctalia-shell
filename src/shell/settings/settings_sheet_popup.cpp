@@ -4,6 +4,7 @@
 #include "core/deferred_call.h"
 #include "render/render_context.h"
 #include "render/scene/node.h"
+#include "shell/settings/settings_content_common.h"
 #include "ui/builders.h"
 #include "ui/controls/label.h"
 #include "ui/controls/select_dropdown_popup.h"
@@ -98,6 +99,17 @@ namespace settings {
       m_sheetTitleLabel->setText(m_sheetTitle);
     }
   }
+
+  void SettingsSheetPopup::setStatusMessage(std::string message, bool error) {
+    m_statusMessage = std::move(message);
+    m_statusIsError = error;
+    if (m_statusBanner != nullptr && m_statusLabel != nullptr) {
+      updateSettingsStatusBanner(*m_statusBanner, *m_statusLabel, m_statusMessage, error);
+      requestLayout();
+    }
+  }
+
+  void SettingsSheetPopup::clearStatusMessage() { setStatusMessage({}, false); }
 
   void SettingsSheetPopup::rebuildBody() {
     if (!isOpen()) {
@@ -235,6 +247,14 @@ namespace settings {
         })
     );
     root->addChild(std::move(header));
+    root->addChild(makeSettingsStatusBanner({
+        .message = m_statusMessage,
+        .error = m_statusIsError,
+        .scale = m_scale,
+        .onDismiss = [this]() { clearStatusMessage(); },
+        .out = &m_statusBanner,
+        .messageOut = &m_statusLabel,
+    }));
 
     if (m_scrollableBody) {
       // Body scrolls when its content exceeds the sheet's clamped height.
@@ -336,8 +356,12 @@ namespace settings {
       // for short bodies (e.g. a two-setting plugin sheet) and clips the last row.
       c.setExactWidth(innerCw);
       const float headerH = m_header->measure(renderer, c).height;
+      float statusH = 0.0f;
+      if (m_statusBanner != nullptr && m_statusBanner->visible()) {
+        statusH = m_statusBanner->measure(renderer, c).height + popupGap;
+      }
       const float contentH = m_body->measure(renderer, c).height;
-      return 2.0f * popupPadding + headerH + popupGap + contentH;
+      return 2.0f * popupPadding + headerH + popupGap + statusH + contentH;
     };
 
     float rootH = naturalHeight(cw);
@@ -376,6 +400,9 @@ namespace settings {
     m_parentOutput = nullptr;
     m_sheetTitle.clear();
     m_sheetTitleLabel = nullptr;
+    m_statusMessage.clear();
+    m_statusBanner = nullptr;
+    m_statusLabel = nullptr;
     m_removeAction = nullptr;
     m_populateSheetBody = nullptr;
     m_root = nullptr;

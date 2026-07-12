@@ -524,8 +524,12 @@ void TooltipManager::refreshPopupContent() {
   auto anchorConfig = buildTooltipAnchorConfig(m_pendingArea);
   anchorConfig.width = contentW;
   anchorConfig.height = contentH;
-  m_surface->resize(contentW, contentH);
-  m_surface->repositionAnchor(anchorConfig);
+  // Leave the new size and position pending on the surface. Committing them now, while the
+  // previous tooltip's buffer is still attached, makes the compositor stretch that stale buffer
+  // to the new geometry (visible as a corrupted, scaled-up tooltip when moving between widgets).
+  // The rebuilt scene is published with the matching buffer on the next redraw.
+  m_surface->resize(contentW, contentH, false);
+  m_surface->repositionAnchor(anchorConfig, false);
 
   m_renderContext->makeCurrent(m_surface->renderTarget());
   m_sceneRoot.reset();
@@ -556,7 +560,7 @@ TooltipManager::Size TooltipManager::measureContent(const TooltipContent& conten
     return {};
   }
 
-  const float scale = (m_config != nullptr) ? std::max(0.1f, m_config->config().shell.uiScale) : 1.0f;
+  const float scale = (m_config != nullptr) ? std::max(0.1f, m_config->config().accessibility.uiScale) : 1.0f;
   const float maxContentWidth = kMaxContentWidth * scale;
   const float fontSize = Style::fontSizeCaption * scale;
   const float padH = kPadH * scale;
@@ -618,7 +622,7 @@ void TooltipManager::buildScene(const TooltipContent& content, float w, float h,
       })
   );
 
-  const float scale = (m_config != nullptr) ? std::max(0.1f, m_config->config().shell.uiScale) : 1.0f;
+  const float scale = (m_config != nullptr) ? std::max(0.1f, m_config->config().accessibility.uiScale) : 1.0f;
   const float maxContentWidth = kMaxContentWidth * scale;
   const float fontSize = Style::fontSizeCaption * scale;
   const float padH = kPadH * scale;

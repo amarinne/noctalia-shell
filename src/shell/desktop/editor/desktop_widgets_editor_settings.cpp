@@ -298,6 +298,11 @@ namespace {
       std::string_view labelText, const std::string& key, int fallback, int minVal, int maxVal, int step,
       const std::optional<std::string>& valueSuffix, const Settings& s, DesktopWidgetsEditor* editor
   ) {
+    // A plugin manifest may declare minValue > maxValue; order the range so both
+    // the clamp and the stepper below get a valid [min, max].
+    if (maxVal < minVal) {
+      std::swap(minVal, maxVal);
+    }
     const int currentValue =
         std::clamp(static_cast<int>(std::llround(getDouble(s, key, static_cast<double>(fallback)))), minVal, maxVal);
     return makeRow(

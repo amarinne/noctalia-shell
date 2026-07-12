@@ -10,6 +10,7 @@
 #include "ipc/ipc_service.h"
 #include "render/render_context.h"
 #include "render/scene/input_area.h"
+#include "shell/bar/bar_corner_shape.h"
 #include "shell/bar/bar_reserved_zone.h"
 #include "shell/clipboard/clipboard_panel.h"
 #include "shell/screen_position.h"
@@ -205,7 +206,7 @@ namespace {
     if (configService == nullptr) {
       return 1.0f;
     }
-    return std::max(0.1f, configService->config().shell.uiScale);
+    return std::max(0.1f, configService->config().accessibility.uiScale);
   }
 
   float resolvePanelCardOpacity(ConfigService* configService, float panelBackgroundOpacity) {
@@ -429,7 +430,32 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
   }
 
   if (request.output == nullptr && m_platform != nullptr) {
-    request.output = m_platform->preferredInteractiveOutput(std::chrono::milliseconds(1200));
+    request.output = m_platform->focusedInteractiveOutput(std::chrono::milliseconds(1200));
+    if (request.output == nullptr) {
+      // No focus source resolved an output (e.g. a compositor with no focus
+      // IPC/backend). Ask the compositor which output an unpinned surface lands
+      // on — the focused one — then reopen with that concrete output so all the
+      // normal placement (attached, bar-relative, per-output config) applies.
+      // Falls back to the arbitrary first output if the probe times out.
+      //
+      // The open is deferred past this call, so the request's string_view fields
+      // are copied into owned storage the continuation keeps alive.
+      m_platform->probeFocusedOutput(
+          [this, panelId, request, context = std::string(request.context),
+           sourceBarName = std::string(request.sourceBarName)](wl_output* probed) mutable {
+            request.output =
+                probed != nullptr ? probed : m_platform->preferredInteractiveOutput(std::chrono::milliseconds(1200));
+            if (request.output == nullptr) {
+              return; // no usable output at all — nothing to open on.
+            }
+            request.context = context;
+            request.sourceBarName = sourceBarName;
+            openPanel(panelId, request);
+          },
+          std::chrono::milliseconds(250)
+      );
+      return;
+    }
   }
 
   if (m_closeDesktopWidgetsEditor) {
@@ -885,17 +911,24 @@ void PanelManager::openPanel(const std::string& panelId, PanelOpenRequest reques
     m_attachedToBar = true;
 
     // Convert panel screen coords to bar-surface-local coords for shadow exclusion.
-    // Bar surface origin sits one shadow bleed inset from the visible bar top-left.
+    // Bar surface origin sits one shadow bleed inset from the visible bar top-left,
+    // plus the screen-edge concave flare: those corners push the surface further into
+    // the end margin, and computeBarSurfaceSpec folds the same inset into its start
+    // margin. Omitting it here drifts the exclusion rect along the main axis.
     const auto barShadowBleed = shell::surface_shadow::bleed(barConfig.shadow, shadowConfig);
+    const auto barConcave = barConcaveShape(barConfig);
+    const auto concaveStartInset = static_cast<std::int32_t>(
+        std::ceil(std::max(0.0f, barIsVertical ? barConcave.logicalInset.top : barConcave.logicalInset.left))
+    );
     std::int32_t barSurfaceLocalVisualX;
     std::int32_t barSurfaceLocalVisualY;
     if (barIsVertical) {
-      barSurfaceLocalVisualY = visualY - (barTop - std::min(mEnds, barShadowBleed.up));
+      barSurfaceLocalVisualY = visualY - (barTop - std::min(mEnds, barShadowBleed.up + concaveStartInset));
       const std::int32_t barSurfaceOriginX =
           barIsLeft ? std::max(0, barLeft - barShadowBleed.left) : barLeft - barShadowBleed.left;
       barSurfaceLocalVisualX = visualX - barSurfaceOriginX;
     } else {
-      barSurfaceLocalVisualX = visualX - (barLeft - std::min(mEnds, barShadowBleed.left));
+      barSurfaceLocalVisualX = visualX - (barLeft - std::min(mEnds, barShadowBleed.left + concaveStartInset));
       const std::int32_t barSurfaceOriginY =
           barIsBottom ? barTop - barShadowBleed.up : std::max(0, barTop - barShadowBleed.up);
       barSurfaceLocalVisualY = visualY - barSurfaceOriginY;
@@ -1294,9 +1327,8 @@ void PanelManager::togglePanel(const std::string& panelId) {
     closePanel();
     return;
   }
-  wl_output* output =
-      m_platform != nullptr ? m_platform->preferredInteractiveOutput(std::chrono::milliseconds(1200)) : nullptr;
-  openPanel(panelId, PanelOpenRequest{.output = output});
+  // Output left unset: openPanel resolves it (focus source, else compositor probe).
+  openPanel(panelId, PanelOpenRequest{});
 }
 
 void PanelManager::clearClipboardHistory() {
@@ -2387,13 +2419,9 @@ void PanelManager::registerIpc(IpcService& ipc) {
     return error;
   };
 
-  auto preferredOutput = [this]() -> wl_output* {
-    return m_platform != nullptr ? m_platform->preferredInteractiveOutput(std::chrono::milliseconds(1200)) : nullptr;
-  };
-
   ipc.registerHandler(
       "panel-toggle",
-      [this, parseOpenArgs, unknownPanelError, preferredOutput](const std::string& args) -> std::string {
+      [this, parseOpenArgs, unknownPanelError](const std::string& args) -> std::string {
         std::string panelId;
         std::string context;
         if (auto error = parseOpenArgs(args, "panel-toggle", panelId, context)) {
@@ -2402,10 +2430,11 @@ void PanelManager::registerIpc(IpcService& ipc) {
         if (!m_panels.contains(panelId)) {
           return unknownPanelError(panelId);
         }
+        // Output left unset: openPanel resolves it (focus source, else compositor probe).
         if (context.empty()) {
           togglePanel(panelId);
         } else {
-          togglePanel(panelId, PanelOpenRequest{.output = preferredOutput(), .context = context});
+          togglePanel(panelId, PanelOpenRequest{.context = context});
         }
         return "ok\n";
       },
@@ -2415,7 +2444,7 @@ void PanelManager::registerIpc(IpcService& ipc) {
 
   ipc.registerHandler(
       "panel-open",
-      [this, parseOpenArgs, unknownPanelError, preferredOutput](const std::string& args) -> std::string {
+      [this, parseOpenArgs, unknownPanelError](const std::string& args) -> std::string {
         std::string panelId;
         std::string context;
         if (auto error = parseOpenArgs(args, "panel-open", panelId, context)) {
@@ -2433,7 +2462,8 @@ void PanelManager::registerIpc(IpcService& ipc) {
           return "ok\n";
         }
 
-        openPanel(panelId, PanelOpenRequest{.output = preferredOutput(), .context = context});
+        // Output left unset: openPanel resolves it (focus source, else compositor probe).
+        openPanel(panelId, PanelOpenRequest{.context = context});
         return "ok\n";
       },
       "panel-open <id> [context]",

@@ -180,41 +180,72 @@ namespace settings {
     );
 
     if (!m_tags.empty()) {
-      std::vector<std::string> allTags;
-      allTags.push_back(i18n::tr("settings.plugins.store.category-all"));
-      allTags.insert(allTags.end(), m_tags.begin(), m_tags.end());
-      std::vector<std::unique_ptr<Button>> tagButtons;
-      for (std::size_t i = 0; i < allTags.size(); ++i) {
-        const bool selected = (i == 0 && m_selectedTag.empty()) || (i > 0 && m_tags[i - 1] == m_selectedTag);
-        auto btn = ui::button({
-            .text = allTags[i],
-            .fontSize = Style::fontSizeCaption * scale,
-            .variant = selected ? ButtonVariant::Default : ButtonVariant::Outline,
-            .radius = Style::scaledRadiusMd(scale),
-            .onClick = [this, i]() {
-              m_selectedTag = i == 0 ? std::string{} : m_tags[i - 1];
-              applyFilter();
-              if (m_onRebuildNeeded) {
-                m_onRebuildNeeded();
-              }
-            },
-        });
-        tagButtons.push_back(std::move(btn));
-      }
-      auto rows = wrapButtonsIntoRows(
-          renderer, tagButtons, body.width() > 0 ? body.width() : 700.0f * scale, Style::spaceXs * scale
+      auto tagsHeader = ui::row({.align = FlexAlign::Center, .justify = FlexJustify::SpaceBetween, .fillWidth = true});
+      tagsHeader->addChild(
+          ui::button({
+              .text = i18n::tr("settings.plugins.store.categories"),
+              .glyph = m_tagFiltersCollapsed ? std::string("chevron-right") : std::string("chevron-down"),
+              .fontSize = Style::fontSizeCaption * scale,
+              .glyphSize = Style::fontSizeCaption * scale,
+              .contentAlign = ButtonContentAlign::Start,
+              .variant = ButtonVariant::Ghost,
+              .onClick = [this]() {
+                m_tagFiltersCollapsed = !m_tagFiltersCollapsed;
+                if (m_onRebuildNeeded) {
+                  m_onRebuildNeeded();
+                }
+              },
+          })
       );
-      for (auto& row : rows) {
-        auto rowFlex = ui::row(
-            {.align = FlexAlign::Center,
-             .justify = FlexJustify::Center,
-             .gap = Style::spaceXs * scale,
-             .fillWidth = true}
-        );
-        for (auto& btn : row) {
-          rowFlex->addChild(std::move(btn));
+
+      const std::string selectedTag =
+          m_selectedTag.empty() ? i18n::tr("settings.plugins.store.category-all") : m_selectedTag;
+      tagsHeader->addChild(
+          ui::label({
+              .text = selectedTag,
+              .fontSize = Style::fontSizeCaption * scale,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+          })
+      );
+      body.addChild(std::move(tagsHeader));
+
+      if (!m_tagFiltersCollapsed) {
+        std::vector<std::string> allTags;
+        allTags.push_back(i18n::tr("settings.plugins.store.category-all"));
+        allTags.insert(allTags.end(), m_tags.begin(), m_tags.end());
+        std::vector<std::unique_ptr<Button>> tagButtons;
+        for (std::size_t i = 0; i < allTags.size(); ++i) {
+          const bool selected = (i == 0 && m_selectedTag.empty()) || (i > 0 && m_tags[i - 1] == m_selectedTag);
+          auto btn = ui::button({
+              .text = allTags[i],
+              .fontSize = Style::fontSizeCaption * scale,
+              .variant = selected ? ButtonVariant::Default : ButtonVariant::Outline,
+              .radius = Style::scaledRadiusMd(scale),
+              .onClick = [this, i]() {
+                m_selectedTag = i == 0 ? std::string{} : m_tags[i - 1];
+                applyFilter();
+                if (m_onRebuildNeeded) {
+                  m_onRebuildNeeded();
+                }
+              },
+          });
+          tagButtons.push_back(std::move(btn));
         }
-        body.addChild(std::move(rowFlex));
+        auto rows = wrapButtonsIntoRows(
+            renderer, tagButtons, body.width() > 0 ? body.width() : 700.0f * scale, Style::spaceXs * scale
+        );
+        for (auto& row : rows) {
+          auto rowFlex = ui::row(
+              {.align = FlexAlign::Center,
+               .justify = FlexJustify::Center,
+               .gap = Style::spaceXs * scale,
+               .fillWidth = true}
+          );
+          for (auto& btn : row) {
+            rowFlex->addChild(std::move(btn));
+          }
+          body.addChild(std::move(rowFlex));
+        }
       }
     }
 

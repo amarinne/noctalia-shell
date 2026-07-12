@@ -57,6 +57,9 @@ namespace scripting {
       if (src.fontFamily.has_value()) {
         dest.fontFamily = src.fontFamily;
       }
+      if (src.fontBaseline.has_value()) {
+        dest.fontBaseline = src.fontBaseline;
+      }
       if (src.textColor.has_value()) {
         dest.textColor = src.textColor;
       }

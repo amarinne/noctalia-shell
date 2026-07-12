@@ -8,6 +8,7 @@
 #include "render/scene/rect_node.h"
 #include "ui/palette.h"
 #include "ui/style.h"
+#include "util/clamp.h"
 
 #include <algorithm>
 #include <cmath>
@@ -257,7 +258,9 @@ void Slider::updateGeometry() {
   m_fill->setPosition(trackX, trackY);
   m_fill->setFrameSize(std::max(0.0f, thumbX - trackX), m_trackHeight);
 
-  m_thumb->setPosition(std::clamp(thumbX - m_thumbSizePx * 0.5f, trackX, trackX + trackW - m_thumbSizePx), thumbY);
+  m_thumb->setPosition(
+      util::clampOrdered(thumbX - m_thumbSizePx * 0.5f, trackX, trackX + trackW - m_thumbSizePx), thumbY
+  );
   m_thumb->setFrameSize(m_thumbSizePx, m_thumbSizePx);
 
   m_inputArea->setPosition(0.0f, 0.0f);

@@ -49,7 +49,7 @@ public:
   void luaSetGlyph(std::string_view name);
   void luaSetImage(std::string_view path, bool watch, float width, float height);
   void luaSetTooltip(const scripting::ScriptTooltipPatch& tooltip);
-  void luaSetFont(std::string_view familyOrPath);
+  void luaSetFont(std::string_view family, std::string_view baseline);
   void luaSetColor(std::string_view role, std::string_view mode);
   void luaSetGlyphColor(std::string_view role, std::string_view mode);
   void luaSetVisible(bool visible);
@@ -165,7 +165,6 @@ private:
   bool m_imageForceReload = false;
   bool m_hasOnIpc = false;
   bool m_hasOnIpcKnown = false;
-  bool m_fontConfigDirty = false;
   FileWatcher::WatchId m_imageWatchId = 0;
   std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
 };

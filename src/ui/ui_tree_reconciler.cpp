@@ -267,7 +267,8 @@ namespace ui {
                                                            "borderWidth", "softness", "onClick"};
       static const std::unordered_set<std::string> kLabel = {"width",      "height",   "flexGrow", "opacity",
                                                              "visible",    "text",     "fontSize", "color",
-                                                             "fontWeight", "maxWidth", "maxLines", "textAlign"};
+                                                             "fontWeight", "maxWidth", "maxLines", "textAlign",
+                                                             "fontFamily", "baseline"};
       static const std::unordered_set<std::string> kGlyph = {"width",   "height", "flexGrow", "opacity",
                                                              "visible", "name",   "size",     "color"};
       static const std::unordered_set<std::string> kImage = {"width",   "height",      "flexGrow", "opacity",
@@ -663,7 +664,20 @@ namespace ui {
 
     if (desired.type == "label") {
       auto* label = static_cast<Label*>(node);
-      label->setFontFamily(m_defaultFontFamily);
+      if (const std::string* fontFamily = strProp(desired, "fontFamily")) {
+        label->setFontFamily(*fontFamily);
+      } else {
+        label->setFontFamily(m_defaultFontFamily);
+      }
+      LabelBaselineMode baselineMode = LabelBaselineMode::Text;
+      if (const std::string* baseline = strProp(desired, "baseline")) {
+        if (auto mode = labelBaselineModeFromToken(*baseline)) {
+          baselineMode = *mode;
+        } else {
+          kLog.warn("ui node 'label': unknown baseline '{}'", *baseline);
+        }
+      }
+      label->setBaselineMode(baselineMode);
       if (const std::string* text = strProp(desired, "text")) {
         label->setText(*text);
       }

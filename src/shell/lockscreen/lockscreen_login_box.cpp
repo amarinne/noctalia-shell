@@ -87,6 +87,9 @@ namespace lockscreen_login_box {
 
     [[nodiscard]] float screenWidthForOutput(const WaylandConnection& wayland, std::string_view outputName) {
       for (const auto& output : wayland.outputs()) {
+        if (!output.done || output.output == nullptr || !output.hasUsableGeometry()) {
+          continue;
+        }
         if (desktop_widgets::outputKey(output) == outputName) {
           return desktop_widgets::outputLogicalWidth(output);
         }
@@ -116,7 +119,7 @@ namespace lockscreen_login_box {
 
   float resolvePanelWidth(float screenWidth, float boxWidth) {
     if (boxWidth > 0.0f) {
-      return std::clamp(boxWidth, kMinPanelWidth, screenWidth - Style::spaceLg * 2.0f);
+      return std::clamp(boxWidth, kMinPanelWidth, std::max(kMinPanelWidth, screenWidth - Style::spaceLg * 2.0f));
     }
     return defaultPanelWidth(screenWidth);
   }

@@ -139,6 +139,32 @@ void Application::initIpc() {
       "status", "Print current state as JSON"
   );
 
+  m_ipcService.registerHandler(
+      "log-level-set",
+      [](const std::string& args) -> std::string {
+        const auto parts = noctalia::ipc::splitWords(args);
+        if (parts.size() != 1) {
+          return "error: log-level-set requires <debug|info|warn|error>\n";
+        }
+
+        const auto level = parseLogLevel(parts[0]);
+        if (!level.has_value()) {
+          return "error: invalid log level (use debug, info, warn, or error)\n";
+        }
+
+        setLogLevel(*level);
+        kLog.info("log level set to {}", logLevelName(*level));
+        return "ok\n";
+      },
+      "log-level-set <debug|info|warn|error>", "Set the console log level"
+  );
+
+  m_ipcService.registerHandler(
+      "log-level-status",
+      [](const std::string&) -> std::string { return std::string(logLevelName(currentLogLevel())) + "\n"; },
+      "log-level-status", "Print the current console log level"
+  );
+
   auto applyNotificationDnd = [this](bool enabled) {
     m_notificationManager.setDoNotDisturb(enabled);
     m_bar.refresh();

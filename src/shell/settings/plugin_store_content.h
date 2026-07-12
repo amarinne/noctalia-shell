@@ -66,6 +66,7 @@ namespace settings {
     std::vector<std::size_t> m_filteredIndices;
     std::unordered_set<std::string> m_onDiskIds;
     std::vector<std::string> m_tags;
+    bool m_tagFiltersCollapsed = true;
     std::string m_searchQuery;
     std::string m_selectedTag;
     PluginStoreCallbacks m_callbacks;

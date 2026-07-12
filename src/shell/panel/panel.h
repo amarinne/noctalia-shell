@@ -112,7 +112,7 @@ public:
     return std::move(m_root);
   }
 
-  void setAnimationManager(AnimationManager* mgr) noexcept { m_animations = mgr; }
+  virtual void setAnimationManager(AnimationManager* mgr) noexcept { m_animations = mgr; }
 
 protected:
   [[nodiscard]] float scaled(float value) const noexcept { return value * m_contentScale; }

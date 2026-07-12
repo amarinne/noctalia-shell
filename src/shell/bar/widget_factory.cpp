@@ -217,8 +217,10 @@ std::unique_ptr<Widget> WidgetFactory::create(
     std::string format = wc != nullptr ? wc->getString("format", "{:%H:%M}") : std::string("{:%H:%M}");
     std::string verticalFormat = wc != nullptr ? wc->getString("vertical_format", "") : std::string{};
     std::string tooltipFormat = wc != nullptr ? wc->getString("tooltip_format", "") : std::string{};
-    auto widget =
-        std::make_unique<ClockWidget>(output, std::move(format), std::move(verticalFormat), std::move(tooltipFormat));
+    auto widget = std::make_unique<ClockWidget>(
+        output, std::move(format), std::move(verticalFormat), std::move(tooltipFormat),
+        wc != nullptr ? wc->getString("timezone", "") : std::string{}
+    );
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -328,9 +330,10 @@ std::unique_ptr<Widget> WidgetFactory::create(
     const bool hideWhenNoMedia = wc != nullptr ? wc->getBool("hide_when_no_media", false) : false;
     const bool albumArtOnly = wc != nullptr ? wc->getBool("album_art_only", false) : false;
     const bool hideAlbumArt = wc != nullptr ? wc->getBool("hide_album_art", false) : false;
+    const bool hideArtist = wc != nullptr ? wc->getBool("hide_artist", false) : false;
     auto widget = std::make_unique<MediaWidget>(
         m_mpris, m_httpClient, output, maxWidth, minWidth, artSize, parseMediaTitleScrollMode(titleScroll),
-        hideWhenNoMedia, albumArtOnly, hideAlbumArt
+        hideWhenNoMedia, albumArtOnly, hideAlbumArt, hideArtist
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -539,6 +542,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .hideEmptyWorkspaces = wc != nullptr ? wc->getBool("hide_empty_workspaces", false) : false,
         .workspaceGroupCapsule = wc != nullptr ? wc->getBool("workspace_group_capsule", true) : true,
         .focusedOutputOnly = wc != nullptr ? wc->getBool("focused_output_only", false) : false,
+        .minimal = wc != nullptr ? wc->getBool("minimal", false) : false,
         .groupSingleIconPerApp = wc != nullptr ? wc->getBool("group_single_icon_per_app", false) : false,
         .showActiveIndicator = wc != nullptr ? wc->getBool("show_active_indicator", true) : true,
         .activeOpacity = wc != nullptr ? static_cast<float>(wc->getDouble("active_opacity", 1.0)) : 1.0f,

@@ -10,6 +10,7 @@
 #include "theme/image_loader.h"
 #include "theme/json_output.h"
 #include "theme/palette_generator.h"
+#include "theme/palette_transform.h"
 #include "theme/scheme.h"
 #include "theme/template_engine.h"
 #include "util/file_utils.h"
@@ -54,6 +55,7 @@ namespace noctalia::theme {
         "  --dark            Emit only the dark variant (default)\n"
         "  --light           Emit only the light variant\n"
         "  --both            Emit both variants under dark/light keys\n"
+        "  --pure-black      Re-anchor the dark surface ramp to true black (OLED)\n"
         "  --theme-json <f>  Load precomputed dark/light token maps from JSON\n"
         "  -o <file>         Write JSON to file instead of stdout\n"
         "  -r <in:out>       Render a template file to an output path\n"
@@ -419,6 +421,7 @@ namespace noctalia::theme {
     const char* themeJsonPath = nullptr;
     std::string schemeName = "m3-tonal-spot";
     Variant variant = Variant::Dark;
+    bool pureBlack = false;
     const char* outPath = nullptr;
     const char* configPath = nullptr;
     std::string builtinConfigPathStorage;
@@ -451,6 +454,10 @@ namespace noctalia::theme {
       }
       if (std::strcmp(a, "--both") == 0) {
         variant = Variant::Both;
+        continue;
+      }
+      if (std::strcmp(a, "--pure-black") == 0) {
+        pureBlack = true;
         continue;
       }
       if (std::strcmp(a, "-o") == 0 && i + 1 < argc) {
@@ -528,6 +535,10 @@ namespace noctalia::theme {
         return 1;
       }
       palette = std::move(*generated);
+    }
+
+    if (pureBlack) {
+      applyPureBlackDark(palette);
     }
 
     const std::string json = toJson(palette, *schemeOpt, variant);

@@ -84,6 +84,30 @@ void TrayDrawerPanel::create() {
       }
   );
   m_drawerWidget->setContentScale(contentScale());
+  if (m_config != nullptr && !m_config->config().bars.empty()) {
+    const auto& barConfig = m_config->config().bars.front();
+    const WidgetConfig* trayConf = nullptr;
+    if (const auto it = m_config->config().widgets.find("tray"); it != m_config->config().widgets.end()) {
+      trayConf = &it->second;
+    }
+    m_drawerWidget->setBarCapsuleSpec(resolveWidgetBarCapsuleSpec(barConfig, trayConf));
+  }
+  m_drawerWidget->setAnimationManager(m_animations);
+  m_drawerWidget->setUpdateCallback([]() { PanelManager::instance().requestUpdateOnly(); });
+  m_drawerWidget->setRedrawCallback([]() { PanelManager::instance().requestRedraw(); });
+  m_drawerWidget->setFrameTickRequestCallback([]() { PanelManager::instance().requestFrameTick(); });
+  m_drawerWidget->setPanelToggleCallback([](std::string_view id, std::string_view context, std::optional<float> ax,
+                                            std::optional<float> ay) {
+    PanelManager::instance().togglePanel(
+        std::string(id),
+        PanelOpenRequest{
+            .anchorX = ax.has_value() ? std::round(*ax) : 0.0f,
+            .anchorY = ay.has_value() ? std::round(*ay) : 0.0f,
+            .hasAnchorPosition = ax.has_value() && ay.has_value(),
+            .context = std::string(context),
+        }
+    );
+  });
   m_drawerWidget->create();
   setRoot(m_drawerWidget->releaseRoot());
 }
@@ -91,6 +115,13 @@ void TrayDrawerPanel::create() {
 void TrayDrawerPanel::onClose() {
   m_drawerWidget.reset();
   clearReleasedRoot();
+}
+
+void TrayDrawerPanel::setAnimationManager(AnimationManager* mgr) noexcept {
+  Panel::setAnimationManager(mgr);
+  if (m_drawerWidget != nullptr) {
+    m_drawerWidget->setAnimationManager(mgr);
+  }
 }
 
 void TrayDrawerPanel::doLayout(Renderer& renderer, float width, float height) {

@@ -31,6 +31,7 @@
       "choose-display": "Kijelző kiválasztása",
       "confirm-region": "Enter vagy Szóköz a rögzítéshez · Esc a művelet megszakításához · Húzás (egérrel) az újra kijelöléshez",
       "fullscreen": "Teljes képernyő",
+      "overlay-alloc-failed": "Nem sikerült megjeleníteni a képernyőkép-átfedést (elfogyott a videómemória?)",
       "region": "Terület kiválasztása"
     },
     "widgets": {
@@ -211,7 +212,8 @@
       "all-day": "Egész nap",
       "events": "Események",
       "no-events": "Nincsenek események.",
-      "today": "Ma"
+      "today": "Ma",
+      "toggle-events-card": "Események kártya be-/kikapcsolása"
     },
     "display": {
       "disabled": "Letiltva",
@@ -249,6 +251,7 @@
     "network": {
       "connect": "Csatlakozás",
       "current-connection": "Jelenlegi kapcsolat",
+      "external-ip": "WAN {ip}",
       "no-networks": "Nincs hálózat a közelben",
       "not-connected": "Nincs csatlakozva",
       "password": "Jelszó",
@@ -286,8 +289,8 @@
       "performance-inhibited": "Teljesítmény nem elérhető",
       "peripherals": "Csatlakoztatott eszközök",
       "power-profile": "Energiaprofil",
-      "time-to-empty": "{time} hátralevő idő",
-      "time-to-full": "{time} teljes töltöttségig",
+      "time-to-empty": "{time} van hátra",
+      "time-to-full": "{time} a teljes töltöttségig",
       "unknown-device": "Ismeretlen eszköz"
     },
     "screen-time": {
@@ -337,7 +340,7 @@
       "labels": {
         "load": "CPU-terhelés",
         "ram": "RAM",
-        "swap": "Swap"
+        "swap": "Cserehely"
       },
       "titles": {
         "cpu": "CPU",
@@ -368,6 +371,15 @@
       "weather": "Időjárás"
     },
     "weather": {
+      "daily": {
+        "tooltip": {
+          "condition": "Körülmények",
+          "high": "Magas",
+          "low": "Alacsony",
+          "sunrise": "Napfelkelte",
+          "sunset": "Napnyugta"
+        }
+      },
       "data-unavailable": "Az időjárási adatok nem érhetők el",
       "details": {
         "elevation": "Emelkedés",
@@ -376,6 +388,7 @@
         "temp-max": "Maximális hőmérséklet",
         "temp-min": "Minimális hőmérséklet",
         "timezone": "Időzóna",
+        "uv-index": "UV Index",
         "wind": "Szél"
       },
       "disabled": "Engedélyezd a [weather] részt a config.toml fájlban",
@@ -384,6 +397,19 @@
         "day": "Vasárnap",
         "description": "Időjárás",
         "temperature": "10 / 4C"
+      },
+      "forecast-view": {
+        "daily": "Napi",
+        "hourly": "Óránkénti"
+      },
+      "hourly": {
+        "summary": "{condition} / Eső {precip}%",
+        "tooltip": {
+          "condition": "Körülmények",
+          "humidity": "Páratartalom",
+          "rain": "Eső",
+          "wind": "Szél"
+        }
       },
       "location-unavailable": "A hely nem érhető el",
       "no-location-body": "Add meg a címed, vagy engedélyezd az automatikus helymeghatározást a Hely menüpontban.",
@@ -459,6 +485,11 @@
         "label-min-width": "Címke minimális szélessége",
         "layout": "Elrendezés",
         "mirrored": "Tükrözött",
+        "network-speed-compact": "Kompakt hálózati sebesség",
+        "network-speed-unit": "Hálózati sebesség mértékegysége",
+        "network-speed-unit-auto": "Auto",
+        "network-speed-unit-kilobytes": "kB/s",
+        "network-speed-unit-megabytes": "MB/s",
         "opacity": "Átlátszatlanság",
         "primary-color": "Elsődleges szín",
         "reset-defaults": "Alapértelmezett beállítások visszaállítása",
@@ -467,9 +498,12 @@
         "secondary-color": "Másodlagos szín",
         "sensitivity": "Érzékenység",
         "shadow": "Árnyék",
+        "show-caps-lock": "Caps Lock figyelmeztetés",
         "show-forecast": "Előrejelzés mutatása",
+        "show-keyboard-layout": "Billentyűzetkiosztás",
         "show-label": "Címke megjelenítése",
         "show-login-button": "Bejelentkezés gomb",
+        "show-password-hint": "Jelszótipp",
         "show-when-idle": "Megjelenítés tétlenség esetén",
         "stat": "Statisztika",
         "stat-cpu-temp": "CPU-hőmérséklet",
@@ -620,6 +654,7 @@
   "lockscreen": {
     "authenticating": "Hitelesítés…",
     "authentication-failed": "Hitelesítés sikertelen",
+    "caps-lock-on": "A Caps Lock be van kapcsolva",
     "password-cleared": "Jelszó törölve",
     "password-placeholder": "Jelszó",
     "ready": "Írd be a jelszavad, majd nyomd meg az Enter billentyűt.",
@@ -656,7 +691,12 @@
       "desktop-widgets-editor": "Widget-szerkesztő",
       "desktop-widgets-editor-enabled": "Az asztali widget-szerkesztő be van kapcsolva. Válts egy üres munkaterületre, hogy lásd a szerkesztőfelületet.",
       "greeter-sync": "Noctalia Greeter",
+      "greeter-sync-pending": "Várakozás a rendszergazda jóváhagyására a „greeter” fájlba történő íráshoz.",
+      "greeter-sync-pending-console": "A rendszergazda jóváhagyására vár. Hagyd jóvá a polkit felugró ablakot a Noctalia-ban, TTY-n vagy konzolon, vagy futtasd manuálisan a pkexec parancsot.",
+      "greeter-sync-pending-manual": "A fájlok elő vannak készítve. Futtasd a terminálban: pkexec noctalia-greeter-apply-appearance „$XDG_RUNTIME_DIR/noctalia-greeter-sync” vagy állítsd be a shell.greeter_sync.privilege_command értéket (például ghostty -e pkexec), majd hajtsd végre újra a szinkronizálást.",
       "greeter-sync-success": "Megjelenés szinkronizálva. A változások a következő bejelentkezési képernyőn lépnek érvénybe.",
+      "greeter-sync-timeout": "A Greeter szinkronizálása még mindig a rendszergazda jóváhagyására vár. Ellenőrizd, megjelenik-e a polkit parancssor a TTY-n vagy a konzolon, engedélyezd a polkit ügynököt a Biztonsági beállításokban, vagy futtasd manuálisan a pkexec parancsot.",
+      "greeter-sync-timeout-manual": "A Greeter szinkronizálásához továbbra is rendszergazdai jóváhagyás szükséges. Futtasd a terminálban: pkexec noctalia-greeter-apply-appearance „$XDG_RUNTIME_DIR/noctalia-greeter-sync”",
       "keybind-app": "Noctalia",
       "keybind-invalid-modifier": "Ez a gyorsbillentyű egyetlen billentyűt fogad el módosítók nélkül.",
       "keybind-invalid-printable": "A nyomtatható billentyűk (betűk, számok, szimbólumok) módosító billentyűt igényelnek, mint például a Ctrl vagy az Alt.",
@@ -668,6 +708,8 @@
       "lockscreen-widgets-editor-blocked-locked": "Oldd fel a munkamenetet, mielőtt szerkesztenéd a zárolási képernyő widgeteit.",
       "lockscreen-widgets-editor-enabled": "A zárolási képernyő widget-szerkesztője be van kapcsolva. Rendezd el a widgeteket az előnézeti átfedésen, majd zárold a munkamenetet az elrendezés ellenőrzéséhez.",
       "mpris-disabled": "MPRIS letiltva",
+      "polkit-agent": "Polkit Agent",
+      "polkit-no-session": "A Polkit agent-nek szüksége van a logind-re, az elogind-re vagy az XDG_SESSION_ID-re. A kizárólag seatd-t futtató rendszereken nem tud regisztrálni a grafikus bejelentkezési képernyőkhöz. A bejelentkezési képernyő szinkronizálásához használd a terminálon futó pkexec parancsot, vagy telepítsd az elogind-t a munkamenet közbeni hitelesítéshez.",
       "screen-time-reset": "Képernyőidő",
       "screen-time-reset-success": "A felhasználói előzmények törlődtek.",
       "session-bus-unavailable": "A munkamenet-busz nem érhető el",
@@ -719,6 +761,19 @@
       "on": "Wi-Fi bekapcsolva"
     }
   },
+  "plugins": {
+    "auto-disabled": {
+      "body-errors": "A {plugin} túl sok hibát okozott, ezért letiltásra került. A probléma kijavítása után frissítsd újra.",
+      "body-timeouts": "A {plugin} nem válaszol, ezért letiltásra került. A probléma kijavítása után frissítsd újra.",
+      "title": "Bővítmény letiltva"
+    },
+    "enable-failed": {
+      "body-error": "{plugin}: {error}",
+      "body-incompatible": "A {plugin} a Noctalia {version} vagy újabb verzióját igényli.",
+      "body-timeout": "A {plugin} telepítése túl sokáig tartott.",
+      "title": "Bővítmény nincs engedélyezve"
+    }
+  },
   "power": {
     "battery": {
       "states": {
@@ -767,6 +822,8 @@
     },
     "badges": {
       "advanced": "Speciális",
+      "community": "Közösség",
+      "deprecated": "Elévült",
       "inherited": "Öröklött",
       "monitor": "Monitor",
       "official": "Hivatalos",
@@ -861,11 +918,23 @@
           "border": "Szegély",
           "border-description": "A kapszula körvonalának színszerepe; hagyd alapértelmezetten, ha nem szeretnél körvonalat",
           "clear": "Törlés",
+          "drawer-columns": "Fiók Oszlopok",
+          "drawer-columns-description": "A fiókpanelen soronként megjelenő widgetek száma",
+          "drawer-detached": "Különálló panel",
+          "drawer-detached-description": "A fiókot lebegő panelként nyissa meg, saját háttérrel, a sávval való összeolvasztás helyett",
+          "drawer-enabled": "Fiók",
+          "drawer-enabled-description": "A csoportos widgetek áthelyezése egy gombbal állítható fiókpanelbe",
+          "drawer-glyph-closed": "Bezárva ikon",
+          "drawer-glyph-closed-description": "A panel bezárt állapotában a fiók kapcsoló gombján megjelenő szimbólum",
+          "drawer-glyph-opened": "Nyitva ikon",
+          "drawer-glyph-opened-description": "A panel nyitott állapotában a fiók kapcsoló gombján megjelenő szimbólum",
           "edit": "Stílus szerkesztése",
           "fill": "Háttér",
           "fill-description": "A kapszula háttérszín szerepe; fix hexadecimális színek is támogatottak",
           "foreground": "Előtér",
           "foreground-description": "A csoportban lévő widgetek ikonjának és feliratának színszerepe",
+          "hide": "Csoport elrejtése",
+          "hide-widget": "Widget elrejtése",
           "hint": "Egy kapszulacsoport része",
           "members": "{count} widget",
           "opacity": "Átlátszatlanság",
@@ -876,6 +945,8 @@
           "radius": "Rádiusz",
           "radius-description": "A kapszula sarokkerekítése képpontban; az „Automatikus” beállítás örökli a sáv kapszulasugarát",
           "selected": "{count} kiválasztva",
+          "show": "Csoport mutatása",
+          "show-widget": "Widget mutatása",
           "style": "Stílus",
           "title": "Kapszulacsoport",
           "ungroup": "Csoport bontása"
@@ -947,6 +1018,8 @@
       "reset-page": "Nem sikerült visszaállítani néhány beállítást.",
       "support-report": "Nem sikerült menteni a támogatási jelentést.",
       "sync-greeter": "Nem sikerült szinkronizálni a megjelenést a Noctalia Greeterrel.",
+      "sync-greeter-timeout": "A Greeter szinkronizálása még mindig a rendszergazda jóváhagyására vár. Ellenőrizd, megjelenik-e a polkit parancssor a TTY-n vagy a konzolon, engedélyezd a polkit ügynököt a Biztonsági beállításokban, vagy futtasd manuálisan a pkexec parancsot.",
+      "sync-greeter-timeout-manual": "A Greeter szinkronizálásához továbbra is rendszergazdai jóváhagyás szükséges. Futtasd a terminálban: pkexec noctalia-greeter-apply-appearance „$XDG_RUNTIME_DIR/noctalia-greeter-sync”",
       "widget": {
         "rename": "Nem sikerült átnevezni az elnevezett widgetet."
       },
@@ -993,6 +1066,7 @@
     "navigation": {
       "groups": {
         "audio": "Hang",
+        "authentication": "Hitelesítés",
         "automation": "Automatizálás",
         "backdrop": "Háttér",
         "background": "Háttér",
@@ -1012,8 +1086,10 @@
         "focus-styling": "Fókuszstílus",
         "formats": "Formátumok",
         "general": "Általános",
+        "greeter": "Greeter",
         "grouping": "Csoportosítás",
         "home": "Kezdőlap",
+        "hot-corners": "Aktív sarkok",
         "idle": "Tétlen",
         "interface": "Felület",
         "keybinds": "Gyorsbillentyűk",
@@ -1035,7 +1111,9 @@
         "osd": "Képernyőkijelzés",
         "overview": "Áttekintés",
         "pinned-apps": "Rögzített alkalmazások",
+        "polkit": "Polkit",
         "power": "Energiagazdálkodás",
+        "privacy": "Adatvédelem",
         "profile": "Profil",
         "screen-corners": "Képernyősarkok",
         "screen-time": "Képernyőidő",
@@ -1062,6 +1140,7 @@
         "dock": "Dokk",
         "hooks": "Eseményindítók",
         "keybinds": "Billentyűkiosztás",
+        "launcher": "Indító",
         "location": "Hely",
         "niri": "Niri",
         "notifications": "Értesítések",
@@ -1091,6 +1170,8 @@
           "toast": "felugró értesítések"
         },
         "flags-label": "Egyezés esetén",
+        "match-content-label": "Regex tartalom",
+        "match-content-placeholder": "Regex-minta a szövegtestnek vagy a szöveges összefoglalónak megfelelően",
         "match-label": "Alkalmazás",
         "match-placeholder": "Alkalmazásnév, asztali bejegyzés vagy kategória…",
         "play-sound": "Hang lejátszása",
@@ -1143,6 +1224,12 @@
         "ultra-heavy": "Ultra vastag",
         "ultra-light": "Ultra vékony"
       },
+      "hot-corners": {
+        "control-center": "Vezérlőközpont",
+        "launcher": "Indító",
+        "none": "Nincs",
+        "window-switcher": "Ablakváltó"
+      },
       "layer": {
         "overlay": "Átfedés",
         "top": "Felül"
@@ -1155,6 +1242,9 @@
       "orientation": {
         "horizontal": "Vízszintes",
         "vertical": "Függőleges"
+      },
+      "panel-position": {
+        "auto": "Sáv követése"
       },
       "screen-position": {
         "bottom-center": "Alul középen",
@@ -1239,23 +1329,31 @@
       }
     },
     "plugins": {
+      "browse-store": "Bővítmények böngészése",
       "panels": {
         "open-near-click": {
+          "description": "A panel megnyitása azon sáv mellett, amelyik aktiválta",
           "label": "Megnyitás kattintás közelében"
         },
         "placement": {
+          "description": "Rögzítse a panelt a sávhoz, vagy hagyja szabadon lebegni a sáv szélének közelében",
           "label": "Elhelyezés"
         },
         "position": {
+          "description": "A képernyő helyzete lebegő panel esetén",
           "label": "Pozíció"
         }
       },
       "plugins": {
         "configure": "Beállítás",
+        "delete": "Törlés",
+        "delete-confirm-desc": "Ez a bővítmény eltávolításra kerül a merevlemezről",
+        "delete-confirm-title": "{name} törlése?",
         "deprecated": "elavult",
         "empty": "Nem találhatók bővítmények. Adj meg egy forrást vagy ellenőrizd a hálózatot.",
         "loading": "Bővítmények betöltése…",
         "refreshing": "Bővítmények frissítése…",
+        "remove": "Bővítmény eltávolítása",
         "requires": "Szükséges: {dependencies}",
         "requires-newer-noctalia": "újabb Noctalia szükséges",
         "title": "Bővítmények"
@@ -1284,11 +1382,24 @@
         "location-placeholder-path": "~/dev/noctalia-plugins",
         "name-label": "Forrásazonosító",
         "name-placeholder": "saját-bővítmények",
+        "precedence-hint": "Az alacsonyabb szintű források felülírják a magasabb szintűeket, ha ugyanazt a bővítményt kínálják",
         "remove": "Forrás eltávolítása",
         "save": "Mentés",
         "title": "Források",
         "update": "Frissítés",
         "update-on-startup": "Frissítés indításkor"
+      },
+      "store": {
+        "add": "Hozzáadás a Noctaliához",
+        "categories": "Kategóriák",
+        "category-all": "Összes",
+        "empty": "Nem találhatók bővítmények",
+        "incompatible": "Nem kompatibilis",
+        "loading": "A katalógus betöltése...",
+        "no-readme": "Nincs elérhető leírás.",
+        "results-count": "{count} bővítmény",
+        "search-placeholder": "Bővítmények keresése…",
+        "title": "Bővítményáruház"
       }
     },
     "schema": {
@@ -1423,6 +1534,10 @@
           "description": "Widgetek a sáv közepén",
           "label": "Középső widgetek"
         },
+        "concave-edge-corners": {
+          "description": "Véss be konkáv bevágásokat a sáv két sarkába. Ehhez a szélső margó értékének 0-nak kell lennie. Ha a végmargó értéke 0, akkor a sáv belső szélén lévő sarkok kerülnek bevésésre; ellenkező esetben a képernyő széléhez érintkező sarkok kerülnek bevésésre.",
+          "label": "Konkáv szélek a sarkokban"
+        },
         "contact-shadow": {
           "description": "Sötét színátmenet a csatolt panel és a sáv között, amely mélységérzetet kelt az illesztésnél"
         },
@@ -1490,6 +1605,10 @@
           "description": "A sáv widgetfeliratainak alapértelmezett betűvastagsága.",
           "label": "Betűvastagság"
         },
+        "hover-highlight": {
+          "description": "Az egérmutató alatt lévő widgetet halványan színezze be a saját előtérszínével",
+          "label": "Egér allatt megjelenő kiemelés"
+        },
         "layer": {
           "description": "Használj Átfedést, hogy a sávot teljes képernyős alkalmazások felett jelenítsd meg. A rögzített panelek követik a sávot.",
           "label": "Wayland Réteg"
@@ -1511,6 +1630,7 @@
           "description": "A sávból vetíti a globális felületi árnyékot"
         },
         "show-on-workspace-switch": {
+          "description": "Az aktív munkaterület megváltozásakor rövid ideig mutassa a sávot",
           "label": "Megjelenítés a munkaterület-váltáskor"
         },
         "start-widgets": {
@@ -1540,27 +1660,39 @@
       },
       "desktop": {
         "hot-corners-bottom-left": {
+          "description": "Művelet, amikor a mutató a bal alsó sarokba ér",
           "label": "Alsó bal sarok"
         },
         "hot-corners-bottom-left-command": {
+          "description": "A bal alsó sarokhoz érve futtatandó shell-parancs",
           "label": "Parancs"
         },
         "hot-corners-bottom-right": {
+          "description": "Művelet, amikor a mutató érinti a jobb alsó sarkot",
           "label": "Alsó jobb sarok"
         },
         "hot-corners-bottom-right-command": {
+          "description": "A jobb alsó sarokhoz érve futtatandó shell-parancs",
           "label": "Parancs"
         },
+        "hot-corners-enabled": {
+          "description": "Indíts el műveleteket az egérmutatót a képernyő sarkaihoz érintve",
+          "label": "Aktív sarkok"
+        },
         "hot-corners-top-left": {
+          "description": "Művelet, amikor a mutató a bal felső sarkhoz ér",
           "label": "Felső bal sarok"
         },
         "hot-corners-top-left-command": {
+          "description": "A bal felső sarokhoz érve futtandó shell-parancs",
           "label": "Parancs"
         },
         "hot-corners-top-right": {
+          "description": "Művelet, amikor a mutató a jobb felső sarkhoz ér",
           "label": "Felső jobb sarok"
         },
         "hot-corners-top-right-command": {
+          "description": "A jobb felső sarok érintésére futó shell-parancs",
           "label": "Parancs"
         },
         "screen-corners-enabled": {
@@ -2412,6 +2544,10 @@
         "privacy-mic-filter-regex": {
           "description": "A mikrofonalmazások számára ignorálandó Regex az adatvédelmi jelzőkön és OSD-ken belül",
           "label": "Regex mikrofon szűrő"
+        },
+        "privacy-screen-filter-regex": {
+          "description": "A képernyőmegosztó alkalmazások számára szükséges reguláris kifejezés (Regex), amelyet az adatvédelmi jelzők és az OSD-k figyelmen kívül hagynak",
+          "label": "Képernyőmegosztási szűrő Regex"
         },
         "screen-time-enabled": {
           "description": "Alkalmazásonkénti használat követése és megjelenítése a Control Centerben",

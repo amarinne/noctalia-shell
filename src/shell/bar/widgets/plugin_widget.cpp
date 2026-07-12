@@ -19,13 +19,11 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
-#include <fontconfig/fontconfig.h>
 #include <fstream>
 #include <iomanip>
 #include <linux/input-event-codes.h>
 #include <optional>
 #include <sstream>
-#include <unordered_set>
 #include <vector>
 
 namespace {
@@ -85,48 +83,6 @@ namespace {
       out << values[i];
     }
     return out.str();
-  }
-
-  std::unordered_set<std::string>& registeredFontFiles() {
-    static std::unordered_set<std::string> s;
-    return s;
-  }
-
-  std::string registerFontFile(const std::filesystem::path& path) {
-    auto pathStr = path.string();
-    const bool firstTime = !registeredFontFiles().contains(pathStr);
-    if (firstTime) {
-      if (!FcConfigAppFontAddFile(nullptr, reinterpret_cast<const FcChar8*>(pathStr.c_str()))) {
-        kLog.warn("failed to register font file: {}", pathStr);
-        return {};
-      }
-      registeredFontFiles().insert(pathStr);
-    }
-    FcFontSet* fontSet = FcFontSetCreate();
-    FcStrSet* dirs = FcStrSetCreate();
-    if (!fontSet || !dirs) {
-      if (dirs)
-        FcStrSetDestroy(dirs);
-      if (fontSet)
-        FcFontSetDestroy(fontSet);
-      kLog.warn("failed to allocate font scan state for: {}", pathStr);
-      return {};
-    }
-
-    if (!FcFileScan(fontSet, dirs, nullptr, nullptr, reinterpret_cast<const FcChar8*>(pathStr.c_str()), FcTrue)
-        || fontSet->nfont <= 0) {
-      kLog.warn("failed to query font family from: {}", pathStr);
-      FcStrSetDestroy(dirs);
-      FcFontSetDestroy(fontSet);
-      return {};
-    }
-
-    FcChar8* family = nullptr;
-    FcPatternGetString(fontSet->fonts[0], FC_FAMILY, 0, &family);
-    std::string result = family ? reinterpret_cast<const char*>(family) : "";
-    FcStrSetDestroy(dirs);
-    FcFontSetDestroy(fontSet);
-    return result;
   }
 
   std::uint32_t nextTimerPhase() {
@@ -346,11 +302,6 @@ void PluginWidget::doLayout(Renderer& renderer, float containerWidth, float cont
 
   m_flex->setDirection(m_isVertical ? FlexDirection::Vertical : FlexDirection::Horizontal);
 
-  if (m_fontConfigDirty) {
-    renderer.notifyFontConfigChanged();
-    m_fontConfigDirty = false;
-  }
-
   if (m_tree.has_value() && m_uiHost != nullptr) {
     m_uiHost->setDirection(m_isVertical ? FlexDirection::Vertical : FlexDirection::Horizontal);
     m_reconciler.setScale(contentScale());
@@ -482,29 +433,19 @@ void PluginWidget::luaSetTooltip(const scripting::ScriptTooltipPatch& tooltip) {
   m_area->setTooltip(tooltip.text);
 }
 
-void PluginWidget::luaSetFont(std::string_view familyOrPath) {
+void PluginWidget::luaSetFont(std::string_view family, std::string_view baseline) {
   if (!m_label)
     return;
-  std::string family;
-  // If it looks like a font file path, resolve and register it
-  if (familyOrPath.ends_with(".otf") || familyOrPath.ends_with(".ttf") || familyOrPath.ends_with(".woff2")) {
-    auto resolved = resolvePluginPath(std::string(familyOrPath));
-    bool alreadyRegistered = registeredFontFiles().contains(resolved.string());
-    family = registerFontFile(resolved);
-    if (family.empty())
-      return;
-    if (!alreadyRegistered) {
-      m_fontConfigDirty = true;
+  LabelBaselineMode mode = LabelBaselineMode::Text;
+  if (!baseline.empty()) {
+    if (auto parsed = labelBaselineModeFromToken(baseline)) {
+      mode = *parsed;
+    } else {
+      kLog.warn("plugin widget '{}': unknown font baseline '{}'", m_entryId, baseline);
     }
-    // A bundled font file is treated as pictographic art (e.g. bongocat poses):
-    // center the font's glyph box so the art holds a stable vertical position
-    // instead of cap-band centering (too high) or per-string ink (bobs).
-    m_label->setBaselineMode(LabelBaselineMode::StableFontBox);
-  } else {
-    family = std::string(familyOrPath);
-    m_label->setBaselineMode(LabelBaselineMode::StableLogical);
   }
-  m_label->setFontFamily(std::move(family));
+  m_label->setBaselineMode(mode);
+  m_label->setFontFamily(std::string(family));
   m_dirty = true;
 }
 
@@ -706,7 +647,7 @@ void PluginWidget::applyScriptPatch(const scripting::ScriptPatch& patch) {
     );
   }
   if (patch.fontFamily.has_value()) {
-    luaSetFont(*patch.fontFamily);
+    luaSetFont(*patch.fontFamily, patch.fontBaseline.value_or(std::string{}));
   }
   if (patch.text.has_value()) {
     luaSetText(*patch.text);

@@ -49,15 +49,22 @@ public:
   [[nodiscard]] bool wantsBarHoverHighlight() const noexcept override { return false; }
 
 private:
+  struct Item;
+
   void doLayout(Renderer& renderer, float containerWidth, float containerHeight) override;
   void doUpdate(Renderer& renderer) override;
   void rebuild(Renderer& renderer);
   void computeTargets();
+  void updateItemFlowPositions();
   void retarget(Renderer& renderer);
   void updateContainerSize();
   void startAnimation();
   void cancelAnimation();
-  void applyItemLayout(std::size_t i);
+  void finishAnimation();
+  void applyItemLayout(Item& item);
+  void applyItemLayouts();
+  void snapshotItemsForRebuild();
+  void scheduleRebuildFromSnapshot();
   [[nodiscard]] float workspacePillRadius(float width, float height) const noexcept;
   [[nodiscard]] float workspaceMainAxisMinWidth(float baseSize, bool active) const noexcept;
   [[nodiscard]] std::optional<std::size_t> activeWorkspaceIndex() const;
@@ -74,28 +81,52 @@ private:
   [[nodiscard]] DisplayMode effectiveDisplayMode() const noexcept;
   [[nodiscard]] bool isWorkspaceHidden(const Workspace& workspace) const noexcept;
   void syncWidgetVisibility(bool showWidget);
-  void recalculateItemMetrics(Renderer& renderer, std::size_t index);
-  void updateAllItemMetrics(Renderer& renderer);
-  void ensureItemLabel(Renderer& renderer, std::size_t index);
+  void recalculateItemMetrics(Renderer& renderer, Item& item, const Workspace& workspace, std::size_t displayIndex);
+  void ensureItemLabel(Renderer& renderer, Item& item, const Workspace& workspace);
+  void setWorkspaceClickHandler(InputArea& area, const Workspace& workspace);
+  void applyItemVisualStyle(Item& item);
+  void updateHoverOverlay();
+  [[nodiscard]] bool shouldHoldPreviousVisualWorkspace(
+      const Workspace& previousVisualWorkspace, const Workspace& currentWorkspace
+  ) const noexcept;
+  [[nodiscard]] bool releaseHeldVisualStyles();
 
   struct Item {
     InputArea* area = nullptr;
     Box* indicator = nullptr;
     Label* text = nullptr;
     std::vector<Image*> icons;
+    Workspace workspace;
+    Workspace visualWorkspace;
+    std::string key;
     std::string label;
     std::vector<std::string> iconPaths;
     bool showLabel = false;
     bool showIcons = false;
     bool active = false;
+    bool exiting = false;
+    bool releaseVisualAfterAnimation = false;
     float inactiveWidth = 0.0f;
     float activeWidth = 0.0f;
-    float fromX = 0.0f;
     float fromWidth = 0.0f;
     float targetX = 0.0f;
     float targetWidth = 0.0f;
     float currentX = 0.0f;
     float currentWidth = 0.0f;
+    float fromOpacity = 1.0f;
+    float targetOpacity = 1.0f;
+    float currentOpacity = 1.0f;
+  };
+
+  struct ItemSnapshot {
+    std::string key;
+    Workspace workspace;
+    std::string label;
+    std::vector<std::string> iconPaths;
+    bool showLabel = false;
+    bool showIcons = false;
+    float width = 0.0f;
+    float opacity = 1.0f;
   };
 
   [[nodiscard]] ColorSpec workspaceFillColor(const Workspace& workspace) const;
@@ -125,11 +156,15 @@ private:
   std::uint64_t m_desktopEntriesVersion = 0;
   IconResolver m_iconResolver;
   std::vector<Item> m_items;
+  std::vector<ItemSnapshot> m_rebuildSnapshot;
   bool m_rebuildPending = true;
   std::uint64_t m_textMetricsGeneration = 0;
 
   float m_gap = 0.0f;
   float m_indicatorHeight = 0.0f;
+  Box* m_hoverOverlay = nullptr;
+  float m_hoverProgress = 0.0f;
+  InputArea* m_hoveredArea = nullptr;
   bool m_isVertical = false;
 
   AnimationManager::Id m_animId = 0;

@@ -55,6 +55,7 @@ namespace {
   constexpr float kNotificationIconGlyphSizeCompact = 20.0f;
   constexpr float kNotificationIconReferenceSize = 36.0f;
   constexpr float kTopProgressInset = Style::spaceMd;
+  constexpr auto kExitFallbackGrace = std::chrono::milliseconds(50);
 
   float notificationIconRadius(float iconSize, float localScale = 1.0f) {
     const float baseRadius = Style::radiusMd * (iconSize / kNotificationIconReferenceSize);
@@ -107,9 +108,9 @@ namespace {
     if (config == nullptr) {
       return 1.0f;
     }
-    const auto& shell = config->config().shell;
+    const auto& accessibility = config->config().accessibility;
     const auto& notification = config->config().notification;
-    return std::max(0.1f, shell.uiScale * notification.scale);
+    return std::max(0.1f, accessibility.uiScale * notification.scale);
   }
 
   [[nodiscard]] float cardWidth(float scale) { return static_cast<float>(kCardWidth) * scale; }
@@ -296,6 +297,10 @@ namespace {
     }
   }
 
+  bool showToastProgressAccent(Urgency urgency, int displayDurationMs) {
+    return displayDurationMs >= 0 || urgency == Urgency::Critical;
+  }
+
   std::vector<std::unique_ptr<Button>>
   collectNotificationActionButtons(const std::vector<std::string>& actions, float scale) {
     std::vector<std::unique_ptr<Button>> buttons;
@@ -354,8 +359,8 @@ namespace {
             .orientation = ProgressBarOrientation::HorizontalCentered,
             .width = std::max(0.0f, cardW - topProgressInset(scale) * 2.0f),
             .height = progressHeight(scale),
-            .visible = displayDurationMs >= 0,
-            .participatesInLayout = displayDurationMs >= 0,
+            .visible = showToastProgressAccent(urgency, displayDurationMs),
+            .participatesInLayout = showToastProgressAccent(urgency, displayDurationMs),
             .configure = [scale](ProgressBar& progress) { progress.setPosition(topProgressInset(scale), 0.0f); },
         })
     );
@@ -724,7 +729,7 @@ void NotificationToast::onNotificationEvent(const Notification& n, NotificationE
           m_entries[i].displayDurationMs = newDuration;
           m_entries[i].remainingProgress = 1.0f;
           if (newDuration < 0) {
-            cs.progressBar->setOpacity(0.0f);
+            cs.progressBar->setOpacity(n.urgency == Urgency::Critical ? 1.0f : 0.0f);
             cs.progressBar->setProgress(1.0f);
             cs.countdownAnimId = 0;
           } else {
@@ -886,6 +891,19 @@ void NotificationToast::dismissPopup(std::size_t index) {
     return;
   }
   entry.exiting = true;
+  entry.exitFallbackTimer.start(
+      std::chrono::milliseconds(Style::animNormal) + kExitFallbackGrace,
+      [this, notificationId = entry.notificationId]() {
+        if (findEntry(notificationId) != nullptr) {
+          finishRemoval(notificationId);
+          for (auto& inst : m_instances) {
+            if (inst->surface != nullptr) {
+              inst->surface->renderNow();
+            }
+          }
+        }
+      }
+  );
 
   bool hadVisibleCard = false;
   for (auto& inst : m_instances) {
@@ -982,7 +1000,8 @@ void NotificationToast::addCardToInstance(Instance& inst, std::size_t entryIndex
   // whose surface can't fit the card, so the nominal driver may never have a card at all.
   if (entry.displayDurationMs < 0) {
     // Persistent — no countdown, no auto-dismiss
-    cs.progressBar->setOpacity(0.0f);
+    cs.progressBar->setOpacity(entry.urgency == Urgency::Critical ? 1.0f : 0.0f);
+    cs.progressBar->setProgress(1.0f);
     cs.countdownAnimId = 0;
   } else {
     const float startProgress = std::clamp(entry.remainingProgress, 0.0f, 1.0f);
@@ -2199,8 +2218,8 @@ InputArea* NotificationToast::buildCard(
           .orientation = ProgressBarOrientation::HorizontalCentered,
           .width = std::max(0.0f, cardW - topProgressInset(scale) * 2.0f),
           .height = progressHeight(scale),
-          .visible = entry.displayDurationMs >= 0,
-          .participatesInLayout = entry.displayDurationMs >= 0,
+          .visible = showToastProgressAccent(entry.urgency, entry.displayDurationMs),
+          .participatesInLayout = showToastProgressAccent(entry.urgency, entry.displayDurationMs),
           .configure = [scale](ProgressBar& progress) { progress.setPosition(topProgressInset(scale), 0.0f); },
       })
   );

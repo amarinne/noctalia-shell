@@ -9,8 +9,10 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+class AccessPointRow;
 class Button;
 class ConfigService;
 class Flex;
@@ -43,6 +45,8 @@ private:
   void maybeScheduleExternalIpProbe();
   void probeExternalIpNow();
   void rebuildApList(Renderer& renderer);
+  // Pushes live signal values into the existing rows. Returns true if any changed.
+  bool syncApRows();
   void syncPasswordCard();
   void showPasswordPrompt(const NetworkSecretAgent::SecretRequest& request);
   void showPasswordPrompt(const AccessPointInfo& ap);
@@ -75,6 +79,8 @@ private:
   Button* m_disconnectButton = nullptr;
   Spinner* m_scanSpinner = nullptr;
   bool m_vpnVisible = true;
+
+  std::unordered_map<std::string, AccessPointRow*> m_apRows;
 
   std::string m_lastStructureKey;
   float m_lastListWidth = -1.0f;

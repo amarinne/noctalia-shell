@@ -80,6 +80,7 @@ namespace scripting {
     std::optional<ScriptImagePatch> image;
     std::optional<ScriptTooltipPatch> tooltip;
     std::optional<std::string> fontFamily;
+    std::optional<std::string> fontBaseline;
     std::optional<ScriptColorPatch> textColor;
     std::optional<ScriptColorPatch> glyphColor;
     std::optional<bool> visible;
@@ -111,6 +112,7 @@ namespace scripting {
           && !image.has_value()
           && !tooltip.has_value()
           && !fontFamily.has_value()
+          && !fontBaseline.has_value()
           && !textColor.has_value()
           && !glyphColor.has_value()
           && !visible.has_value()

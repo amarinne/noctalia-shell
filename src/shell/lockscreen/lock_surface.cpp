@@ -15,6 +15,7 @@
 #include "ui/controls/label.h"
 #include "ui/palette.h"
 #include "ui/style.h"
+#include "util/clamp.h"
 #include "wayland/wayland_connection.h"
 #include "wayland/wayland_seat.h"
 
@@ -558,8 +559,8 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
     }
   }
 
-  panelX = std::clamp(panelX, Style::spaceLg, sw - panelWidth - Style::spaceLg);
-  panelY = std::clamp(panelY, Style::spaceLg, sh - panelHeight - Style::spaceLg);
+  panelX = util::clampOrdered(panelX, Style::spaceLg, sw - panelWidth - Style::spaceLg);
+  panelY = util::clampOrdered(panelY, Style::spaceLg, sh - panelHeight - Style::spaceLg);
 
   m_root.setSize(sw, sh);
 

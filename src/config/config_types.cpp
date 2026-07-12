@@ -378,6 +378,7 @@ WidgetBarCapsuleSpec resolveWidgetBarCapsuleSpec(const BarConfig& bar, const Wid
         static_cast<float>(widget->getDouble("capsule_opacity", static_cast<double>(spec.opacity))), 0.0f, 1.0f
     );
   }
+  spec.hoverHighlight = bar.hoverHighlight;
 
   if (!spec.enabled) {
     return spec;
@@ -436,6 +437,7 @@ WidgetBarCapsuleSpec capsuleSpecFromGroup(const BarConfig& bar, const BarCapsule
     spec.radius = std::nullopt;
   }
   spec.opacity = group.opacity;
+  spec.hoverHighlight = bar.hoverHighlight;
   return spec;
 }
 

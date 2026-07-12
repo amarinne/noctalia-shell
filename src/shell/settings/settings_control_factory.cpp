@@ -669,7 +669,9 @@ namespace settings {
     auto& ctx = m_ctx;
     const float scale = m_scale;
     const float inputWidth = (width > 0.0f ? width : 190.0f) * scale;
+    Input* inputPtr = nullptr;
     auto input = ui::input({
+        .out = &inputPtr,
         .value = value,
         .placeholder = placeholder,
         .fontSize = Style::fontSizeBody * scale,
@@ -677,8 +679,20 @@ namespace settings {
         .horizontalPadding = Style::spaceSm * scale,
         .width = inputWidth,
         .height = Style::controlHeight * scale,
-        .onSubmit = [setOverride = ctx.setOverride, path](const std::string& v) { setOverride(path, v); },
         .submitOnFocusLoss = true,
+    });
+    input->setOnChange([inputPtr](const std::string& /*text*/) { inputPtr->setInvalid(false); });
+    input->setOnSubmit([configService = ctx.configService, setOverride = ctx.setOverride, path,
+                        inputPtr](const std::string& text) {
+      if (configService != nullptr && !configService->validateOverride(path, ConfigOverrideValue{text})) {
+        inputPtr->setInvalid(true);
+        // Send the rejected mutation through the normal error-reporting path so the
+        // editor sheet shows the shared schema diagnostic beside this control.
+        setOverride(path, text);
+        return;
+      }
+      inputPtr->setInvalid(false);
+      setOverride(path, text);
     });
     if (isDeadZoneCommandPath(path)) {
       input->setOnChange([setOverride = ctx.setOverride, path](const std::string& v) { setOverride(path, v); });

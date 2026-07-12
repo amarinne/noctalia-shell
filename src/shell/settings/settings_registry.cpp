@@ -7,7 +7,6 @@
 #include "core/log.h"
 #include "core/process/process.h"
 #include "i18n/i18n.h"
-#include "shell/bar/bar_corner_shape.h"
 #include "shell/control_center/control_center_panel.h"
 #include "shell/control_center/shortcut_registry.h"
 #include "shell/settings/color_spec_picker.h"
@@ -35,22 +34,13 @@ namespace settings {
     constexpr int kBarMarginMax = 4096;
     constexpr float kBarCornerRadiusMax = 80.0f;
 
-    // Per-corner bar radius slider: shows magnitude (0..max) with an inline invert toggle carrying
-    // the sign (negative = concave). `enabled` reflects whether this corner faces away from the
-    // docked screen edge and can render a meaningful concave notch.
-    [[nodiscard]] SliderSetting barCornerSlider(std::int32_t value, bool enabled) {
+    [[nodiscard]] SliderSetting barCornerSlider(std::int32_t value) {
       SliderSetting s{value, 0.0f, kBarCornerRadiusMax, 1.0f, true};
-      s.invertSlot = SliderSetting::InvertSlot::Toggle;
-      s.invertEnabled = enabled;
       return s;
     }
 
-    // Slider that reserves an empty invert slot so its value box stays column-aligned with sibling
-    // corner sliders in the same group.
     [[nodiscard]] SliderSetting barReservedSlider(double value, double maxValue, double step, bool integer) {
-      SliderSetting s{value, 0.0f, maxValue, step, integer};
-      s.invertSlot = SliderSetting::InvertSlot::Reserve;
-      return s;
+      return SliderSetting{value, 0.0f, maxValue, step, integer};
     }
 
     [[nodiscard]] std::vector<KeyChord>
@@ -468,9 +458,9 @@ namespace settings {
       ));
     }
     entries.push_back(makeEntry(
-        SettingsSection::Appearance, "interface", tr("settings.schema.appearance.ui-scale.label"),
-        tr("settings.schema.appearance.ui-scale.description"), {"shell", "ui_scale"},
-        sliderFor(cfg.shell.uiScale, noctalia::config::schema::kScaleRange, false), "size"
+        SettingsSection::Appearance, "theme", tr("settings.schema.appearance.pure-black-dark.label"),
+        tr("settings.schema.appearance.pure-black-dark.description"), {"theme", "pure_black_dark"},
+        ToggleSetting{cfg.theme.pureBlackDark}, "oled amoled true black background contrast"
     ));
     entries.push_back(makeEntry(
         SettingsSection::Appearance, "interface", tr("settings.schema.appearance.corner-roundness.label"),
@@ -519,6 +509,16 @@ namespace settings {
         SettingsSection::Appearance, "interface", tr("settings.schema.appearance.language.label"),
         tr("settings.schema.appearance.language.description"), {"shell", "lang"}, languageSelect(cfg.shell.lang),
         "locale translation", true
+    ));
+    entries.push_back(makeEntry(
+        SettingsSection::Appearance, "accessibility", tr("settings.schema.appearance.ui-scale.label"),
+        tr("settings.schema.appearance.ui-scale.description"), {"accessibility", "ui_scale"},
+        sliderFor(cfg.accessibility.uiScale, noctalia::config::schema::kScaleRange, false), "size scale text panels"
+    ));
+    entries.push_back(makeEntry(
+        SettingsSection::Appearance, "accessibility", tr("settings.schema.accessibility.high-contrast.label"),
+        tr("settings.schema.accessibility.high-contrast.description"), {"accessibility", "high_contrast"},
+        ToggleSetting{cfg.accessibility.highContrast}, "accessibility high contrast visually impaired"
     ));
     entries.push_back(makeEntry(
         SettingsSection::Appearance, "motion", tr("settings.schema.appearance.animations.label"),
@@ -1136,27 +1136,6 @@ namespace settings {
         &ShellConfig::PanelConfig::polkitPlacement
     ));
     entries.push_back(makeEntry(
-        SettingsSection::Panels, "session-panel", tr("settings.schema.panels.placement-session.label"),
-        tr("settings.schema.panels.placement-session.description"), {"shell", "panel", "session_placement"},
-        asSegmented(enumSelect(kPanelPlacements, cfg.shell.panel.sessionPlacement)),
-        "attached floating bar panel power menu position"
-    ));
-    entries.push_back(panelPositionEntry(
-        SettingsSection::Panels, "session-panel", "session", "settings.schema.panels.position-session.label",
-        "settings.schema.panels.position-session.description", cfg.shell.panel.sessionPosition,
-        &ShellConfig::PanelConfig::sessionPlacement
-    ));
-    {
-      auto e = makeEntry(
-          SettingsSection::Panels, "session-panel", tr("settings.schema.panels.open-near-click-session.label"),
-          tr("settings.schema.panels.open-near-click-session.description"),
-          {"shell", "panel", "open_near_click_session"}, ToggleSetting{cfg.shell.panel.openNearClickSession},
-          "open near click position anchor"
-      );
-      e.visibleWhen = [](const Config& c) { return c.shell.panel.sessionPlacement == PanelPlacement::Attached; };
-      entries.push_back(std::move(e));
-    }
-    entries.push_back(makeEntry(
         SettingsSection::Panels, "wallpaper", tr("settings.schema.panels.placement-wallpaper.label"),
         tr("settings.schema.panels.placement-wallpaper.description"), {"shell", "panel", "wallpaper_placement"},
         asSegmented(enumSelect(kPanelPlacements, cfg.shell.panel.wallpaperPlacement)),
@@ -1497,16 +1476,6 @@ namespace settings {
         TextSetting{.value = cfg.shell.dateFormat, .placeholder = "%A, %x", .browseFileExtensions = {}},
         "calendar date format strftime chrono"
     ));
-    const SettingVisibility weatherOn = [](const Config& c) { return c.weather.enabled; };
-    {
-      auto e = makeEntry(
-          SettingsSection::Shell, "general", tr("settings.schema.shell.show-location.label"),
-          tr("settings.schema.shell.show-location.description"), {"shell", "show_location"},
-          ToggleSetting{cfg.shell.showLocation}, "weather"
-      );
-      e.visibleWhen = weatherOn;
-      entries.push_back(std::move(e));
-    }
     entries.push_back(makeEntry(
         SettingsSection::Shell, "general", tr("settings.schema.shell.middle-click-opens-widget-settings.label"),
         tr("settings.schema.shell.middle-click-opens-widget-settings.description"),
@@ -2124,6 +2093,16 @@ namespace settings {
         tr("settings.schema.services.weather.description"), {"weather", "enabled"}, ToggleSetting{cfg.weather.enabled},
         "forecast"
     ));
+    const SettingVisibility weatherOn = [](const Config& c) { return c.weather.enabled; };
+    {
+      auto e = makeEntry(
+          SettingsSection::Location, "weather", tr("settings.schema.shell.show-location.label"),
+          tr("settings.schema.shell.show-location.description"), {"shell", "show_location"},
+          ToggleSetting{cfg.shell.showLocation}, "weather"
+      );
+      e.visibleWhen = weatherOn;
+      entries.push_back(std::move(e));
+    }
     {
       auto e = makeEntry(
           SettingsSection::Location, "weather", tr("settings.schema.services.weather-unit.label"),
@@ -2331,6 +2310,47 @@ namespace settings {
     ));
 
     // Power
+    entries.push_back(makeEntry(
+        SettingsSection::Power, "session-panel", tr("settings.schema.panels.placement-session.label"),
+        tr("settings.schema.panels.placement-session.description"), {"shell", "panel", "session_placement"},
+        asSegmented(enumSelect(kPanelPlacements, cfg.shell.panel.sessionPlacement)),
+        "attached floating bar panel power menu position"
+    ));
+    entries.push_back(panelPositionEntry(
+        SettingsSection::Power, "session-panel", "session", "settings.schema.panels.position-session.label",
+        "settings.schema.panels.position-session.description", cfg.shell.panel.sessionPosition,
+        &ShellConfig::PanelConfig::sessionPlacement
+    ));
+    {
+      auto e = makeEntry(
+          SettingsSection::Power, "session-panel", tr("settings.schema.panels.open-near-click-session.label"),
+          tr("settings.schema.panels.open-near-click-session.description"),
+          {"shell", "panel", "open_near_click_session"}, ToggleSetting{cfg.shell.panel.openNearClickSession},
+          "open near click position anchor"
+      );
+      e.visibleWhen = [](const Config& c) { return c.shell.panel.sessionPlacement == PanelPlacement::Attached; };
+      entries.push_back(std::move(e));
+    }
+    entries.push_back(makeEntry(
+        SettingsSection::Power, "session-panel", tr("settings.schema.power.session-grid.label"),
+        tr("settings.schema.power.session-grid.description"), {"shell", "session", "grid"},
+        ToggleSetting{.checked = cfg.shell.session.grid}, "session panel grid layout rows columns"
+    ));
+    {
+      auto e = makeEntry(
+          SettingsSection::Power, "session-panel", tr("settings.schema.power.session-grid-columns.label"),
+          tr("settings.schema.power.session-grid-columns.description"), {"shell", "session", "grid_columns"},
+          StepperSetting{
+              .value = static_cast<int>(cfg.shell.session.gridColumns),
+              .minValue = static_cast<int>(noctalia::config::schema::kSessionGridColumnsRange.min.value()),
+              .maxValue = static_cast<int>(noctalia::config::schema::kSessionGridColumnsRange.max.value()),
+              .step = static_cast<int>(noctalia::config::schema::kSessionGridColumnsRange.step.value()),
+          },
+          "session panel grid columns per row"
+      );
+      e.visibleWhen = [](const Config& c) { return c.shell.session.grid; };
+      entries.push_back(std::move(e));
+    }
     entries.push_back(makeEntry(
         SettingsSection::Power, "session-panel", tr("settings.schema.power.session-actions.label"),
         tr("settings.schema.power.session-actions.description"), {"shell", "session", "actions"},
@@ -2594,7 +2614,6 @@ namespace settings {
           tr("settings.schema.bar.content-padding.description"), path("padding"),
           SliderSetting{bar.padding, 0.0f, 80.0f, 1.0f, true}, "inset"
       ));
-      const BarConcaveCorners barInner = barInnerEdgeCorners(bar.position);
       entries.push_back(makeEntry(
           section, "shape", tr("settings.schema.shared.corner-radius.label"),
           tr("settings.schema.bar.corner-radius.description"), path("radius"),
@@ -2603,23 +2622,35 @@ namespace settings {
       entries.push_back(makeEntry(
           section, "shape", tr("settings.schema.shared.corner-top-left.label"),
           tr("settings.schema.bar.corner-top-left.description"), path("radius_top_left"),
-          barCornerSlider(bar.radiusTopLeft, barInner.topLeft), "rounded corner", true
+          barCornerSlider(bar.radiusTopLeft), "rounded corner", true
       ));
       entries.push_back(makeEntry(
           section, "shape", tr("settings.schema.shared.corner-top-right.label"),
           tr("settings.schema.bar.corner-top-right.description"), path("radius_top_right"),
-          barCornerSlider(bar.radiusTopRight, barInner.topRight), "rounded corner", true
+          barCornerSlider(bar.radiusTopRight), "rounded corner", true
       ));
       entries.push_back(makeEntry(
           section, "shape", tr("settings.schema.shared.corner-bottom-left.label"),
           tr("settings.schema.bar.corner-bottom-left.description"), path("radius_bottom_left"),
-          barCornerSlider(bar.radiusBottomLeft, barInner.bottomLeft), "rounded corner", true
+          barCornerSlider(bar.radiusBottomLeft), "rounded corner", true
       ));
       entries.push_back(makeEntry(
           section, "shape", tr("settings.schema.shared.corner-bottom-right.label"),
           tr("settings.schema.bar.corner-bottom-right.description"), path("radius_bottom_right"),
-          barCornerSlider(bar.radiusBottomRight, barInner.bottomRight), "rounded corner", true
+          barCornerSlider(bar.radiusBottomRight), "rounded corner", true
       ));
+      {
+        auto e = makeEntry(
+            section, "shape", tr("settings.schema.bar.concave-edge-corners.label"),
+            tr("settings.schema.bar.concave-edge-corners.description"), path("concave_edge_corners"),
+            ToggleSetting{bar.concaveEdgeCorners}, "rounded corner carve"
+        );
+        e.visibleWhen = [barName = bar.name](const Config& c) {
+          const BarConfig* b = findBar(c, barName);
+          return b != nullptr && b->marginEdge == 0;
+        };
+        entries.push_back(std::move(e));
+      }
       entries.push_back(makeEntry(
           section, "shape", tr("settings.schema.bar.border.label"), tr("settings.schema.bar.border.description"),
           path("border"), colorSpecPicker(bar.border), "outline color", true
@@ -2918,7 +2949,6 @@ namespace settings {
             tr("settings.schema.bar.content-padding.description"), monitorPath("padding"),
             SliderSetting{ovr.padding.value_or(bar.padding), 0.0f, 80.0f, 1.0f, true}, "inset"
         ));
-        const BarConcaveCorners ovrInner = barInnerEdgeCorners(ovr.position.value_or(bar.position));
         entries.push_back(makeEntry(
             section, "shape", tr("settings.schema.shared.corner-radius.label"),
             tr("settings.schema.bar.corner-radius.description"), monitorPath("radius"),
@@ -2927,25 +2957,40 @@ namespace settings {
         entries.push_back(makeEntry(
             section, "shape", tr("settings.schema.shared.corner-top-left.label"),
             tr("settings.schema.bar.corner-top-left.description"), monitorPath("radius_top_left"),
-            barCornerSlider(ovr.radiusTopLeft.value_or(bar.radiusTopLeft), ovrInner.topLeft), "rounded corner", true
+            barCornerSlider(ovr.radiusTopLeft.value_or(bar.radiusTopLeft)), "rounded corner", true
         ));
         entries.push_back(makeEntry(
             section, "shape", tr("settings.schema.shared.corner-top-right.label"),
             tr("settings.schema.bar.corner-top-right.description"), monitorPath("radius_top_right"),
-            barCornerSlider(ovr.radiusTopRight.value_or(bar.radiusTopRight), ovrInner.topRight), "rounded corner", true
+            barCornerSlider(ovr.radiusTopRight.value_or(bar.radiusTopRight)), "rounded corner", true
         ));
         entries.push_back(makeEntry(
             section, "shape", tr("settings.schema.shared.corner-bottom-left.label"),
             tr("settings.schema.bar.corner-bottom-left.description"), monitorPath("radius_bottom_left"),
-            barCornerSlider(ovr.radiusBottomLeft.value_or(bar.radiusBottomLeft), ovrInner.bottomLeft), "rounded corner",
-            true
+            barCornerSlider(ovr.radiusBottomLeft.value_or(bar.radiusBottomLeft)), "rounded corner", true
         ));
         entries.push_back(makeEntry(
             section, "shape", tr("settings.schema.shared.corner-bottom-right.label"),
             tr("settings.schema.bar.corner-bottom-right.description"), monitorPath("radius_bottom_right"),
-            barCornerSlider(ovr.radiusBottomRight.value_or(bar.radiusBottomRight), ovrInner.bottomRight),
-            "rounded corner", true
+            barCornerSlider(ovr.radiusBottomRight.value_or(bar.radiusBottomRight)), "rounded corner", true
         ));
+        {
+          auto e = makeEntry(
+              section, "shape", tr("settings.schema.bar.concave-edge-corners.label"),
+              tr("settings.schema.bar.concave-edge-corners.description"), monitorPath("concave_edge_corners"),
+              ToggleSetting{ovr.concaveEdgeCorners.value_or(bar.concaveEdgeCorners)}, "rounded corner carve"
+          );
+          e.visibleWhen = [barName = bar.name, match = ovr.match](const Config& c) {
+            const BarConfig* b = findBar(c, barName);
+            if (b == nullptr) {
+              return false;
+            }
+            const BarMonitorOverride* mo = findMonitorOverride(*b, match);
+            const std::int32_t marginEdge = mo && mo->marginEdge.has_value() ? *mo->marginEdge : b->marginEdge;
+            return marginEdge == 0;
+          };
+          entries.push_back(std::move(e));
+        }
         entries.push_back(makeEntry(
             section, "shape", tr("settings.schema.bar.border.label"), tr("settings.schema.bar.border.description"),
             monitorPath("border"), colorSpecPicker(ovr.border, true, tr("common.states.inherit")), "outline color", true

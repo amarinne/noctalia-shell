@@ -14,18 +14,29 @@
 namespace {
 
   bool settingPathNeedsSceneRebuild(const std::vector<std::string>& path) {
-    return path.size() == 2
-        && path[0] == "shell"
-        && (path[1] == "corner_radius_scale" || path[1] == "font_family" || path[1] == "lang" || path[1] == "ui_scale");
+    if (path.size() == 2 && path[0] == "shell") {
+      return path[1] == "corner_radius_scale" || path[1] == "font_family" || path[1] == "lang";
+    }
+    if (path.size() == 2 && path[0] == "accessibility") {
+      return path[1] == "ui_scale";
+    }
+    return false;
   }
 
   bool settingPathsNeedSceneRebuild(const std::vector<std::vector<std::string>>& paths) {
     return std::ranges::any_of(paths, [](const auto& path) { return settingPathNeedsSceneRebuild(path); });
   }
 
+  std::string settingsMutationError(const ConfigService& config, std::string fallback) {
+    return config.lastMutationError().empty() ? fallback : config.lastMutationError();
+  }
+
 } // namespace
 
 void SettingsWindow::markSettingsWriteSuccess(bool requestRebuild) {
+  if (m_editorSheetPopup != nullptr && m_editorSheetPopup->isOpen()) {
+    m_editorSheetPopup->clearStatusMessage();
+  }
   m_statusMessage.clear();
   m_statusIsError = false;
   m_pendingResetPageScope.clear();
@@ -35,6 +46,10 @@ void SettingsWindow::markSettingsWriteSuccess(bool requestRebuild) {
 }
 
 void SettingsWindow::markSettingsWriteError(std::string message) {
+  if (m_editorSheetPopup != nullptr && m_editorSheetPopup->isOpen()) {
+    m_editorSheetPopup->setStatusMessage(std::move(message), true);
+    return;
+  }
   m_statusMessage = std::move(message);
   m_statusIsError = true;
   requestSceneRebuild();
@@ -94,7 +109,7 @@ void SettingsWindow::setSettingOverride(std::vector<std::string> path, ConfigOve
       finishSettingsWrite(changed, needsSceneRebuild, previousResetPaths != currentPageResetPaths(), registryPatched);
       return;
     }
-    markSettingsWriteError(i18n::tr("settings.errors.write"));
+    markSettingsWriteError(settingsMutationError(*m_config, i18n::tr("settings.errors.write")));
   });
 }
 
@@ -120,7 +135,7 @@ void SettingsWindow::setSettingOverrides(
       finishSettingsWrite(changed, needsSceneRebuild, previousResetPaths != currentPageResetPaths(), registryPatched);
       return;
     }
-    markSettingsWriteError(i18n::tr("settings.errors.batch-write"));
+    markSettingsWriteError(settingsMutationError(*m_config, i18n::tr("settings.errors.batch-write")));
   });
 }
 

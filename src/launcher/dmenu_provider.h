@@ -7,8 +7,8 @@ class ClipboardService;
 
 // One config-driven dmenu-style launcher entry. Runs `entry.command` once per open
 // session, splits stdout into newline-separated candidates, and fuzzy-filters them.
-// On activate: runs `entry.exec` (with {selection} substituted) or, when no exec is
-// set, copies the selection to the clipboard.
+// On activate: runs `entry.exec` (with {selection}/{query} substituted) or, when no
+// exec is set, copies the selection to the clipboard.
 class DmenuProvider : public LauncherProvider {
 public:
   DmenuProvider(DmenuEntryConfig entry, ClipboardService* clipboard);

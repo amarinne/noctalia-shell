@@ -43,6 +43,21 @@ namespace {
   constexpr std::int32_t kAutoHideTriggerPx = 3;
   constexpr float kAutoHideSlideExtraPx = 4.0f;
 
+  [[nodiscard]] std::string activeWorkspaceId(const std::vector<Workspace>& workspaces) {
+    for (const auto& workspace : workspaces) {
+      if (workspace.active) {
+        if (!workspace.id.empty()) {
+          return workspace.id;
+        }
+        if (!workspace.name.empty()) {
+          return workspace.name;
+        }
+        return std::to_string(workspace.index);
+      }
+    }
+    return {};
+  }
+
   [[nodiscard]] FontWeight parseWidgetLabelFontWeight(const WidgetConfig& config, FontWeight fallback) {
     const auto it = config.settings.find("font_weight");
     if (it == config.settings.end()) {
@@ -75,56 +90,6 @@ namespace {
       return 0;
     }
     return cfg.marginEdge;
-  }
-
-  // "Concave corners": a per-corner radius < 0 marks that corner Concave, bulging
-  // outward by |value|. Only the two corners on the bar's inner edge (away from
-  // the screen) can grow into reserved surface space, so the inner bulge (and the
-  // logical inset that hosts it) is taken from those two corners and capped at
-  // thickness/2 to match the rect shader's per-corner radius clamp. With all radii
-  // >= 0 the result is byte-for-byte the previous plain rounded rect.
-  struct BarConcaveShape {
-    CornerShapes corners{};
-    Radii radii;
-    RectInsets logicalInset{};
-    float innerBulge = 0.0f; // px the surface/box grow on the inner edge
-  };
-
-  [[nodiscard]] BarConcaveShape barConcaveShape(const BarConfig& cfg) {
-    const auto shapeFor = [](std::int32_t v) { return v < 0 ? CornerShape::Concave : CornerShape::Convex; };
-    const auto mag = [](std::int32_t v) { return static_cast<float>(v < 0 ? -v : v); };
-
-    BarConcaveShape g;
-    g.corners = CornerShapes{
-        .tl = shapeFor(cfg.radiusTopLeft),
-        .tr = shapeFor(cfg.radiusTopRight),
-        .br = shapeFor(cfg.radiusBottomRight),
-        .bl = shapeFor(cfg.radiusBottomLeft),
-    };
-    g.radii =
-        Radii{mag(cfg.radiusTopLeft), mag(cfg.radiusTopRight), mag(cfg.radiusBottomRight), mag(cfg.radiusBottomLeft)};
-
-    const float cap = static_cast<float>(cfg.thickness) * 0.5f;
-    const BarConcaveCorners inner = barInnerEdgeCorners(cfg.position);
-    const auto innerContribution = [&](bool flagged, std::int32_t v) { return (flagged && v < 0) ? mag(v) : 0.0f; };
-    float bulge = 0.0f;
-    bulge = std::max(bulge, innerContribution(inner.topLeft, cfg.radiusTopLeft));
-    bulge = std::max(bulge, innerContribution(inner.topRight, cfg.radiusTopRight));
-    bulge = std::max(bulge, innerContribution(inner.bottomLeft, cfg.radiusBottomLeft));
-    bulge = std::max(bulge, innerContribution(inner.bottomRight, cfg.radiusBottomRight));
-    g.innerBulge = std::min(bulge, cap);
-
-    const std::string_view pos = cfg.position;
-    if (pos == "bottom") {
-      g.logicalInset.top = g.innerBulge;
-    } else if (pos == "left") {
-      g.logicalInset.right = g.innerBulge;
-    } else if (pos == "right") {
-      g.logicalInset.left = g.innerBulge;
-    } else { // top
-      g.logicalInset.bottom = g.innerBulge;
-    }
-    return g;
   }
 
   [[nodiscard]] std::vector<InputRect>
@@ -563,16 +528,21 @@ namespace {
     const std::int32_t mEdge = barConfig.marginEdge;
     const auto sb = shell::surface_shadow::bleed(barConfig.shadow, shadowConfig);
     const int edgeGutter = barAutoHideEdgeGutter(barConfig);
+    const auto concave = barConcaveShape(barConfig);
+    const int insetL = static_cast<int>(std::ceil(std::max(0.0f, concave.logicalInset.left)));
+    const int insetT = static_cast<int>(std::ceil(std::max(0.0f, concave.logicalInset.top)));
+    const int insetR = static_cast<int>(std::ceil(std::max(0.0f, concave.logicalInset.right)));
+    const int insetB = static_cast<int>(std::ceil(std::max(0.0f, concave.logicalInset.bottom)));
     // Reserve room for a concave-corner spike on the inner edge (opaque bar material),
     // in addition to the shadow bleed that renders beyond the spike tips.
-    const int concaveBulge = static_cast<int>(std::lround(barConcaveShape(barConfig).innerBulge));
+    const int concaveBulge = static_cast<int>(std::lround(concave.innerBulge));
 
     const std::int32_t edgeMargin = barEdgeLayerMargin(barConfig, shadowConfig);
 
     BarSurfaceSpec spec;
     if (!vertical) {
-      spec.marginLeft = std::max(0, mEnds - sb.left);
-      spec.marginRight = std::max(0, mEnds - sb.right);
+      spec.marginLeft = std::max(0, mEnds - sb.left - insetL);
+      spec.marginRight = std::max(0, mEnds - sb.right - insetR);
       if (isBottom) {
         if (edgeGutter > 0) {
           // Surface reaches the screen edge (no layer margin); the margin is folded
@@ -594,8 +564,8 @@ namespace {
         }
       }
     } else {
-      spec.marginTop = std::max(0, mEnds - sb.up);
-      spec.marginBottom = std::max(0, mEnds - sb.down);
+      spec.marginTop = std::max(0, mEnds - sb.up - insetT);
+      spec.marginBottom = std::max(0, mEnds - sb.down - insetB);
       if (isRight) {
         if (edgeGutter > 0) {
           spec.surfaceWidth = static_cast<std::uint32_t>(sb.left + concaveBulge + barConfig.thickness + edgeGutter);
@@ -652,6 +622,7 @@ namespace {
         && a.radiusTopRight == b.radiusTopRight
         && a.radiusBottomLeft == b.radiusBottomLeft
         && a.radiusBottomRight == b.radiusBottomRight
+        && a.concaveEdgeCorners == b.concaveEdgeCorners
         && a.marginEnds == b.marginEnds
         && a.marginEdge == b.marginEdge
         && a.shadow == b.shadow
@@ -691,6 +662,11 @@ namespace {
     const bool isRight = cfg.position == "right";
     const bool isVertical = (cfg.position == "left" || cfg.position == "right");
     const auto sbi = shell::surface_shadow::bleed(cfg.shadow, shadow);
+    const auto concave = barConcaveShape(cfg);
+    const float insetL = std::ceil(std::max(0.0f, concave.logicalInset.left));
+    const float insetT = std::ceil(std::max(0.0f, concave.logicalInset.top));
+    const float insetR = std::ceil(std::max(0.0f, concave.logicalInset.right));
+    const float insetB = std::ceil(std::max(0.0f, concave.logicalInset.bottom));
     const auto bleedLeft = static_cast<float>(sbi.left);
     const auto bleedRight = static_cast<float>(sbi.right);
     const auto bleedUp = static_cast<float>(sbi.up);
@@ -699,11 +675,11 @@ namespace {
     // pushes the body inward by its bulge. Top/left bars grow away from the origin
     // and need no body shift. Gutter (auto-hide) placements derive from the surface
     // size, which already includes the bulge, so they shift automatically.
-    const float concaveBulge = barConcaveShape(cfg).innerBulge;
+    const float concaveBulge = concave.innerBulge;
 
     if (isVertical) {
       // Vertical bar: edge gap is left/right, ends inset is top/bottom.
-      const float y = std::min(marginEnds, bleedUp);
+      const float y = std::min(marginEnds, bleedUp) + insetT;
       float x = isRight ? (bleedLeft + concaveBulge) : std::min(marginEdge, bleedLeft);
       if (const int gutter = barAutoHideEdgeGutter(cfg); gutter > 0) {
         // The gutter equals marginEdge and sits between the screen edge and the bar.
@@ -721,12 +697,12 @@ namespace {
           .x = x,
           .y = y,
           .width = barThickness,
-          .height = surfaceHeight - y - std::min(marginEnds, bleedDown),
+          .height = surfaceHeight - y - std::min(marginEnds, bleedDown) - insetB,
       };
     }
 
     // Horizontal bar: edge gap is top/bottom, ends inset is left/right.
-    const float x = std::min(marginEnds, bleedLeft);
+    const float x = std::min(marginEnds, bleedLeft) + insetL;
     float y = isBottom ? (bleedUp + concaveBulge) : std::min(marginEdge, bleedUp);
     if (const int gutter = barAutoHideEdgeGutter(cfg); gutter > 0) {
       if (isBottom) {
@@ -740,7 +716,7 @@ namespace {
     return {
         .x = x,
         .y = y,
-        .width = surfaceWidth - x - std::min(marginEnds, bleedRight),
+        .width = surfaceWidth - x - std::min(marginEnds, bleedRight) - insetR,
         .height = barThickness,
     };
   }
@@ -1361,13 +1337,7 @@ void Bar::onWorkspaceChanged() {
 
   bool anyChanged = false;
   for (const auto& output : m_platform->outputs()) {
-    std::string activeId;
-    for (const auto& workspace : m_platform->workspaces(output.output)) {
-      if (workspace.active) {
-        activeId = workspace.id;
-        break;
-      }
-    }
+    const std::string activeId = activeWorkspaceId(m_platform->workspaces(output.output));
     if (activeId.empty()) {
       continue;
     }
@@ -1903,6 +1873,20 @@ void Bar::syncInstances() {
   const auto& outputs = m_platform->outputs();
   const auto& bars = m_config->config().bars;
 
+  std::erase_if(m_lastActiveWorkspaceByOutput, [&outputs](const auto& pair) {
+    return std::ranges::find(outputs, pair.first, &WaylandOutput::name) == outputs.end();
+  });
+
+  for (const auto& output : outputs) {
+    if (!output.done || !output.hasUsableGeometry()) {
+      continue;
+    }
+    auto& last = m_lastActiveWorkspaceByOutput[output.name];
+    if (last.empty()) {
+      last = activeWorkspaceId(m_platform->workspaces(output.output));
+    }
+  }
+
   // Remove instances for outputs that no longer exist
   std::erase_if(m_instances, [&outputs, this](const auto& inst) {
     const auto it = std::ranges::find(outputs, inst->outputName, &WaylandOutput::name);
@@ -2040,6 +2024,7 @@ void Bar::populateWidgets(BarInstance& instance) {
     widget->setConfigName(name);
     if (wcPtr != nullptr) {
       widget->setAnchor(wcPtr->getBool("anchor", false));
+      widget->setNonInteractive(!wcPtr->getBool("interactive", true));
       if (!wcPtr->getBool("enabled", true)) {
         return;
       }
@@ -2612,8 +2597,8 @@ void Bar::applyBarCompositorBlur(BarInstance& instance) const {
   const int ph = static_cast<int>(std::lround(std::max(0.0f, instance.bg->height())));
   const auto concave = barConcaveShape(instance.barConfig);
   // The bg node is the visual rect; tessellateShape expects the body rect and
-  // expands it outward by logicalInset itself. With all-convex corners this is the
-  // plain rounded rect.
+  // expands it outward by logicalInset itself. With all-convex corners and no
+  // inset it takes its own fast path down to a plain rounded rect.
   const int insetL = static_cast<int>(std::lround(concave.logicalInset.left));
   const int insetT = static_cast<int>(std::lround(concave.logicalInset.top));
   const int insetR = static_cast<int>(std::lround(concave.logicalInset.right));

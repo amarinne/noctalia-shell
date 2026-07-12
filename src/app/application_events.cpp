@@ -1,5 +1,6 @@
 #include "application.h"
 #include "application_internal.h"
+#include "core/deferred_call.h"
 #include "core/log.h"
 #include "dbus/bluetooth/bluetooth_service.h"
 #include "dbus/network/inetwork_service.h"
@@ -52,15 +53,18 @@ void Application::onGraphicsReset(RenderGraphicsResetStatus status) {
 }
 
 void Application::requestAllSurfacesRedraw() {
-  m_bar.requestRedraw();
-  m_dock.requestRedraw();
-  m_desktopWidgetsController.requestRedraw();
-  m_panelManager.requestRedraw();
-  m_notificationToast.requestRedraw();
-  m_osdOverlay.requestRedraw();
-  m_colorPickerDialogPopup.requestRedraw();
-  m_glyphPickerDialogPopup.requestRedraw();
-  m_fileDialogPopup.requestRedraw();
+  DeferredCall::callLater([this]() {
+    m_bar.requestRedraw();
+    m_dock.requestRedraw();
+    m_desktopWidgetsController.requestRedraw();
+    m_panelManager.requestRedraw();
+    m_notificationToast.requestRedraw();
+    m_osdOverlay.requestRedraw();
+    m_lockScreen.requestLayout();
+    m_colorPickerDialogPopup.requestRedraw();
+    m_glyphPickerDialogPopup.requestRedraw();
+    m_fileDialogPopup.requestRedraw();
+  });
 }
 
 void Application::onUpowerStateChangedForHooks() {

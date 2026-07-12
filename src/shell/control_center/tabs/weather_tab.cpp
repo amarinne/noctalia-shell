@@ -211,15 +211,16 @@ std::unique_ptr<Flex> WeatherTab::create() {
   const float detailKeyWidth = Style::controlHeightLg * 2.0f * scale;
 
   std::size_t detailRowIndex = 0;
-  auto addDetailRow = [&](std::string_view iconName, std::string_view key, Label*& valueOut) {
+  auto addDetailRow = [&](std::string_view iconName, std::string_view key, Label*& valueOut) -> Flex* {
     auto row = ui::row({
         .align = FlexAlign::Center,
         .gap = (Style::spaceSm + Style::spaceXs) * scale,
         .minHeight = Style::controlHeightSm * scale,
         .flexGrow = 0.0f,
     });
+    Flex* rowPtr = row.get();
     if (detailRowIndex < kDetailRowCount) {
-      m_detailRows[detailRowIndex] = row.get();
+      m_detailRows[detailRowIndex] = rowPtr;
     }
     ++detailRowIndex;
 
@@ -250,6 +251,7 @@ std::unique_ptr<Flex> WeatherTab::create() {
         })
     );
     detailsCard->addChild(std::move(row));
+    return rowPtr;
   };
 
   addDetailRow("temperature-sun", i18n::tr("control-center.weather.details.temp-max"), m_tempMaxLabel);
@@ -259,7 +261,7 @@ std::unique_ptr<Flex> WeatherTab::create() {
   addDetailRow("weather-sunset", i18n::tr("control-center.weather.details.sunset"), m_sunsetLabel);
   addDetailRow("mountain", i18n::tr("control-center.weather.details.elevation"), m_elevationLabel);
   addDetailRow("sun", i18n::tr("control-center.weather.details.uv-index"), m_uvIndexLabel);
-  addDetailRow("clock", i18n::tr("control-center.weather.details.timezone"), m_timeZoneLabel);
+  m_timeZoneRow = addDetailRow("clock", i18n::tr("control-center.weather.details.timezone"), m_timeZoneLabel);
 
   leftColumn->addChild(std::move(detailsCard));
 
@@ -729,6 +731,7 @@ void WeatherTab::onClose() {
   m_elevationLabel = nullptr;
   m_uvIndexLabel = nullptr;
   m_timeZoneLabel = nullptr;
+  m_timeZoneRow = nullptr;
   m_detailRows.fill(nullptr);
   m_forecastRows.fill(nullptr);
   m_forecastSeparators.fill(nullptr);
@@ -757,6 +760,9 @@ void WeatherTab::sync(Renderer& renderer) {
   const bool showLocation = m_config == nullptr || m_config->config().shell.showLocation;
   if (m_updatedLabel != nullptr) {
     m_updatedLabel->setVisible(showLocation);
+  }
+  if (m_timeZoneRow != nullptr) {
+    m_timeZoneRow->setVisible(showLocation);
   }
 
   if (m_weather == nullptr || !m_weather->enabled()) {

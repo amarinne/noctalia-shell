@@ -201,10 +201,10 @@ namespace {
       if (!output.done || output.output == nullptr || !output.hasUsableGeometry()) {
         continue;
       }
-      const double left = static_cast<double>(output.logicalX);
-      const double top = static_cast<double>(output.logicalY);
-      const double right = left + static_cast<double>(output.effectiveLogicalWidth());
-      const double bottom = top + static_cast<double>(output.effectiveLogicalHeight());
+      const auto left = static_cast<double>(output.logicalX);
+      const auto top = static_cast<double>(output.logicalY);
+      const auto right = left + static_cast<double>(output.effectiveLogicalWidth());
+      const auto bottom = top + static_cast<double>(output.effectiveLogicalHeight());
       if (globalX >= left && globalX < right && globalY >= top && globalY < bottom) {
         return &output;
       }
@@ -347,7 +347,7 @@ void DesktopWidgetsEditor::handleWidgetPress(const std::string& id) {
 bool DesktopWidgetsEditor::isOpen() const noexcept { return m_open; }
 
 float DesktopWidgetsEditor::widgetContentScale() const {
-  const float baseUiScale = m_config != nullptr ? m_config->config().shell.uiScale : 1.0f;
+  const float baseUiScale = m_config != nullptr ? m_config->config().accessibility.uiScale : 1.0f;
   return desktop_widgets::widgetContentScale(baseUiScale);
 }
 

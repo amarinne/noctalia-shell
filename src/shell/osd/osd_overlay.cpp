@@ -37,9 +37,9 @@ namespace {
     if (config == nullptr) {
       return 1.0f;
     }
-    const auto& shell = config->config().shell;
+    const auto& accessibility = config->config().accessibility;
     const auto& osd = config->config().osd;
-    return std::max(0.1f, shell.uiScale * osd.scale);
+    return std::max(0.1f, accessibility.uiScale * osd.scale);
   }
 
   [[nodiscard]] bool isOsdKindEnabled(const OsdKindsConfig& kinds, OsdKind kind) {

@@ -766,6 +766,12 @@
       "body-errors": "{plugin} ha generato troppi errori ed è stato disabilitato. Ricaricalo dopo aver risolto il problema.",
       "body-timeouts": "{plugin} ha smesso di rispondere ed è stato disabilitato. Ricaricalo dopo aver risolto il problema.",
       "title": "Plugin disabilitato"
+    },
+    "enable-failed": {
+      "body-error": "{plugin}: {error}",
+      "body-incompatible": "{plugin} richiede Noctalia {versione} o successiva.",
+      "body-timeout": "L'installazione di {plugin} ha richiesto troppo tempo.",
+      "title": "Plugin non abilitato"
     }
   },
   "power": {
@@ -912,6 +918,16 @@
           "border": "Bordo",
           "border-description": "Ruolo colore del contorno capsula; lascia Predefinito per nessun contorno",
           "clear": "Cancella",
+          "drawer-columns": "Colonne cassetto",
+          "drawer-columns-description": "Numero di widget per riga nel pannello del cassetto",
+          "drawer-detached": "Pannello staccato",
+          "drawer-detached-description": "Apri il cassetto come un pannello mobile con il proprio sfondo invece di unirlo alla barra",
+          "drawer-enabled": "Cassetto",
+          "drawer-enabled-description": "Sposta i widget del gruppo in un pannello a cassetto attivato da un pulsante",
+          "drawer-glyph-closed": "Icona chiuso",
+          "drawer-glyph-closed-description": "Glifo mostrato sul pulsante di attivazione/disattivazione del cassetto quando il pannello è chiuso",
+          "drawer-glyph-opened": "Icona aperto",
+          "drawer-glyph-opened-description": "Glifo mostrato sul pulsante di attivazione/disattivazione del cassetto quando il pannello è aperto",
           "edit": "Modifica stile",
           "fill": "Sfondo",
           "fill-description": "Ruolo colore dello sfondo capsula; sono supportati anche codici colore in formato esadecimale",
@@ -1154,8 +1170,11 @@
           "toast": "toast"
         },
         "flags-label": "Quando corrisponde",
+        "match-content-label": "Espressione regolare contenuto",
+        "match-content-placeholder": "Espressione regolare per il riepilogo o il body...",
         "match-label": "App",
         "match-placeholder": "Nome app, voce desktop o categoria...",
+        "override-duration": "Override durata",
         "play-sound": "Riproduci suono",
         "save-history": "Salva nella cronologia",
         "show-toast": "Mostra toast",
@@ -1374,6 +1393,7 @@
       },
       "store": {
         "add": "Aggiungi a Noctalia",
+        "categories": "Categorie",
         "category-all": "Tutti",
         "empty": "Nessun plugin trovato",
         "incompatible": "Incompatibile",
@@ -1515,6 +1535,10 @@
         "center-widgets": {
           "description": "Widget al centro della barra",
           "label": "Widget centrali"
+        },
+        "concave-edge-corners": {
+          "description": "Intagliare delle tacche concave in due degli angoli della barra. È necessario che il margine del bordo sia impostato su 0. Se il margine delle estremità è impostato su 0, vengono intagliati gli angoli sul bordo interno della barra; in caso contrario, vengono intagliati gli angoli che toccano il bordo dello schermo.",
+          "label": "Angoli del bordo concavi"
         },
         "contact-shadow": {
           "description": "Gradiente scuro tra un pannello attaccato e la barra per suggerire profondità nel punto di contatto"
@@ -2565,16 +2589,16 @@
           "label": "Agente Polkit"
         },
         "privacy-cam-filter-regex": {
-          "description": "Regex per le app della fotocamera da ignorare negli indicatori di privacy e OSD",
-          "label": "Filtro Regex camera"
+          "description": "Espressione regolare per le app della fotocamera da ignorare negli indicatori di privacy e OSD",
+          "label": "Filtro Espressione regolare camera"
         },
         "privacy-mic-filter-regex": {
-          "description": "Regex per le app del microfono da ignorare negli indicatori di privacy e OSD",
-          "label": "Filtro Regex microfono"
+          "description": "Espressione regolare per le app del microfono da ignorare negli indicatori di privacy e OSD",
+          "label": "Filtro espressione regolare microfono"
         },
         "privacy-screen-filter-regex": {
-          "description": "Regex per ignorare le app di condivisione dello schermo negli indicatori di privacy e OSD",
-          "label": "Filtro Regex condivisone schermo"
+          "description": "Espressione regolare per ignorare le app di condivisione dello schermo negli indicatori di privacy e OSD",
+          "label": "Filtro espressione regolare condivisone schermo"
         },
         "screen-time-enabled": {
           "description": "Monitora l'uso per app e lo mostra nel centro di controllo",
@@ -2855,7 +2879,7 @@
         },
         "cam-filter-regex": {
           "description": "Espressione regolare per i nomi dei processi della camera da ignorare",
-          "label": "Filtro Regex camera"
+          "label": "Filtro espressione regolare camera"
         },
         "capsule": {
           "description": "Disegna una capsula dietro il widget",
@@ -3005,6 +3029,10 @@
           "description": "Nasconde la copertina dell'album",
           "label": "Nascondi copertina album"
         },
+        "hide-artist": {
+          "description": "Nascondi il nome dell'artista e mostra solo il titolo della traccia",
+          "label": "Nascondi artista"
+        },
         "hide-empty-workspaces": {
           "description": "Quando si raggruppa per workspace, omette le capsule senza finestre in esecuzione nell'elenco taskbar.",
           "label": "Nascondi workspace vuoti"
@@ -3079,6 +3107,10 @@
           "label": "Dimensione pillola inattiva",
           "workspaces-description": "Lunghezza minima della pillola dell'area di lavoro inattiva lungo la barra, come multiplo dello spessore; le etichette potrebbero espandersi oltre questo limite"
         },
+        "interactive": {
+          "description": "Consenti il ​​passaggio del puntatore, i clic, gli scroll e le descrizioni comandi per questo widget",
+          "label": "Interattivo"
+        },
         "interface": {
           "description": "Interfaccia di rete da monitorare; lasciare vuoto per riportare il totale su tutte le interfacce",
           "label": "Interfaccia"
@@ -3115,7 +3147,7 @@
         },
         "mic-filter-regex": {
           "description": "Espressione regolare per i nomi dei processi microfono da ignorare",
-          "label": "Filtro Regex microfono"
+          "label": "Filtro espressione regolare microfono"
         },
         "middle-command": {
           "description": "Comando shell eseguito al click centrale su questo pulsante. Se impostato, il click centrale apre questo comando invece delle impostazioni widget.",
@@ -3262,6 +3294,10 @@
         "taskbar-max-width": {
           "description": "Budget larghezza totale in pixel; i titoli finestra si riducono per adattarsi e si nascondono quando troppo stretti",
           "label": "Larghezza max taskbar"
+        },
+        "timezone": {
+          "description": "Identificatore fuso orario (ad esempio Europe/Berlin) da utilizzare per questo orologio; lasciare vuoto per utilizzare l'ora locale del sistema",
+          "label": "Fuso orario"
         },
         "title-scroll": {
           "description": "Quando deve scorrere il titolo del widget",

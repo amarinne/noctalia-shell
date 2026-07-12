@@ -232,7 +232,7 @@ float DialogPopupHost::uiScale() const {
   if (m_config == nullptr) {
     return 1.0f;
   }
-  return std::max(0.1f, m_config->config().shell.uiScale);
+  return std::max(0.1f, m_config->config().accessibility.uiScale);
 }
 
 PopupSurfaceConfig DialogPopupHost::defaultPopupConfig(

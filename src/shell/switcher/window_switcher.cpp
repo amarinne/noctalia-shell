@@ -141,7 +141,7 @@ namespace {
   }
 
   [[nodiscard]] float shellUiScale(const ConfigService* config) noexcept {
-    return config != nullptr ? config->config().shell.uiScale : 1.0f;
+    return config != nullptr ? config->config().accessibility.uiScale : 1.0f;
   }
 
   [[nodiscard]] bool isAltModifier(std::uint32_t sym) noexcept { return sym == XKB_KEY_Alt_L || sym == XKB_KEY_Alt_R; }
@@ -187,6 +187,10 @@ namespace {
         platform.focusCompositorWindow(entry.windowId);
         return;
       }
+    }
+    if (compositors::isNiri() && !entry.windowId.empty()) {
+      platform.focusCompositorWindow(entry.windowId);
+      return;
     }
     if (entry.closeHandle != 0) {
       auto* handle = reinterpret_cast<zwlr_foreign_toplevel_handle_v1*>(entry.closeHandle);

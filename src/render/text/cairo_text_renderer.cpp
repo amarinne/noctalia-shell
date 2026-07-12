@@ -3,6 +3,7 @@
 #include "core/log.h"
 #include "render/backend/render_backend.h"
 #include "render/core/texture_manager.h"
+#include "render/text/font_registry.h"
 #include "render/text/font_weight_catalog.h"
 
 #include <algorithm>
@@ -375,6 +376,15 @@ void CairoTextRenderer::notifyFontConfigChanged() {
   clearCaches();
 }
 
+void CairoTextRenderer::maybeSyncFontConfig() {
+  const std::uint64_t generation = text::fontConfigGeneration();
+  if (generation == m_syncedFontGeneration) {
+    return;
+  }
+  m_syncedFontGeneration = generation;
+  notifyFontConfigChanged();
+}
+
 // ── Layout construction ─────────────────────────────────────────────────────
 
 PangoLayout* CairoTextRenderer::buildLayout(
@@ -493,6 +503,7 @@ CairoTextRenderer::TextMetrics CairoTextRenderer::measure(
     std::string_view text, float fontSize, FontWeight fontWeight, float maxWidth, int maxLines, TextAlign align,
     std::string_view fontFamily, TextEllipsize ellipsize, bool useMarkup
 ) {
+  maybeSyncFontConfig();
   if (m_pangoContext == nullptr || text.empty()) {
     return {};
   }
@@ -597,6 +608,7 @@ void CairoTextRenderer::measureCursorStops(
     std::string_view text, float fontSize, const std::vector<std::size_t>& byteOffsets, std::vector<float>& outStops,
     FontWeight fontWeight
 ) {
+  maybeSyncFontConfig();
   outStops.clear();
   outStops.reserve(byteOffsets.size());
 
@@ -629,6 +641,7 @@ void CairoTextRenderer::measureCursorStopsWrapped(
     std::string_view text, float fontSize, const std::vector<std::size_t>& byteOffsets, float maxWidth,
     std::vector<TextCursorStop>& outStops, FontWeight fontWeight
 ) {
+  maybeSyncFontConfig();
   outStops.clear();
   outStops.reserve(byteOffsets.size());
 
@@ -991,6 +1004,7 @@ void CairoTextRenderer::draw(
     const Color& color, const Mat3& transform, FontWeight fontWeight, float maxWidth, int maxLines, TextAlign align,
     std::string_view fontFamily, TextEllipsize ellipsize, bool useMarkup
 ) {
+  maybeSyncFontConfig();
   if (m_pangoContext == nullptr || m_backend == nullptr || text.empty()) {
     return;
   }

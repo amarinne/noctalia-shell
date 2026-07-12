@@ -56,6 +56,8 @@ namespace settings {
     [[nodiscard]] bool isSelectDropdownOpen() const noexcept;
 
     void setSheetTitle(std::string title);
+    void setStatusMessage(std::string message, bool error);
+    void clearStatusMessage();
 
     // Re-run the populate callback to rebuild the sheet body in place (e.g. after an edit that
     // changes which controls are shown). Re-measures and resizes the popup. No-op if not open.
@@ -85,6 +87,10 @@ namespace settings {
     std::function<bool()> m_onCloseRequested;
     std::string m_sheetTitle;
     Label* m_sheetTitleLabel = nullptr;
+    std::string m_statusMessage;
+    bool m_statusIsError = false;
+    Flex* m_statusBanner = nullptr;
+    Label* m_statusLabel = nullptr;
     std::function<void()> m_removeAction;
     std::function<void(Flex&)> m_populateSheetBody;
 

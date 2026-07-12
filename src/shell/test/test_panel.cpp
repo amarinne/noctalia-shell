@@ -1144,7 +1144,7 @@ std::unique_ptr<Flex> TestPanel::buildTextLabSection(float scale) {
             .onChange = [this](bool checked) {
               if (m_baselineModeLabel != nullptr) {
                 m_baselineModeLabel->setBaselineMode(
-                    checked ? LabelBaselineMode::InkCentered : LabelBaselineMode::StableLogical
+                    checked ? LabelBaselineMode::InkCentered : LabelBaselineMode::Text
                 );
               }
             },

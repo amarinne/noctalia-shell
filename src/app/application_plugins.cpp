@@ -71,7 +71,7 @@ void Application::reloadDmenuProviders() {
   }
   m_launcherPanel->clearProvidersWithIdPrefix("dmenu.");
   for (const auto& entry : m_configService.config().shell.launcher.dmenu.entries) {
-    if (entry.command.empty()) {
+    if (entry.command.empty() && !entry.freeform) {
       kLog.warn("[{}] missing command, skipping", entry.id);
       continue;
     }

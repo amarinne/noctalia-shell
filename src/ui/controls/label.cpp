@@ -21,6 +21,22 @@ namespace {
 
 } // namespace
 
+std::optional<LabelBaselineMode> labelBaselineModeFromToken(std::string_view token) {
+  if (token == "text") {
+    return LabelBaselineMode::Text;
+  }
+  if (token == "textFixedHeight") {
+    return LabelBaselineMode::TextFixedHeight;
+  }
+  if (token == "inkCentered") {
+    return LabelBaselineMode::InkCentered;
+  }
+  if (token == "pictographic") {
+    return LabelBaselineMode::Pictographic;
+  }
+  return std::nullopt;
+}
+
 Label::Label() {
   auto textNode = std::make_unique<TextNode>();
   m_textNode = static_cast<TextNode*>(addChild(std::move(textNode)));
@@ -510,12 +526,12 @@ LayoutSize Label::measureWithConstraints(Renderer& renderer, const LayoutConstra
       // Unrounded — the renderer snaps the glyph quad to the pixel grid.
       height = std::round(std::max(actualHeight, inkHeight));
       m_baselineOffset = -metrics.inkTop + (height - inkHeight) * 0.5f;
-    } else if (m_baselineMode == LabelBaselineMode::StableFont) {
+    } else if (m_baselineMode == LabelBaselineMode::TextFixedHeight) {
       const auto fontMetrics = renderer.measureFont(m_textNode->fontSize(), fontWeight);
       height = std::round(fontMetrics.bottom - fontMetrics.top);
       const float capHeight = fontMetrics.capHeight;
       m_baselineOffset = capHeight > 0.0f ? height * 0.5f + capHeight * 0.5f : -fontMetrics.top;
-    } else if (m_baselineMode == LabelBaselineMode::StableFontBox) {
+    } else if (m_baselineMode == LabelBaselineMode::Pictographic) {
       // Center the cap-height band measured from the *ink top* rather than the
       // baseline. For pictographic script fonts (e.g. bongocat poses) the ink top
       // is the fixed part of the art while lower ink moves per glyph; anchoring the

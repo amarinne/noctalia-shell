@@ -259,14 +259,14 @@ namespace {
                   .fontWeight = FontWeight::SemiBold,
                   .color = colorSpecFromRole(ColorRole::OnSurface),
                   .maxLines = 1,
-                  .baselineMode = LabelBaselineMode::StableFont,
+                  .baselineMode = LabelBaselineMode::TextFixedHeight,
               }),
               ui::label({
                   .out = &m_subtitle,
                   .fontSize = Style::fontSizeCaption * m_style.scale,
                   .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                   .maxLines = 1,
-                  .baselineMode = LabelBaselineMode::StableFont,
+                  .baselineMode = LabelBaselineMode::TextFixedHeight,
               })
           )
       );

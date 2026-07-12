@@ -75,149 +75,194 @@ namespace {
     });
   }
 
-  class AccessPointRow : public Flex {
-  public:
-    AccessPointRow(
-        float scale, AccessPointInfo ap, bool saved, std::function<void(const AccessPointInfo&)> onActivate,
-        std::function<void(const AccessPointInfo&)> onForget
-    )
-        : m_ap(std::move(ap)), m_onActivate(std::move(onActivate)), m_onForget(std::move(onForget)) {
-      setDirection(FlexDirection::Horizontal);
-      setAlign(FlexAlign::Center);
-      setGap(Style::spaceSm * scale);
-      setPadding(Style::spaceSm * scale, Style::spaceMd * scale);
-      setMinHeight(kRowMinHeight * scale);
-      setRadius(Style::scaledRadiusMd(scale));
-      setFill(colorSpecFromRole(ColorRole::Surface));
-      clearBorder();
+  std::string percentText(std::uint8_t percent) { return std::to_string(static_cast<int>(percent)) + "%"; }
 
+  // Active first, then by signal band, then by name. Ordering on the raw strength —
+  // as the services do — reshuffles rows on every scan update, moving the row you are
+  // aiming at out from under the pointer.
+  std::vector<AccessPointInfo> sortedAccessPoints(std::vector<AccessPointInfo> aps) {
+    std::ranges::sort(aps, [](const AccessPointInfo& a, const AccessPointInfo& b) {
+      if (a.active != b.active) {
+        return a.active;
+      }
+      const int bandA = network_glyphs::wifiSignalBand(a.strength);
+      const int bandB = network_glyphs::wifiSignalBand(b.strength);
+      if (bandA != bandB) {
+        return bandA > bandB;
+      }
+      return a.ssid < b.ssid;
+    });
+    return aps;
+  }
+
+} // namespace
+
+class AccessPointRow : public Flex {
+public:
+  AccessPointRow(
+      float scale, AccessPointInfo ap, bool saved, std::function<void(const AccessPointInfo&)> onActivate,
+      std::function<void(const AccessPointInfo&)> onForget
+  )
+      : m_ap(std::move(ap)), m_onActivate(std::move(onActivate)), m_onForget(std::move(onForget)) {
+    setDirection(FlexDirection::Horizontal);
+    setAlign(FlexAlign::Center);
+    setGap(Style::spaceSm * scale);
+    setPadding(Style::spaceSm * scale, Style::spaceMd * scale);
+    setMinHeight(kRowMinHeight * scale);
+    setRadius(Style::scaledRadiusMd(scale));
+    setFill(colorSpecFromRole(ColorRole::Surface));
+    clearBorder();
+
+    addChild(
+        ui::glyph({
+            .out = &m_signalGlyph,
+            .glyph = network_glyphs::wifiGlyphForSignal(m_ap.strength),
+            .glyphSize = Style::baseGlyphSize * scale,
+            .color = colorSpecFromRole(ColorRole::OnSurface),
+        })
+    );
+
+    addChild(
+        ui::label({
+            .out = &m_title,
+            .text = m_ap.ssid,
+            .fontSize = Style::fontSizeBody * scale,
+            .fontWeight = m_ap.active ? FontWeight::Bold : FontWeight::Normal,
+            .color = colorSpecFromRole(ColorRole::OnSurface),
+            .flexGrow = 1.0f,
+        })
+    );
+
+    if (m_ap.secured) {
       addChild(
           ui::glyph({
-              .glyph = network_glyphs::wifiGlyphForSignal(m_ap.strength),
+              .glyph = "lock",
               .glyphSize = Style::baseGlyphSize * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
-          })
-      );
-
-      addChild(
-          ui::label({
-              .out = &m_title,
-              .text = m_ap.ssid,
-              .fontSize = Style::fontSizeBody * scale,
-              .fontWeight = m_ap.active ? FontWeight::Bold : FontWeight::Normal,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
-              .flexGrow = 1.0f,
-          })
-      );
-
-      if (m_ap.secured) {
-        addChild(
-            ui::glyph({
-                .glyph = "lock",
-                .glyphSize = Style::baseGlyphSize * scale,
-                .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
-            })
-        );
-      }
-
-      addChild(
-          ui::label({
-              .text = std::to_string(static_cast<int>(m_ap.strength)) + "%",
-              .fontSize = Style::fontSizeCaption * scale,
               .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
           })
       );
+    }
 
-      const float actionOpacity = (m_ap.active || saved) ? 1.0f : 0.0f;
-      auto action = ui::button({
-          .out = &m_actionButton,
-          .glyphSize = Style::baseGlyphSize * scale,
-          .variant = ButtonVariant::Ghost,
-          .padding = Style::spaceXs * scale,
-          .radius = Style::scaledRadiusSm(scale),
-          .opacity = actionOpacity,
-      });
-      if (m_ap.active) {
-        action->setGlyph("check");
-      } else if (saved) {
-        action->setGlyph("trash");
-        action->setOnClick([this]() {
-          if (m_onForget) {
-            m_onForget(m_ap);
-          }
-        });
-      }
-      addChild(std::move(action));
+    addChild(
+        ui::label({
+            .out = &m_signalValue,
+            .text = percentText(m_ap.strength),
+            .fontSize = Style::fontSizeCaption * scale,
+            .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+        })
+    );
 
-      auto area = std::make_unique<InputArea>();
-      area->setPropagateEvents(true);
-      area->setOnEnter([this](const InputArea::PointerData& /*data*/) { applyState(); });
-      area->setOnLeave([this]() { applyState(); });
-      area->setOnPress([this](const InputArea::PointerData& /*data*/) { applyState(); });
-      area->setOnClick([this](const InputArea::PointerData& /*data*/) {
-        if (m_onActivate) {
-          m_onActivate(m_ap);
+    const float actionOpacity = (m_ap.active || saved) ? 1.0f : 0.0f;
+    auto action = ui::button({
+        .out = &m_actionButton,
+        .glyphSize = Style::baseGlyphSize * scale,
+        .variant = ButtonVariant::Ghost,
+        .padding = Style::spaceXs * scale,
+        .radius = Style::scaledRadiusSm(scale),
+        .opacity = actionOpacity,
+    });
+    if (m_ap.active) {
+      action->setGlyph("check");
+    } else if (saved) {
+      action->setGlyph("trash");
+      action->setOnClick([this]() {
+        if (m_onForget) {
+          m_onForget(m_ap);
         }
       });
-      m_inputArea = static_cast<InputArea*>(addChild(std::move(area)));
-
-      applyState();
-      m_paletteConn = paletteChanged().connect([this] { applyState(); });
     }
+    addChild(std::move(action));
 
-    void doLayout(Renderer& renderer) override {
-      if (m_inputArea == nullptr) {
-        return;
+    auto area = std::make_unique<InputArea>();
+    area->setPropagateEvents(true);
+    area->setOnEnter([this](const InputArea::PointerData& /*data*/) { applyState(); });
+    area->setOnLeave([this]() { applyState(); });
+    area->setOnPress([this](const InputArea::PointerData& /*data*/) { applyState(); });
+    area->setOnClick([this](const InputArea::PointerData& /*data*/) {
+      if (m_onActivate) {
+        m_onActivate(m_ap);
       }
-      m_inputArea->setVisible(false);
-      Flex::doLayout(renderer);
-      m_inputArea->setVisible(true);
-      m_inputArea->setPosition(0.0f, 0.0f);
-      m_inputArea->setSize(width(), height());
-      if (m_actionButton != nullptr) {
-        const float areaWidth = std::max(0.0f, m_actionButton->x() - gap());
-        m_inputArea->setSize(areaWidth, height());
+    });
+    m_inputArea = static_cast<InputArea*>(addChild(std::move(area)));
+
+    applyState();
+    m_paletteConn = paletteChanged().connect([this] { applyState(); });
+  }
+
+  void doLayout(Renderer& renderer) override {
+    if (m_inputArea == nullptr) {
+      return;
+    }
+    m_inputArea->setVisible(false);
+    Flex::doLayout(renderer);
+    m_inputArea->setVisible(true);
+    m_inputArea->setPosition(0.0f, 0.0f);
+    m_inputArea->setSize(width(), height());
+    if (m_actionButton != nullptr) {
+      const float areaWidth = std::max(0.0f, m_actionButton->x() - gap());
+      m_inputArea->setSize(areaWidth, height());
+    }
+    applyState();
+  }
+
+  LayoutSize doMeasure(Renderer& renderer, const LayoutConstraints& constraints) override {
+    return measureByLayout(renderer, constraints);
+  }
+
+  void doArrange(Renderer& renderer, const LayoutRect& rect) override { arrangeByLayout(renderer, rect); }
+
+  [[nodiscard]] const std::string& ssid() const noexcept { return m_ap.ssid; }
+
+  // Refresh the values that move while a scan runs — the signal glyph and percent.
+  // Everything else about the row is structural and belongs to the list key.
+  // Returns true when a value actually changed, i.e. the row needs relayout.
+  bool syncLiveMetrics(const AccessPointInfo& ap) {
+    bool changed = false;
+    if (m_signalGlyph != nullptr && m_signalGlyph->setGlyph(network_glyphs::wifiGlyphForSignal(ap.strength))) {
+      changed = true;
+    }
+    if (m_signalValue != nullptr && m_signalValue->setText(percentText(ap.strength))) {
+      changed = true;
+    }
+    m_ap.strength = ap.strength;
+    return changed;
+  }
+
+private:
+  void applyState() {
+    const bool hov = m_inputArea != nullptr && m_inputArea->hovered();
+    const bool pressed = m_inputArea != nullptr && m_inputArea->pressed();
+    if (pressed) {
+      setFill(colorSpecFromRole(ColorRole::Primary));
+      setBorder(colorSpecFromRole(ColorRole::Primary), Style::borderWidth);
+      if (m_title != nullptr) {
+        m_title->setColor(colorSpecFromRole(ColorRole::OnPrimary));
       }
-      applyState();
-    }
-
-    LayoutSize doMeasure(Renderer& renderer, const LayoutConstraints& constraints) override {
-      return measureByLayout(renderer, constraints);
-    }
-
-    void doArrange(Renderer& renderer, const LayoutRect& rect) override { arrangeByLayout(renderer, rect); }
-
-  private:
-    void applyState() {
-      const bool hov = m_inputArea != nullptr && m_inputArea->hovered();
-      const bool pressed = m_inputArea != nullptr && m_inputArea->pressed();
-      if (pressed) {
-        setFill(colorSpecFromRole(ColorRole::Primary));
-        setBorder(colorSpecFromRole(ColorRole::Primary), Style::borderWidth);
-        if (m_title != nullptr) {
-          m_title->setColor(colorSpecFromRole(ColorRole::OnPrimary));
-        }
+    } else {
+      setFill(colorSpecFromRole(ColorRole::Surface));
+      if (hov) {
+        setBorder(colorSpecFromRole(ColorRole::Hover), Style::borderWidth);
       } else {
-        setFill(colorSpecFromRole(ColorRole::Surface));
-        if (hov) {
-          setBorder(colorSpecFromRole(ColorRole::Hover), Style::borderWidth);
-        } else {
-          clearBorder();
-        }
-        if (m_title != nullptr) {
-          m_title->setColor(colorSpecFromRole(ColorRole::OnSurface));
-        }
+        clearBorder();
+      }
+      if (m_title != nullptr) {
+        m_title->setColor(colorSpecFromRole(ColorRole::OnSurface));
       }
     }
+  }
 
-    AccessPointInfo m_ap;
-    std::function<void(const AccessPointInfo&)> m_onActivate;
-    std::function<void(const AccessPointInfo&)> m_onForget;
-    Label* m_title = nullptr;
-    Button* m_actionButton = nullptr;
-    InputArea* m_inputArea = nullptr;
-    Signal<>::ScopedConnection m_paletteConn;
-  };
+  AccessPointInfo m_ap;
+  std::function<void(const AccessPointInfo&)> m_onActivate;
+  std::function<void(const AccessPointInfo&)> m_onForget;
+  Label* m_title = nullptr;
+  Button* m_actionButton = nullptr;
+  InputArea* m_inputArea = nullptr;
+  Glyph* m_signalGlyph = nullptr;
+  Label* m_signalValue = nullptr;
+  Signal<>::ScopedConnection m_paletteConn;
+};
+
+namespace {
 
   class VpnConnectionRow : public Flex {
   public:
@@ -533,6 +578,7 @@ void NetworkTab::doLayout(Renderer& renderer, float contentWidth, float bodyHeig
   m_rootLayout->layout(renderer);
   syncPasswordCard();
   rebuildApList(renderer);
+  syncApRows();
   syncCurrentCard();
   m_rootLayout->layout(renderer);
 }
@@ -540,6 +586,10 @@ void NetworkTab::doLayout(Renderer& renderer, float contentWidth, float bodyHeig
 void NetworkTab::doUpdate(Renderer& renderer) {
   syncPasswordCard();
   rebuildApList(renderer);
+  // A signal percent's text changes its width, so the list has to be laid out again.
+  if (syncApRows() && m_list != nullptr) {
+    m_list->layout(renderer);
+  }
   syncCurrentCard();
 }
 
@@ -560,6 +610,7 @@ void NetworkTab::onClose() {
   m_scanSpinner = nullptr;
   m_currentRow = nullptr;
   m_disconnectButton = nullptr;
+  m_apRows.clear();
   m_lastStructureKey.clear();
   m_lastListWidth = -1.0f;
   m_pendingAccessPoint.reset();
@@ -778,6 +829,10 @@ void NetworkTab::beginPendingAction(bool wasConnected) {
   }
 }
 
+// Identity of the built list: which rows exist, in which order, and which controls
+// each carries. The signal strength is absent by design — it refreshes in place
+// through syncApRows(), so a scan update no longer tears the list down. Access points
+// arrive sorted, so a change in row order changes the key.
 std::string
 NetworkTab::structureKey(const std::vector<AccessPointInfo>& aps, const std::vector<VpnConnectionInfo>& vpns) const {
   std::string key;
@@ -789,8 +844,6 @@ NetworkTab::structureKey(const std::vector<AccessPointInfo>& aps, const std::vec
     key += ap.active ? '1' : '0';
     key.push_back(':');
     key += (m_network != nullptr && m_network->hasSavedConnection(ap.ssid)) ? '1' : '0';
-    key.push_back(':');
-    key += std::to_string(ap.strength);
     key.push_back('\n');
   }
   key += "---\n";
@@ -823,7 +876,10 @@ void NetworkTab::rebuildApList(Renderer& renderer) {
     return;
   }
 
-  const auto& aps = m_network != nullptr ? m_network->accessPoints() : std::vector<AccessPointInfo>{};
+  std::vector<AccessPointInfo> aps;
+  if (m_network != nullptr) {
+    aps = sortedAccessPoints(m_network->accessPoints());
+  }
   const auto& vpns = m_network != nullptr ? m_network->vpnConnections() : std::vector<VpnConnectionInfo>{};
   const std::string nextStructure = structureKey(aps, vpns);
   if (listWidth == m_lastListWidth && nextStructure == m_lastStructureKey) {
@@ -869,7 +925,9 @@ void NetworkTab::rebuildApList(Renderer& renderer) {
               PanelManager::instance().refresh();
             }
         );
+        auto* rowPtr = row.get();
         container->addChild(std::move(row));
+        m_apRows.emplace(rowPtr->ssid(), rowPtr);
       }
     }
     return container;
@@ -878,6 +936,7 @@ void NetworkTab::rebuildApList(Renderer& renderer) {
   m_wifiToggle = nullptr;
   m_scanSpinner = nullptr;
   m_rescanButton = nullptr;
+  m_apRows.clear();
 
   while (!m_list->children().empty()) {
     m_list->removeChild(m_list->children().front().get());
@@ -994,6 +1053,20 @@ void NetworkTab::rebuildApList(Renderer& renderer) {
     }
   }
   m_list->layout(renderer);
+}
+
+bool NetworkTab::syncApRows() {
+  if (m_network == nullptr || m_apRows.empty()) {
+    return false;
+  }
+  bool changed = false;
+  for (const auto& ap : m_network->accessPoints()) {
+    const auto it = m_apRows.find(ap.ssid);
+    if (it != m_apRows.end() && it->second->syncLiveMetrics(ap)) {
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 void NetworkTab::onPanelCardOpacityChanged(float opacity) {

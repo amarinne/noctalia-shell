@@ -174,6 +174,7 @@ Application::~Application() {
 
 void Application::run(std::function<void()> startupReadyCallback) {
   initLogFile();
+  initLogLevelFromEnvironment();
   kLog.info("noctalia {}", noctalia::build_info::displayVersion());
   runStartupPhase("initServices", [this]() { initServices(); });
   runStartupPhase("initPlugins", [this]() {

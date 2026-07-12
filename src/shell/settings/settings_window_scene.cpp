@@ -708,7 +708,9 @@ void SettingsWindow::scrollFocusedAreaIntoView(InputArea* area) {
       if (node == m_contentScrollView->content()) {
         m_pendingContentScrollTarget = area;
         m_scrollToPendingContentTarget = true;
-        applyPendingContentScrollTarget(Style::spaceMd * uiScale());
+        if (!m_deferFocusScrollToLayout) {
+          applyPendingContentScrollTarget(Style::spaceMd * uiScale());
+        }
         return;
       }
     }
@@ -1258,50 +1260,29 @@ std::unique_ptr<Flex> SettingsWindow::buildFilterRow(
 }
 
 std::unique_ptr<Flex> SettingsWindow::buildStatusRow(float scale) {
-  if (m_statusMessage.empty()) {
+  const auto* legacyIssue = m_config != nullptr && !m_config->legacyConfigIssues().empty()
+      ? &m_config->legacyConfigIssues().front()
+      : nullptr;
+  if (m_statusMessage.empty() && legacyIssue == nullptr) {
     return nullptr;
   }
 
-  const auto requestRebuild = [this]() { requestSceneRebuild(); };
-  const auto clearStatus = [this]() { clearStatusMessage(); };
+  const bool transientStatus = !m_statusMessage.empty();
+  const bool statusIsError = transientStatus ? m_statusIsError : true;
+  const std::string messageText = transientStatus
+      ? m_statusMessage
+      : i18n::tr("settings.window.legacy-config-warning", "issue", legacyIssue->path + ": " + legacyIssue->message);
 
-  auto status = ui::row({
-      .align = FlexAlign::Center,
-      .gap = Style::spaceSm * scale,
-      .configure = [this, scale](Flex& row) {
-        row.setPadding(Style::spaceXs * scale, Style::spaceSm * scale);
-        row.setRadius(Style::scaledRadiusMd(scale));
-        row.setFill(colorSpecFromRole(m_statusIsError ? ColorRole::Error : ColorRole::Secondary, 0.14f));
-        row.setBorder(
-            colorSpecFromRole(m_statusIsError ? ColorRole::Error : ColorRole::Secondary, 0.45f), Style::borderWidth
-        );
-      },
+  return settings::makeSettingsStatusBanner({
+      .message = messageText,
+      .error = statusIsError,
+      .scale = scale,
+      .onDismiss = transientStatus ? std::function<void()>{[this]() {
+        clearStatusMessage();
+        requestSceneRebuild();
+      }}
+                                   : std::function<void()>{},
   });
-
-  auto message = makeLabel(
-      m_statusMessage, Style::fontSizeCaption * scale,
-      colorSpecFromRole(m_statusIsError ? ColorRole::Error : ColorRole::Secondary), FontWeight::Bold
-  );
-  message->setFlexGrow(1.0f);
-  status->addChild(std::move(message));
-
-  status->addChild(
-      ui::button({
-          .glyph = "close",
-          .glyphSize = Style::fontSizeCaption * scale,
-          .variant = ButtonVariant::Ghost,
-          .minWidth = Style::controlHeightSm * scale,
-          .minHeight = Style::controlHeightSm * scale,
-          .padding = Style::spaceXs * scale,
-          .radius = Style::scaledRadiusSm(scale),
-          .onClick = [clearStatus, requestRebuild]() {
-            clearStatus();
-            requestRebuild();
-          },
-      })
-  );
-
-  return status;
 }
 
 std::unique_ptr<Flex> SettingsWindow::buildBody(

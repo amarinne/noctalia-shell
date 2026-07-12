@@ -633,9 +633,6 @@ void HomeTab::doLayout(Renderer& renderer, float contentWidth, float bodyHeight)
     return;
   }
 
-  if (m_dateTimeCard != nullptr) {
-    m_dateTimeCard->setMinHeight(0.0f);
-  }
   if (m_mediaCard != nullptr) {
     m_mediaCard->setMinHeight(0.0f);
   }
@@ -791,12 +788,31 @@ void HomeTab::doLayout(Renderer& renderer, float contentWidth, float bodyHeight)
     // Cells aim for square but trimmed slightly so the grid stays compact and the bottom row
     // doesn't tower over the user card area. The width was capped earlier so this stays bounded.
     const float cellSide = cellWidth * kHomeShortcutSquareTrim;
-    const float gridH = static_cast<float>(rows) * cellSide
+    // Snap the grid height to an integer to ensure crisp rendering of borders.
+    // A fractional grid height cascades into fractional card heights, which anti-aliases
+    // 1px borders into a blur that looks "cut off" at the bottom of the card.
+    const float gridH = std::round(
+        static_cast<float>(rows) * cellSide
         + static_cast<float>(rows > 0 ? rows - 1 : 0) * m_shortcutsGrid->rowGap()
         + m_shortcutsGrid->paddingTop()
-        + m_shortcutsGrid->paddingBottom();
+        + m_shortcutsGrid->paddingBottom()
+    );
     if (m_bottomRow != nullptr) {
       m_bottomRow->setMinHeight(gridH);
+    }
+
+    // Explicitly enforce integer heights for the left column cards so their top/bottom edges snap to pixels.
+    if (m_mediaCard != nullptr && m_dateTimeCard != nullptr) {
+      const float colGap = Style::spaceSm * contentScale();
+      const float avail = std::max(0.0f, gridH - colGap);
+      const float mediaH =
+          std::round(avail * (kHomeMainColumnFlexGrow / (kHomeMainColumnFlexGrow + 1.0f))); // 1.4 / 2.4
+      const float dateH = std::max(0.0f, avail - mediaH);
+
+      m_mediaCard->setMinHeight(mediaH);
+      m_mediaCard->setMaxHeight(mediaH);
+      m_dateTimeCard->setMinHeight(dateH);
+      m_dateTimeCard->setMaxHeight(dateH);
     }
   }
 

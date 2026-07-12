@@ -58,22 +58,49 @@
       },
       "network": {
         "active": "Активна",
+        "connected": "Під'єднано",
         "connecting": "Триває з'єднання…",
+        "download": "Вхідна швидкість",
+        "interface": "Інтерфейс",
         "ip": "IP-адреса",
+        "network": "Мережа",
+        "networks": "Мережі",
         "no": "Ні",
         "not-connected": "Не під'єднано",
         "off": "Вимк.",
         "on": "Увімк.",
-        "wired": "Дротове"
+        "scanning": "Триває сканування…",
+        "signal": "Рівень сигналу",
+        "upload": "Вихідна швидкість",
+        "vpn": "VPN",
+        "wifi": "Wi-Fi",
+        "wired": "Дротове",
+        "yes": "Так"
+      },
+      "privacy": {
+        "camera": "Відеокамера",
+        "microphone": "Мікрофон"
       },
       "scripted": {
         "reload-failed": "Перезавантаження скрипта не вдалося",
         "reloaded": "Скрипт перезавантажено"
       },
       "sysmon": {
-        "cpu-temp": "Температура ЦП"
+        "cpu": "ЦП",
+        "cpu-temp": "Температура ЦП",
+        "disk": "Диск",
+        "download": "Вхідна швидкість",
+        "gpu-temp": "Температура ГП",
+        "gpu-usage": "Завантаженість ГП",
+        "gpu-vram": "ОЗП відеокарти",
+        "ram": "ОЗП",
+        "swap": "Підкачування",
+        "system": "Система",
+        "upload": "Вихідна швидкість"
       },
       "volume": {
+        "device": "Пристрій",
+        "mic": "Мікрофон",
         "volume": "Гучність"
       },
       "weather": {
@@ -133,6 +160,9 @@
   "control-center": {
     "audio": {
       "application-volumes": "Гучність застосунків",
+      "choose-effects-profile": "Виберіть профіль",
+      "effects-profile": "Ефекти",
+      "input-device-prefix": "Ввід",
       "no-application-audio": "Немає звуку застосунку",
       "no-application-audio-body": "Наразі немає доступних потоків відтворення застосунків.",
       "no-input-devices": "Немає пристроїв введення",
@@ -175,7 +205,8 @@
     "calendar": {
       "all-day": "Весь день",
       "events": "Події",
-      "no-events": "Подій немає."
+      "no-events": "Подій немає.",
+      "today": "Сьогодні"
     },
     "display": {
       "disabled": "Вимкнено",
@@ -239,6 +270,15 @@
       "filter-empty-title": "Тут нічого немає",
       "untitled": "Безіменне сповіщення"
     },
+    "power": {
+      "battery": "Акумулятор",
+      "design-capacity": "розрахункової місткості",
+      "peripherals": "Під'єднані пристрої",
+      "power-profile": "Профіль живлення",
+      "time-to-empty": "{time} залишилось",
+      "time-to-full": "{time} до повного заряду",
+      "unknown-device": "Невідомий пристрій"
+    },
     "screen-time": {
       "disabled": "Відстеження екранного часу вимкнено. Увімкніть його в Налаштуваннях, щоб записувати використання для кожної програми.",
       "empty": "Використання програм ще не записано. Сфокусуйте вікно, щоб почати відстеження.",
@@ -283,6 +323,10 @@
       "wifi": "Wi-Fi"
     },
     "system": {
+      "labels": {
+        "load": "Завантаженість ЦП",
+        "ram": "ОЗП"
+      },
       "titles": {
         "cpu": "CPU",
         "gpu": "GPU",
@@ -290,6 +334,9 @@
         "network": "Мережа",
         "resources": "Ресурси",
         "system": "Система"
+      },
+      "tooltips": {
+        "load": "Середнє навантаження за 1 / 5 / 15 хв."
       },
       "unknown": "невідомо",
       "uptime-prefix": "Працює {uptime} · {osAge}"
@@ -303,11 +350,18 @@
       "monitor": "Монітор",
       "network": "Мережа",
       "notifications": "Сповіщення",
+      "power": "Живлення",
       "screen-time": "Екранний час",
       "system": "Система",
       "weather": "Погода"
     },
     "weather": {
+      "daily": {
+        "tooltip": {
+          "sunrise": "Схід сонця",
+          "sunset": "Захід сонця"
+        }
+      },
       "data-unavailable": "Дані про погоду недоступні",
       "details": {
         "elevation": "Висота",
@@ -316,6 +370,7 @@
         "temp-max": "Максимальна температура",
         "temp-min": "Мінімальна температура",
         "timezone": "Часовий пояс",
+        "uv-index": "УФ-індекс",
         "wind": "Вітер"
       },
       "disabled": "Увімкнути [weather] у config.toml",
@@ -325,7 +380,20 @@
         "description": "Погода",
         "temperature": "10 / 4С"
       },
+      "forecast-view": {
+        "daily": "По днях",
+        "hourly": "По годинах"
+      },
+      "hourly": {
+        "summary": "{condition} / дощ {precip}%",
+        "tooltip": {
+          "humidity": "Вологість",
+          "rain": "Дощ",
+          "wind": "Швидкість вітру"
+        }
+      },
       "location-unavailable": "Місцезнаходження недоступне",
+      "no-location-title": "Місцеперебування не вказане",
       "refreshing": "Оновлення погоди...",
       "waiting": "Очікування даних про погоду"
     }
@@ -333,7 +401,16 @@
   "desktop-widgets": {
     "editor": {
       "actions": {
-        "done": "Готово"
+        "add": "Додати",
+        "done": "Готово",
+        "flip-horizontal": "Віддзеркалити по горизонталі",
+        "flip-vertical": "Віддзеркалити по вертикалі",
+        "hide": "Приховати",
+        "settings": "Параметри",
+        "show": "Показати",
+        "stack-back": "На задні план",
+        "stack-front": "На передній план",
+        "trash": "Видалити"
       },
       "dialogs": {
         "select-sticker-image": "Обрати зображення стікера"
@@ -349,6 +426,7 @@
         "bands": "Смуги",
         "bar-width": "Ширина панелі",
         "bloom-intensity": "Bloom",
+        "center-text": "Центрувати текст",
         "centered": "По центру",
         "change-image": "Змінити…",
         "circle": "Коло",
@@ -357,8 +435,11 @@
         "clock-style-digital": "Цифровий",
         "color": "Колір",
         "color2": "Колір 2",
+        "command": "Команда",
         "custom-color": "Власний…",
         "description": "Опис",
+        "display": "Дисплей",
+        "display-graph": "Графік",
         "fade-when-idle": "Тьмяніти при бездіяльності",
         "font-family": "Шрифт",
         "font-family-default": "За замовчуванням системи",
@@ -369,13 +450,19 @@
         "inner-diameter": "Внутрішній діаметр",
         "layout": "Макет",
         "mirrored": "Віддзеркалений",
+        "network-speed-compact": "Швидкість мережі (компактно)",
+        "network-speed-unit": "Одиниці вимірювання швидкості мережі",
+        "network-speed-unit-auto": "Автоматично",
         "opacity": "Непрозорість",
         "primary-color": "Основний колір",
+        "reset-defaults": "Повернути початкові",
         "ring-opacity": "Непрозорість кільця",
         "rotation-speed": "Швидкість обертання",
         "secondary-color": "Додатковий колір",
         "sensitivity": "Чутливість",
         "shadow": "Тінь",
+        "show-forecast": "Показати прогноз погоди",
+        "show-keyboard-layout": "Розкладка клавіатури",
         "show-label": "Показати мітку",
         "show-when-idle": "Показувати, коли неактивний",
         "stat": "Стан",
@@ -384,13 +471,14 @@
         "stat-gpu-temp": "Температура GPU",
         "stat-gpu-usage": "Використання GPU",
         "stat-gpu-vram": "GPU VRAM",
-        "stat-net-rx": "Мережа (отримано)",
-        "stat-net-tx": "Вихідна мережа",
+        "stat-net-rx": "Вхідна швидкість мережі",
+        "stat-net-tx": "Мережа: Вихідна швидкість",
         "stat-none": "Немає",
         "stat-ram-pct": "RAM %",
         "stat-swap-pct": "Підкачка %",
         "stat2": "Статистика 2",
         "title": "Заголовок",
+        "variant": "Стиль",
         "vertical": "Вертикальний",
         "visualization-mode": "Режим",
         "visualization-mode-all": "Усі",
@@ -409,6 +497,7 @@
       "title": "Віджети робочого столу",
       "types": {
         "audio-visualizer": "Аудіовізуалізатор",
+        "button": "Кнопка",
         "clock": "Годинник",
         "fancy-audio-visualizer": "Ефектний аудіовізуалізатор",
         "label": "Мітка",
@@ -518,6 +607,7 @@
   "lockscreen": {
     "authenticating": "Автентифікація...",
     "authentication-failed": "Автентифікація не вдалася",
+    "caps-lock-on": "Caps Lock увімкнено",
     "password-cleared": "Пароль очищено",
     "password-placeholder": "Пароль",
     "ready": "Введіть свій пароль і натисніть Enter.",
@@ -535,6 +625,8 @@
     },
     "internal": {
       "battery": "Батарея",
+      "battery-critical-body": "{device}: {percent}% — комп'ютер скоро вимкнеться",
+      "battery-critical-title": "Критично низький заряд акумулятора",
       "battery-device": "Пристрій батареї",
       "battery-low-body": "{device}: залишилося {percent}%",
       "battery-low-title": "Низький заряд батареї",
@@ -981,6 +1073,9 @@
         "ultra-heavy": "Надважкий",
         "ultra-light": "Ультра світлий"
       },
+      "hot-corners": {
+        "none": "Немає"
+      },
       "layer": {
         "overlay": "Накладка",
         "top": "Зверху"
@@ -1072,6 +1167,21 @@
           "imperial": "Імперська",
           "metric": "Метрика"
         }
+      }
+    },
+    "plugins": {
+      "plugins": {
+        "empty": "Немає ввімкнених додатків."
+      },
+      "settings": {
+        "empty": "Немає доступних параметрів."
+      },
+      "sources": {
+        "empty": "Джерела не налаштовані."
+      },
+      "store": {
+        "empty": "Додатки не знайдені.",
+        "no-readme": "Немає доступного опису."
       }
     },
     "schema": {
@@ -1814,8 +1924,8 @@
             "gpu-temp": "Температура GPU",
             "gpu-usage": "Використання GPU",
             "gpu-vram": "GPU VRAM",
-            "network-rx": "Завантажити",
-            "network-tx": "Завантажити",
+            "network-rx": "Вхідна швидкість мережі",
+            "network-tx": "Вихідна швидкість мережі",
             "ram-usage": "Використання RAM",
             "swap-usage": "Використання Swap"
           },
@@ -2107,7 +2217,7 @@
           "label": "Увімкнути вбудовані шаблони"
         },
         "enable-community-templates": {
-          "description": "Завантажити та застосувати шаблони з каталогу спільноти",
+          "description": "Тут можна завантажити й застосовати шаблони від спільноти.",
           "label": "Увімкнути спільнотні шаблони"
         }
       },
@@ -2218,8 +2328,8 @@
         "cpu": "CPU",
         "date": "Дата",
         "input-volume": "Вхідна гучність",
-        "network-rx": "Мережа: Отримано",
-        "network-tx": "Мережа: Вихід",
+        "network-rx": "Вхідна швидкість мережі",
+        "network-tx": "Мережа: вихідна швидкість",
         "output-volume": "Вихідна гучність",
         "ram": "RAM",
         "temp": "Температура"
@@ -2243,8 +2353,8 @@
         "input": "Введення",
         "instance": "За розташуванням",
         "name": "Ім'я",
-        "net-rx": "Прийом мережі",
-        "net-tx": "Мережа: Передача",
+        "net-rx": "Вхідна швидкість мережі",
+        "net-tx": "Мережа: вихідна швидкість",
         "none": "Немає",
         "on-hover": "При наведенні",
         "output": "Виведення",

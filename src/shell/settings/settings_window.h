@@ -243,6 +243,9 @@ private:
   bool m_focusSearchOnRebuild = false;
   Input* m_settingsSearchInput = nullptr;
   bool m_scrollToPendingContentTarget = false;
+  // While restoring focus after a content rebuild, defer scroll-into-view until the scene is laid
+  // out; applying it against un-positioned nodes would collapse the scroll offset to the top.
+  bool m_deferFocusScrollToLayout = false;
   Node* m_pendingContentScrollTarget = nullptr;
   std::string m_searchQuery;
   Timer m_searchDebounceTimer;

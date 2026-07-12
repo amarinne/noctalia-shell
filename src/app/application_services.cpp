@@ -821,6 +821,7 @@ void Application::initSystemBusServices() {
               }
             });
           }
+          requestAllSurfacesRedraw();
         });
         kLog.info("logind sleep monitor active");
         m_idleInhibitor.setLogindService(m_logindService.get());

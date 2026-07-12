@@ -9,9 +9,13 @@
 #include "lualib.h"
 #include "net/http_client.h"
 #include "notification/notifications.h"
+#include "render/text/font_registry.h"
 #include "scripting/plugin_bindings.h"
 #include "scripting/plugin_state_store.h"
 #include "scripting/script_api_context.h"
+#include "system/app_identity.h"
+#include "system/desktop_entry.h"
+#include "system/icon_resolver.h"
 #include "system/terminal_launch.h"
 #include "time/time_format.h"
 #include "util/file_utils.h"
@@ -320,6 +324,37 @@ namespace {
     return 1;
   }
 
+  // appIconPath(appIdOrIconName, sizePx?) -> absolute icon file path or nil.
+  // Same resolution the native taskbar uses: desktop-entry lookup (id /
+  // StartupWMClass) for the icon name, then the XDG icon-theme resolver.
+  // Unmatched inputs are treated as raw icon names so plugins can also
+  // resolve themed icons directly.
+  int luau_appIconPath(lua_State* L) {
+    size_t len = 0;
+    const char* appId = luaL_checklstring(L, 1, &len);
+    const int targetSize = luaL_optinteger(L, 2, 0);
+
+    std::string iconName;
+    const auto entries = desktopEntriesSnapshot();
+    if (const auto entry = app_identity::findDesktopEntry(std::string_view(appId, len), *entries);
+        entry.has_value() && !entry->icon.empty()) {
+      iconName = entry->icon;
+    } else {
+      iconName.assign(appId, len);
+    }
+
+    // One resolver (and icon-path cache) per script worker thread; the theme
+    // plan it reads is shared across threads and mutex-guarded in IconResolver.
+    static thread_local IconResolver resolver;
+    const std::string& path = resolver.resolve(iconName, targetSize);
+    if (path.empty()) {
+      lua_pushnil(L);
+      return 1;
+    }
+    lua_pushlstring(L, path.data(), path.size());
+    return 1;
+  }
+
   int luau_setWallpaperEnabled(lua_State* L) {
     size_t len = 0;
     const char* connector = luaL_checklstring(L, 1, &len);
@@ -547,6 +582,25 @@ namespace {
     ss << file.rdbuf();
     const std::string contents = ss.str();
     lua_pushlstring(L, contents.data(), contents.size());
+    return 1;
+  }
+
+  int luau_loadFont(lua_State* L) {
+    size_t len = 0;
+    const char* path = luaL_checklstring(L, 1, &len);
+    auto* host = hostForState(L);
+    if (host == nullptr) {
+      lua_pushnil(L);
+      lua_pushstring(L, "no host");
+      return 2;
+    }
+    const std::string family = text::registerFontFile(resolveHostPath(host, std::string_view(path, len)));
+    if (family.empty()) {
+      lua_pushnil(L);
+      lua_pushstring(L, "failed to load font");
+      return 2;
+    }
+    lua_pushlstring(L, family.data(), family.size());
     return 1;
   }
 
@@ -1117,6 +1171,7 @@ namespace {
       {"portalAvailable", luau_portalAvailable},
       {"focusedOutputName", luau_focusedOutputName},
       {"outputs", luau_outputs},
+      {"appIconPath", luau_appIconPath},
       {"setWallpaperEnabled", luau_setWallpaperEnabled},
       {"setWallpaper", luau_setWallpaper},
       {"togglePanel", luau_togglePanel},
@@ -1131,6 +1186,7 @@ namespace {
       {"formatTime", luau_formatTime},
       {"setUpdateInterval", luau_setUpdateInterval},
       {"readFile", luau_readFile},
+      {"loadFont", luau_loadFont},
       {"writeFile", luau_writeFile},
       {"mkdirAll", luau_mkdirAll},
       {"removeFile", luau_removeFile},

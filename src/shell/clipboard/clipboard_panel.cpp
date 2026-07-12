@@ -274,14 +274,14 @@ namespace {
                   .fontSize = Style::fontSizeBody * scale,
                   .fontWeight = FontWeight::SemiBold,
                   .maxLines = 1,
-                  .baselineMode = LabelBaselineMode::StableFont,
+                  .baselineMode = LabelBaselineMode::TextFixedHeight,
                   .configure = [](Label& label) { label.setHitTestVisible(false); },
               }),
               ui::label({
                   .out = &m_meta,
                   .fontSize = Style::fontSizeCaption * scale,
                   .maxLines = 1,
-                  .baselineMode = LabelBaselineMode::StableFont,
+                  .baselineMode = LabelBaselineMode::TextFixedHeight,
                   .configure = [](Label& label) { label.setHitTestVisible(false); },
               })
           )
