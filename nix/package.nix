@@ -113,7 +113,7 @@ stdenv.mkDerivation {
 
   meta = with lib; {
     description = "A lightweight Wayland shell and bar built directly on Wayland + OpenGL ES";
-    homepage = "https://github.com/noctalia-dev/noctalia-shell";
+    homepage = "https://github.com/noctalia-dev/noctalia";
     license = licenses.mit;
     platforms = platforms.linux;
     mainProgram = "noctalia";

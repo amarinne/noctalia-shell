@@ -1834,7 +1834,7 @@ void SettingsWindow::openPluginStore() {
         std::move(catalog), std::move(onDiskIds),
         settings::PluginStoreCallbacks{
             .setEnabled =
-                [this, catalogLookup](const std::string& id, bool enable) {
+                [this, catalogLookup](std::string id, bool enable) {
                   if (m_pluginManager == nullptr) {
                     return;
                   }

@@ -86,7 +86,7 @@ void HotCorners::destroySurfaces() { m_instances.clear(); }
 void HotCorners::triggerAction(const std::string& action, const std::string& command, wl_output* output) {
   if (action == "command") {
     if (!command.empty()) {
-      m_app->runUserCommand(command);
+      m_app->runShellCommand(command);
     }
   } else if (action != "none" && !action.empty()) {
     m_app->triggerShellAction(action, output);

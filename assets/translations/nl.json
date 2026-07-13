@@ -955,7 +955,7 @@
         "name-label": "Naam",
         "name-placeholder": "inactiviteit-gedrag",
         "resume-command-label": "Hervattingsopdracht",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · time-out uitgeschakeld",
         "timeout-label": "Time-out in seconden",

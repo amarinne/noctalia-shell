@@ -34,17 +34,6 @@ namespace {
 
   constexpr auto kMprisRefreshMinInterval = std::chrono::milliseconds(750);
 
-  [[nodiscard]] float normalizedScrollDelta(const InputArea::PointerData& data) {
-    float delta = data.scrollDelta(1.0f);
-    if (delta == 0.0f && data.axisValue120 != 0) {
-      delta = static_cast<float>(data.axisValue120) / 120.0f;
-    }
-    if (delta == 0.0f && data.axisDiscrete != 0) {
-      delta = static_cast<float>(data.axisDiscrete);
-    }
-    return delta;
-  }
-
 } // namespace
 
 ControlCenterPanel::ControlCenterPanel(const ControlCenterServices& services) {
@@ -736,11 +725,11 @@ void ControlCenterPanel::wireSidebarScroll(InputArea* area) {
     if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
       return;
     }
-    const float delta = normalizedScrollDelta(data);
-    if (delta == 0.0f) {
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
       return;
     }
-    selectAdjacentVisibleTab(delta > 0.0f ? 1 : -1);
+    selectAdjacentVisibleTab(steps > 0.0f ? 1 : -1);
   });
 }
 

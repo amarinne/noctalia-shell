@@ -281,7 +281,7 @@ namespace {
     return ui::button({
         .text = std::string(label),
         .fontSize = Style::fontSizeCaption * scale,
-        .variant = ButtonVariant::Outline,
+        .variant = ButtonVariant::Default,
     });
   }
 
@@ -2225,7 +2225,7 @@ InputArea* NotificationToast::buildCard(
   );
 
   auto contentRow = ui::row({
-      .align = FlexAlign::Center,
+      .align = FlexAlign::Start,
       .gap = iconTextGap(scale),
       .padding = cardInnerPad(scale),
       .width = cardW,

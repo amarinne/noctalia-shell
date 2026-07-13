@@ -579,8 +579,12 @@ std::unique_ptr<Flex> HomeTab::create() {
         if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL || padIdx >= m_shortcutPads.size()) {
           return false;
         }
+        const float steps = data.scrollSteps();
+        if (steps == 0.0f) {
+          return false;
+        }
         // Scroll up moves forward (toward performance); Wayland reports up as a negative delta.
-        m_shortcutPads[padIdx].shortcut->onScroll(data.scrollDelta(1.0f) > 0 ? -1 : 1);
+        m_shortcutPads[padIdx].shortcut->onScroll(steps > 0.0f ? -1 : 1);
         return true;
       });
     }

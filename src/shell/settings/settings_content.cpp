@@ -242,7 +242,7 @@ namespace settings {
       auto browse = ui::button({
           .glyph = selectFolder ? "folder" : "file-text",
           .glyphSize = Style::fontSizeBody * scale,
-          .variant = ButtonVariant::Outline,
+          .variant = ButtonVariant::Default,
           .minWidth = Style::controlHeight * scale,
           .minHeight = Style::controlHeight * scale,
           .paddingV = Style::spaceXs * scale,
@@ -307,7 +307,7 @@ namespace settings {
       auto pickerButton = ui::button({
           .glyph = "apps",
           .glyphSize = Style::fontSizeBody * scale,
-          .variant = ButtonVariant::Outline,
+          .variant = ButtonVariant::Default,
           .minWidth = Style::controlHeight * scale,
           .minHeight = Style::controlHeight * scale,
           .paddingV = Style::spaceXs * scale,
@@ -1253,7 +1253,7 @@ namespace settings {
                 return ui::button({
                     .text = control.label,
                     .fontSize = Style::fontSizeBody * scale,
-                    .variant = ButtonVariant::Outline,
+                    .variant = ButtonVariant::Default,
                     .minHeight = Style::controlHeight * scale,
                     .paddingV = Style::spaceSm * scale,
                     .paddingH = Style::spaceMd * scale,
@@ -1266,7 +1266,7 @@ namespace settings {
                   .glyph = control.glyph,
                   .fontSize = Style::fontSizeBody * scale,
                   .glyphSize = Style::fontSizeBody * scale,
-                  .variant = ButtonVariant::Outline,
+                  .variant = ButtonVariant::Default,
                   .minHeight = Style::controlHeight * scale,
                   .paddingV = Style::spaceSm * scale,
                   .paddingH = Style::spaceMd * scale,

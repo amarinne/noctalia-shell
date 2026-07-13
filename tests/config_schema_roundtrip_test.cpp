@@ -13,12 +13,14 @@
 #include "config/config_export.h"
 #include "config/config_types.h"
 #include "config/schema/config_schema.h"
+#include "config/schema/config_sections.h"
 #include "config/schema/engine.h"
 #include "core/input/key_chord.h"
 #include "core/toml.h"
 #include "scripting/plugin_id.h"
 
 #include <print>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -40,26 +42,6 @@ namespace {
         table, toml::toml_formatter::default_flags & ~toml::format_flags::allow_literal_strings
     };
     return out.str();
-  }
-
-  // readInto(writeTable(x)) must reconstruct x. `serialized` is config_export::serialize(probe),
-  // whose section emit IS writeTable(section), so this exercises the real schema
-  // round-trip via the actual serializer.
-  template <typename T>
-  void checkReadInverse(
-      const std::string& section, const toml::table& serialized, const T& expected, const Schema<T>& schema
-  ) {
-    const auto* sectionTbl = serialized[section].as_table();
-    if (sectionTbl == nullptr) {
-      fail(section + ": config_export::serialize emitted no [" + section + "] table");
-      return;
-    }
-    T roundtrip{};
-    Diagnostics diag;
-    readInto(*sectionTbl, roundtrip, schema, section, diag);
-    if (!(roundtrip == expected)) {
-      fail(section + ": read inverse did not reconstruct the original value");
-    }
   }
 
   void checkPluginSourceNameValidation() {
@@ -115,6 +97,47 @@ location = "https://example.invalid/bad"
     }
     if (!sawEnabledWarning) {
       fail("plugins: schema did not warn for invalid enabled plugin id");
+    }
+  }
+
+  void checkIdleActionResolution() {
+    const IdleBehaviorConfig screenOff{
+        .name = "screen-off",
+        .enabled = true,
+        .timeoutSeconds = 60,
+        .action = "screen_off",
+        .command = {},
+        .resumeCommand = "notify-send resumed",
+    };
+    const ResolvedIdleBehavior resolvedScreenOff = resolveIdleBehaviorActions(screenOff);
+    if (resolvedScreenOff.idleAction.kind != IdleActionKind::ScreenOff) {
+      fail("idle: screen_off did not resolve to native screen-off");
+    }
+    if (resolvedScreenOff.resumeAction.kind != IdleActionKind::ScreenOn) {
+      fail("idle: screen_off did not retain native screen-on with a custom resume command");
+    }
+    if (resolvedScreenOff.resumeCommand != screenOff.resumeCommand) {
+      fail("idle: screen_off did not retain its additional resume command");
+    }
+
+    const IdleBehaviorConfig custom{
+        .name = "custom",
+        .enabled = true,
+        .timeoutSeconds = 60,
+        .action = "command",
+        .command = "notify-send idle",
+        .resumeCommand = "notify-send resumed",
+    };
+    const ResolvedIdleBehavior resolvedCustom = resolveIdleBehaviorActions(custom);
+    if (resolvedCustom.idleAction.kind != IdleActionKind::Command
+        || resolvedCustom.idleAction.command != custom.command) {
+      fail("idle: custom command did not resolve to its configured idle command");
+    }
+    if (resolvedCustom.resumeAction.kind != IdleActionKind::None) {
+      fail("idle: custom command gained an implicit native resume action");
+    }
+    if (resolvedCustom.resumeCommand != custom.resumeCommand) {
+      fail("idle: custom command did not retain its configured resume command");
     }
   }
 
@@ -298,6 +321,7 @@ location = "https://example.invalid/bad"
     c.nightlight = NightLightConfig{true, true, 6000, 3500}; // gap satisfied
     c.location.autoLocate = true;
     c.location.address = "Berlin";
+    c.location.customSchedule = true;
     c.location.sunset = "20:30";
     c.location.sunrise = "06:15";
     c.location.latitude = 52.52;
@@ -384,6 +408,7 @@ location = "https://example.invalid/bad"
         {"DP-1", true, colorSpecFromConfigString("#00ff00"), std::string("/srv/wp1"), std::nullopt, std::nullopt},
     };
     c.accessibility.uiScale = 1.25f;
+    c.shell.buttonBorders = false;
     c.shell.fontFamily = "Inter";
     c.shell.lang = "en_US";
     c.shell.timeFormat = "{:%H:%M:%S}";
@@ -450,6 +475,23 @@ location = "https://example.invalid/bad"
             3,
         },
     };
+    c.accessibility.uiScale = 1.25f;
+    c.accessibility.highContrast = true;
+
+    c.hotCorners.enabled = true;
+    c.hotCorners.topLeft = {.action = "launcher", .command = ""};
+    c.hotCorners.bottomRight = {.action = "command", .command = "notify-send corner"};
+
+    // pluginSettings is not part of pluginsSchema ([plugin_settings] is its own root
+    // key), so the section round-trip covers sources + enabled only.
+    c.plugins.sources = {
+        {.kind = PluginSourceKind::Git,
+         .name = "official",
+         .location = "https://github.com/noctalia-dev/official-plugins",
+         .autoUpdate = true},
+    };
+    c.plugins.enabled = {"noctalia/notes"};
+
     c.bars = {makeProbeBar()};
     return c;
   }
@@ -502,6 +544,7 @@ location = "https://example.invalid/bad"
 } // namespace
 
 int main() {
+  checkIdleActionResolution();
   // Captured from the pre-refactor config_export::serialize for the fully-specified probe
   // bar. Pins byte-identical bar serialization across the schema migration: the
   // resolve-and-flatten monitor write and the conditional/optional fields must
@@ -672,26 +715,47 @@ widget_spacing = 8
     }
   }
 
-  checkReadInverse("audio", serialized, probe.audio, audioSchema());
-  checkReadInverse("weather", serialized, probe.weather, weatherSchema());
-  checkReadInverse("osd", serialized, probe.osd, osdSchema());
-  checkReadInverse("backdrop", serialized, probe.backdrop, backdropSchema());
-  checkReadInverse("lockscreen", serialized, probe.lockscreen, lockscreenSchema());
-  checkReadInverse("system", serialized, probe.system, systemSchema());
-  checkReadInverse("nightlight", serialized, probe.nightlight, nightlightSchema());
-  checkReadInverse("location", serialized, probe.location, locationSchema());
-  checkReadInverse("notification", serialized, probe.notification, notificationSchema());
-  checkReadInverse("dock", serialized, probe.dock, dockSchema());
-  checkReadInverse("brightness", serialized, probe.brightness, brightnessSchema());
-  checkReadInverse("battery", serialized, probe.battery, batterySchema());
-  checkReadInverse("control_center", serialized, probe.controlCenter, controlCenterSchema());
-  checkReadInverse("calendar", serialized, probe.calendar, calendarSchema());
-  checkReadInverse("keybinds", serialized, probe.keybinds, keybindsSchema());
-  checkReadInverse("hooks", serialized, probe.hooks, hooksSchema());
-  checkReadInverse("idle", serialized, probe.idle, idleSchema());
-  checkReadInverse("wallpaper", serialized, probe.wallpaper, wallpaperSchema());
-  checkReadInverse("theme", serialized, probe.theme, themeSchema());
-  checkReadInverse("shell", serialized, probe.shell, shellSchema());
+  // Every schema-backed section must round-trip, AND the probe must actually populate
+  // it. Iterating the section registry rather than a hand-written list means a new
+  // section is covered the moment it is declared — and fails here until its probe
+  // values are filled in.
+  {
+    const Config defaults;
+    for (const SectionSpec& spec : sections()) {
+      const std::string name(spec.name);
+      if (spec.sectionEqual(probe, defaults)) {
+        fail(name + ": makeProbe leaves this section at its defaults — populate it, or the round-trip is vacuous");
+        continue;
+      }
+      const auto* sectionTbl = serialized[spec.name].as_table();
+      if (sectionTbl == nullptr) {
+        fail(name + ": config_export::serialize emitted no [" + name + "] table");
+        continue;
+      }
+      Config roundtrip;
+      Diagnostics diag;
+      spec.read(*sectionTbl, roundtrip, diag);
+      if (!spec.sectionEqual(roundtrip, probe)) {
+        fail(name + ": read inverse did not reconstruct the original section");
+      }
+    }
+  }
+
+  // Section names must be unique across the registry and the custom root keys, or a
+  // lookup would silently resolve to the wrong handler.
+  {
+    std::set<std::string_view> seen;
+    for (const SectionSpec& spec : sections()) {
+      if (!seen.insert(spec.name).second) {
+        fail(std::string(spec.name) + ": duplicate section name in the registry");
+      }
+    }
+    for (const std::string_view key : customRootKeys()) {
+      if (!seen.insert(key).second) {
+        fail(std::string(key) + ": custom root key collides with a registry section");
+      }
+    }
+  }
 
   checkPluginIdValidation();
   checkPluginSourceNameValidation();

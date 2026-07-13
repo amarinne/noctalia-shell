@@ -792,8 +792,8 @@
         "health": "Zustand",
         "rate": "Rate",
         "status": "Status",
-        "time-left": "Verbleibende Zeit",
-        "time-to-full": "Verbleibende Ladezeit",
+        "time-left": "Verbleibend",
+        "time-to-full": "Bis voll",
         "unknown-device": "Unbekanntes Gerät"
       }
     },
@@ -1053,7 +1053,7 @@
         "name-label": "Name",
         "name-placeholder": "idle-behavior",
         "resume-command-label": "Fortsetzen-Befehl",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · Timeout deaktiviert",
         "timeout-label": "Timeout-Sekunden",

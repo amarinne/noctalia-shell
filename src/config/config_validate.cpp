@@ -5,6 +5,7 @@
 #include "config/config_service.h"
 #include "config/config_types.h"
 #include "config/schema/config_schema.h"
+#include "config/schema/config_sections.h"
 #include "config/schema/engine.h"
 #include "config/widget_config.h"
 #include "scripting/plugin_manager.h"
@@ -13,6 +14,7 @@
 #include "shell/desktop/desktop_widget_settings_registry.h"
 #include "shell/lockscreen/lockscreen_login_box.h"
 #include "shell/settings/widget_settings_registry.h"
+#include "system/day_night_schedule.h"
 #include "time/time_format.h"
 
 #include <algorithm>
@@ -79,6 +81,34 @@ namespace noctalia::config {
       return merged;
     }
 
+    // custom_schedule promises a sunset/sunrise schedule. If the times cannot deliver one,
+    // say so instead of silently scheduling by coordinates (or not at all).
+    void validateLocation(const toml::table& merged, schema::Diagnostics& diag) {
+      const auto* location = merged["location"].as_table();
+      if (location == nullptr) {
+        return;
+      }
+
+      const bool customSchedule = (*location)["custom_schedule"].value_or(false);
+      for (const std::string_view key : {"sunset", "sunrise"}) {
+        const std::string path = "location." + std::string(key);
+        const auto value = (*location)[key].value<std::string>();
+        const bool set = value.has_value() && !value->empty();
+        if (set && !day_night_schedule::normalizedClock(*value).has_value()) {
+          const std::string message = "\"" + *value + "\" is not a time of day in HH:MM form";
+          if (customSchedule) {
+            diag.error(path, message, "location.clock.invalid");
+          } else {
+            diag.warn(path, message);
+          }
+        } else if (!set && customSchedule) {
+          diag.error(
+              path, "custom_schedule needs a " + std::string(key) + " time in HH:MM form", "location.clock.missing"
+          );
+        }
+      }
+    }
+
     // Shape-checks a file's [include] table. The merged config has [include]
     // stripped, so this runs on raw per-file tables (single-file validate, and the
     // per-loaded-file pass in validateConfigSources).
@@ -115,29 +145,24 @@ namespace noctalia::config {
       }
     }
 
-    // collectUnknownKeys + a defaulted readInto: the former flags misspelled keys,
-    // the latter surfaces enum/range warnings (and throws → error on bad values).
-    template <typename T>
-    void checkSection(
-        const toml::table& root, std::string_view name, const schema::Schema<T>& sch, schema::Diagnostics& diag,
-        const std::unordered_set<std::string>& allowUnknownPaths = {}
-    ) {
-      const auto* tbl = root[name].as_table();
+    // collectUnknownKeys + a read into a defaulted struct: the former flags misspelled
+    // keys, the latter surfaces enum/range warnings (and throws → error on bad values).
+    void checkSection(const toml::table& root, const schema::SectionSpec& spec, schema::Diagnostics& diag) {
+      const auto* tbl = root[spec.name].as_table();
       if (tbl == nullptr) {
         return;
       }
       std::vector<std::string> unknown;
-      schema::collectUnknownKeys(*tbl, sch, name, unknown);
+      spec.collectUnknown(*tbl, unknown);
       for (const auto& path : unknown) {
-        if (!allowUnknownPaths.contains(path)) {
+        if (!spec.allowUnknownPaths.contains(path)) {
           diag.warn(path, "unknown setting");
         }
       }
-      T tmp{};
       try {
-        schema::readInto(*tbl, tmp, sch, name, diag);
+        spec.checkAgainstDefaults(*tbl, diag);
       } catch (const std::exception& e) {
-        diag.error(std::string(name), e.what());
+        diag.error(std::string(spec.name), e.what());
       }
     }
 
@@ -590,33 +615,10 @@ namespace noctalia::config {
     }
 
     void appendMergedConfigDiagnostics(const toml::table& merged, schema::Diagnostics& diag) {
-      checkSection(merged, "shell", schema::shellSchema(), diag);
-      checkSection(merged, "accessibility", schema::accessibilitySchema(), diag);
-      checkSection(
-          merged, "wallpaper", schema::wallpaperSchema(), diag,
-          {"wallpaper.default", "wallpaper.last", "wallpaper.monitors", "wallpaper.favorite"}
-      );
-      checkSection(merged, "theme", schema::themeSchema(), diag);
-      checkSection(merged, "backdrop", schema::backdropSchema(), diag);
-      checkSection(merged, "lockscreen", schema::lockscreenSchema(), diag);
-      checkSection(merged, "notification", schema::notificationSchema(), diag);
-      checkSection(merged, "notifications", schema::notificationSchema(), diag); // compatibility alias
-      checkSection(merged, "osd", schema::osdSchema(), diag);
-      checkSection(merged, "system", schema::systemSchema(), diag);
-      checkSection(merged, "weather", schema::weatherSchema(), diag);
-      checkSection(merged, "calendar", schema::calendarSchema(), diag);
+      for (const schema::SectionSpec& spec : schema::sections()) {
+        checkSection(merged, spec, diag);
+      }
       validateCalendarSyntax(merged, diag);
-      checkSection(merged, "audio", schema::audioSchema(), diag);
-      checkSection(merged, "brightness", schema::brightnessSchema(), diag);
-      checkSection(merged, "battery", schema::batterySchema(), diag);
-      checkSection(merged, "nightlight", schema::nightlightSchema(), diag);
-      checkSection(merged, "location", schema::locationSchema(), diag);
-      checkSection(merged, "idle", schema::idleSchema(), diag);
-      checkSection(merged, "keybinds", schema::keybindsSchema(), diag);
-      checkSection(merged, "dock", schema::dockSchema(), diag);
-      checkSection(merged, "control_center", schema::controlCenterSchema(), diag);
-      checkSection(merged, "plugins", schema::pluginsSchema(), diag);
-      checkSection(merged, "hooks", schema::hooksSchema(), diag);
 
       // Resolve the candidate's plugin catalog without mutating the live registry.
       scripting::PluginRegistry pluginRegistry;
@@ -635,6 +637,7 @@ namespace noctalia::config {
         scripting::applyPluginSourcesToRegistry(pluginRegistry, pc);
       }
 
+      validateLocation(merged, diag);
       validateBars(merged, diag);
       validateBarWidgets(merged, diag, pluginRegistry);
       validatePluginSettings(merged, diag, pluginRegistry);
@@ -642,42 +645,10 @@ namespace noctalia::config {
       validateLockscreenWidgets(merged, diag, pluginRegistry);
       validateIncludeShape(merged, diag);
 
-      // Unknown top-level sections.
-      static const std::unordered_set<std::string> kKnownSections = {
-          "shell",
-          "accessibility",
-          "wallpaper",
-          "theme",
-          "backdrop",
-          "lockscreen",
-          "notification",
-          "notifications",
-          "osd",
-          "system",
-          "weather",
-          "calendar",
-          "audio",
-          "brightness",
-          "battery",
-          "nightlight",
-          "location",
-          "idle",
-          "keybinds",
-          "bar",
-          "dock",
-          "desktop_widgets",
-          "lockscreen_widgets",
-          "widget",
-          "control_center",
-          "plugins",
-          "plugin_settings",
-          "hooks",
-          "include",
-          "config_version",
-      };
+      // Unknown top-level keys.
       for (const auto& [key, node] : merged) {
         (void)node;
-        if (!kKnownSections.contains(std::string(key.str()))) {
+        if (!schema::isKnownRootKey(key.str())) {
           diag.warn(std::string(key.str()), "unknown section");
         }
       }

@@ -1053,7 +1053,7 @@
         "name-label": "Namn",
         "name-placeholder": "Inaktiv-åtburd",
         "resume-command-label": "Framhaldkommando",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds} s",
         "summary-disabled-timeout": "{name} · timeout avslege",
         "timeout-label": "Timeout sekund",

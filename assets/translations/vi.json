@@ -1034,7 +1034,7 @@
         "name-label": "Tên",
         "name-placeholder": "Hành vi khi không hoạt động",
         "resume-command-label": "Lệnh khôi phục",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} - {seconds} giây",
         "summary-disabled-timeout": "{name}, tắt hẹn giờ",
         "timeout-label": "Số giây chờ",

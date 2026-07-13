@@ -245,11 +245,18 @@ void PluginWidget::create() {
     return;
   }
 
+  auto alive = std::weak_ptr<bool>(m_alive);
   m_runtime = std::make_shared<scripting::ScriptRuntime>(
-      m_entryId, m_settings, m_scriptApi, m_pluginDir, m_httpClient, m_clipboard
+      m_entryId, m_settings, m_scriptApi, m_pluginDir, m_httpClient, m_clipboard,
+      [this, alive](std::string_view panelId) {
+        auto token = alive.lock();
+        if (token == nullptr || !*token) {
+          return;
+        }
+        requestPanelToggle(panelId);
+      }
   );
 
-  auto alive = std::weak_ptr<bool>(m_alive);
   m_runtimeSubscription = m_runtime->subscribe([this, alive](scripting::ScriptResult result) {
     auto token = alive.lock();
     if (token == nullptr || !*token) {

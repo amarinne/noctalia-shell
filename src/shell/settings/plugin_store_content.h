@@ -32,7 +32,7 @@ namespace settings {
   };
 
   struct PluginStoreCallbacks {
-    std::function<void(const std::string& id, bool enable)> setEnabled;
+    std::function<void(std::string id, bool enable)> setEnabled;
     std::function<bool(const std::string& id)> isEnabling;
     float scale = 1.0f;
   };

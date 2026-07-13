@@ -30,6 +30,7 @@ public:
   void registerIpc(IpcService& ipc);
   void onOutputChange();
   void onToplevelChange();
+  void show(wl_output* output);
 
   [[nodiscard]] bool isActive() const noexcept { return m_active; }
   [[nodiscard]] bool onPointerEvent(const PointerEvent& event);
@@ -38,7 +39,6 @@ public:
 private:
   struct Instance;
 
-  void show(wl_output* output);
   void hide();
   void refreshWindows();
   void setSelectedIndex(std::size_t index);

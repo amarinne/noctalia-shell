@@ -258,20 +258,14 @@ void TaskbarWidget::create() {
       return false;
     }
 
-    float delta = data.scrollDelta(1.0f);
-    if (delta == 0.0f && data.axisValue120 != 0) {
-      delta = static_cast<float>(data.axisValue120) / 120.0f;
-    }
-    if (delta == 0.0f && data.axisDiscrete != 0) {
-      delta = static_cast<float>(data.axisDiscrete);
-    }
-    if (delta == 0.0f) {
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
       return false;
     }
     if (m_groupByWorkspace) {
-      activateAdjacentWorkspace(delta > 0.0f ? 1 : -1);
+      activateAdjacentWorkspace(steps > 0.0f ? 1 : -1);
     } else {
-      activateAdjacentTask(delta > 0.0f ? 1 : -1);
+      activateAdjacentTask(steps > 0.0f ? 1 : -1);
     }
     return true;
   });
@@ -401,18 +395,12 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       return false;
     }
 
-    float delta = data.scrollDelta(1.0f);
-    if (delta == 0.0f && data.axisValue120 != 0) {
-      delta = static_cast<float>(data.axisValue120) / 120.0f;
-    }
-    if (delta == 0.0f && data.axisDiscrete != 0) {
-      delta = static_cast<float>(data.axisDiscrete);
-    }
-    if (delta == 0.0f) {
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
       return false;
     }
 
-    activateAdjacentWorkspace(delta > 0.0f ? 1 : -1);
+    activateAdjacentWorkspace(steps > 0.0f ? 1 : -1);
     return true;
   };
 

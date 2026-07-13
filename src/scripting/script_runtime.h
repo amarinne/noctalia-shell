@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -19,10 +20,12 @@ namespace scripting {
   class ScriptRuntime {
   public:
     using SubscriberId = std::uint64_t;
+    using TogglePanelCallback = std::function<void(std::string_view)>;
 
     explicit ScriptRuntime(
         std::string runtimeName, ScriptSettings settings, ScriptApiContext& api, std::filesystem::path pluginDir,
-        HttpClient* httpClient = nullptr, ClipboardService* clipboard = nullptr
+        HttpClient* httpClient = nullptr, ClipboardService* clipboard = nullptr,
+        TogglePanelCallback togglePanelCallback = {}
     );
     ~ScriptRuntime();
 

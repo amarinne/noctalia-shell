@@ -70,12 +70,12 @@ void CustomButtonWidget::create() {
       return false;
     }
 
-    const float delta = data.scrollDelta(1.0f);
-    if (delta == 0.0f) {
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
       return false;
     }
 
-    const std::string& command = delta < 0.0f ? m_scrollUpCommand : m_scrollDownCommand;
+    const std::string& command = steps < 0.0f ? m_scrollUpCommand : m_scrollDownCommand;
     if (command.empty()) {
       return false;
     }

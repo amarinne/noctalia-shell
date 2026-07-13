@@ -106,13 +106,13 @@ void WorkspacesWidget::create() {
     if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
       return;
     }
-    const float delta = data.scrollDelta(1.0f);
-    if (delta == 0.0f) {
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
       return;
     }
     // Wayland reports positive wheel deltas for "scroll down", so treat that
     // as moving to the next workspace and negative as previous.
-    activateAdjacentWorkspace(delta > 0.0f ? 1 : -1);
+    activateAdjacentWorkspace(steps > 0.0f ? 1 : -1);
   });
   container->setClipChildren(true);
   m_container = container.get();

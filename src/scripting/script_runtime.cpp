@@ -117,7 +117,8 @@ namespace scripting {
     }
 
     void dispatchSideEffects(
-        const std::vector<ScriptSideEffect>& effects, ClipboardService* clipboard, ScriptApiContext& api
+        const std::vector<ScriptSideEffect>& effects, ClipboardService* clipboard, ScriptApiContext& api,
+        const ScriptRuntime::TogglePanelCallback& togglePanelCallback
     ) {
       for (const auto& effect : effects) {
         switch (effect.kind) {
@@ -142,7 +143,11 @@ namespace scripting {
           api.invokeSetWallpaper(effect.title, effect.body);
           break;
         case ScriptSideEffectKind::TogglePanel:
-          api.invokeTogglePanel(effect.title);
+          if (togglePanelCallback) {
+            togglePanelCallback(effect.title);
+          } else {
+            api.invokeTogglePanel(effect.title);
+          }
           break;
         }
       }
@@ -153,10 +158,10 @@ namespace scripting {
   struct ScriptRuntime::State : public std::enable_shared_from_this<ScriptRuntime::State> {
     explicit State(
         std::string name, ScriptSettings widgetSettings, ScriptApiContext& api, std::filesystem::path dir,
-        HttpClient* httpClientPtr, ClipboardService* clipboardService
+        HttpClient* httpClientPtr, ClipboardService* clipboardService, TogglePanelCallback panelToggleCallback
     )
         : runtimeName(std::move(name)), settings(std::move(widgetSettings)), scriptApi(api), pluginDir(std::move(dir)),
-          httpClient(httpClientPtr), clipboard(clipboardService) {}
+          httpClient(httpClientPtr), clipboard(clipboardService), togglePanelCallback(std::move(panelToggleCallback)) {}
 
     mutable std::mutex mutex;
     std::string runtimeName;
@@ -170,6 +175,7 @@ namespace scripting {
     std::unique_ptr<LuauHost> host;
     PluginBindingContext bindingContext;
     ClipboardService* clipboard = nullptr;
+    TogglePanelCallback togglePanelCallback;
     SubscriberId nextSubscriberId = 1;
     std::uint64_t generation = 0;
     std::chrono::milliseconds updateInterval{250};
@@ -732,7 +738,7 @@ namespace scripting {
         }
       }
 
-      dispatchSideEffects(result.sideEffects, clipboard, scriptApi);
+      dispatchSideEffects(result.sideEffects, clipboard, scriptApi, togglePanelCallback);
       result.sideEffects.clear();
 
       for (auto& callback : callbacks) {
@@ -745,11 +751,12 @@ namespace scripting {
 
   ScriptRuntime::ScriptRuntime(
       std::string runtimeName, ScriptSettings settings, ScriptApiContext& api, std::filesystem::path pluginDir,
-      HttpClient* httpClient, ClipboardService* clipboard
+      HttpClient* httpClient, ClipboardService* clipboard, TogglePanelCallback togglePanelCallback
   )
       : m_state(
             std::make_shared<State>(
-                std::move(runtimeName), std::move(settings), api, std::move(pluginDir), httpClient, clipboard
+                std::move(runtimeName), std::move(settings), api, std::move(pluginDir), httpClient, clipboard,
+                std::move(togglePanelCallback)
             )
         ) {}
 

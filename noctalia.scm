@@ -6,7 +6,7 @@
 ;;; --8<---------------cut here---------------start------------->8---
 ;;; (channel
 ;;;   (name 'noctalia)
-;;;   (url "https://github.com/noctalia-dev/noctalia-shell")
+;;;   (url "https://github.com/noctalia-dev/noctalia")
 ;;;   (branch "v5"))
 ;;; --8<---------------cut here---------------end--------------->8---
 ;;;

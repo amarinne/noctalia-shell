@@ -13,6 +13,7 @@ namespace noctalia::config {
   namespace {
 
     constexpr int kNegativeBarRadiusMigrationVersion = 1;
+    constexpr int kCustomScheduleMigrationVersion = 2;
     constexpr std::int64_t kMaxBarRadius = 500;
     constexpr std::array<std::string_view, 5> kBarRadiusKeys = {
         "radius", "radius_top_left", "radius_top_right", "radius_bottom_left", "radius_bottom_right",
@@ -73,6 +74,38 @@ namespace noctalia::config {
       });
     }
 
+    // sunset/sunrise used to schedule day/night on their own whenever no coordinates were available.
+    // They now require custom_schedule. Turn it on for configs that relied on the old behavior,
+    // i.e. times are set and no coordinate source is.
+    template <typename OnChanged> void migrateCustomSchedule(toml::table& root, OnChanged&& onChanged) {
+      auto* location = root["location"].as_table();
+      if (location == nullptr || location->contains("custom_schedule")) {
+        return;
+      }
+
+      const auto sunset = (*location)["sunset"].value<std::string>();
+      const auto sunrise = (*location)["sunrise"].value<std::string>();
+      if (!sunset.has_value() || sunset->empty() || !sunrise.has_value() || sunrise->empty()) {
+        return;
+      }
+
+      const bool autoLocate = (*location)["auto_locate"].value_or(false);
+      const bool hasAddress = !(*location)["address"].value_or(std::string_view{}).empty();
+      const bool hasCoordinates = (*location)["latitude"].is_number() && (*location)["longitude"].is_number();
+      if (autoLocate || hasAddress || hasCoordinates) {
+        return;
+      }
+
+      location->insert_or_assign("custom_schedule", true);
+      onChanged("location");
+    }
+
+    void migrateCustomScheduleSidecar(toml::table& root, schema::Diagnostics& diag) {
+      migrateCustomSchedule(root, [&diag](const std::string& path) {
+        diag.warn(path, "sunset/sunrise now require custom_schedule; enabled it to keep the schedule");
+      });
+    }
+
     std::uint64_t stableIssueHash(int migrationVersion, std::string_view path) {
       constexpr std::uint64_t kOffset = 14695981039346656037ULL;
       constexpr std::uint64_t kPrime = 1099511628211ULL;
@@ -114,6 +147,11 @@ namespace noctalia::config {
             .toVersion = kNegativeBarRadiusMigrationVersion,
             .summary = "bar: migrate negative corner radii",
             .apply = migrateNegativeBarRadiiSidecar,
+        },
+        {
+            .toVersion = kCustomScheduleMigrationVersion,
+            .summary = "location: opt legacy sunset/sunrise schedules into custom_schedule",
+            .apply = migrateCustomScheduleSidecar,
         },
     };
     return migrations;
@@ -172,6 +210,13 @@ namespace noctalia::config {
           .migrationVersion = kNegativeBarRadiusMigrationVersion,
           .path = path,
           .message = "negative corner radii are deprecated; use positive radii and concave_edge_corners = true",
+      });
+    });
+    migrateCustomSchedule(root, [&issues](const std::string& path) {
+      issues.push_back({
+          .migrationVersion = kCustomScheduleMigrationVersion,
+          .path = path,
+          .message = "sunset/sunrise no longer schedule on their own; set custom_schedule = true",
       });
     });
   }

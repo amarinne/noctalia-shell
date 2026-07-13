@@ -354,7 +354,7 @@ namespace {
     auto picker = ui::button({
         .glyph = "apps",
         .glyphSize = Style::fontSizeBody,
-        .variant = ButtonVariant::Outline,
+        .variant = ButtonVariant::Default,
         .minWidth = Style::controlHeightSm,
         .minHeight = Style::controlHeightSm,
         .paddingV = Style::spaceXs,
@@ -405,7 +405,7 @@ namespace {
         labelText,
         ui::button({
             .text = i18n::tr("desktop-widgets.editor.settings.change-image"),
-            .variant = ButtonVariant::Outline,
+            .variant = ButtonVariant::Default,
             .flexGrow = 1.0f,
             .onClick = [editor, key]() {
               FileDialogOptions options;

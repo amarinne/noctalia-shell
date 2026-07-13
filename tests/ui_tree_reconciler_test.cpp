@@ -1,6 +1,7 @@
 #include "render/backend/render_backend.h"
 #include "render/core/renderer.h"
 #include "render/core/texture_manager.h"
+#include "render/scene/rect_node.h"
 #include "ui/controls/box.h"
 #include "ui/controls/button.h"
 #include "ui/controls/flex.h"
@@ -11,11 +12,12 @@
 #include "ui/controls/slider.h"
 #include "ui/controls/spacer.h"
 #include "ui/controls/toggle.h"
+#include "ui/style.h"
 #include "ui/ui_tree.h"
 #include "ui/ui_tree_reconciler.h"
 
-#include <cstdio>
 #include <cstdlib>
+#include <print>
 #include <string>
 #include <vector>
 
@@ -53,7 +55,7 @@ namespace {
 
   bool expect(bool condition, const char* message) {
     if (!condition) {
-      std::fprintf(stderr, "ui_tree_reconciler_test: %s\n", message);
+      std::println(stderr, "ui_tree_reconciler_test: {}", message);
       return false;
     }
     return true;
@@ -221,6 +223,33 @@ int main() {
     ok = expect(fired.empty(), "sink not fired before click") && ok;
   }
 
+  // The global button-border style updates existing buttons and preserves custom widths.
+  {
+    Style::setButtonBordersEnabled(true);
+    Button button;
+    auto backgroundBorderWidth = [&button]() {
+      for (const auto& child : button.children()) {
+        if (const auto* background = dynamic_cast<const RectNode*>(child.get())) {
+          return background->style().borderWidth;
+        }
+      }
+      return -1.0f;
+    };
+
+    ok = expect(backgroundBorderWidth() == Style::borderWidth, "button border enabled by default") && ok;
+
+    Button::ButtonPalette custom = Button::defaultPalette(ButtonVariant::Default);
+    custom.borderWidth = 4.0f;
+    button.setCustomPalette(custom);
+    ok = expect(backgroundBorderWidth() == 4.0f, "custom button border width applied") && ok;
+
+    Style::setButtonBordersEnabled(false);
+    ok = expect(backgroundBorderWidth() == 0.0f, "button border removed by global style") && ok;
+
+    Style::setButtonBordersEnabled(true);
+    ok = expect(backgroundBorderWidth() == 4.0f, "custom button border width restored") && ok;
+  }
+
   // Toggling a box's onClick across reconciles rebuilds it: a clickable box is
   // wrapped in an InputArea (so it is not directly a Box), a bare box is not.
   {
@@ -376,7 +405,8 @@ int main() {
 
     auto* column = dynamic_cast<Flex*>(host.children().front().get());
     auto* in = column != nullptr ? dynamic_cast<Input*>(column->children()[0].get()) : nullptr;
-    ok = expect(in != nullptr && in->value() == "line one\nline two", "multiline input seeded with newline value") && ok;
+    ok =
+        expect(in != nullptr && in->value() == "line one\nline two", "multiline input seeded with newline value") && ok;
     Node* inputBefore = in;
 
     (void)reconciler.reconcile(host, tree, renderer);

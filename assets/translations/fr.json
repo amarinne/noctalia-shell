@@ -1023,7 +1023,7 @@
         "name-label": "Nom",
         "name-placeholder": "Comportement en inactivité",
         "resume-command-label": "Commande de reprise",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · délai désactivé",
         "timeout-label": "Délai d’inactivité (secondes)",

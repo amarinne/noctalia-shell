@@ -30,11 +30,11 @@ are designed as one cohesive shell instead of a collection of unrelated panels a
 <p><br/></p>
 
 <p align="center">
-  <a href="https://github.com/noctalia-dev/noctalia-shell/commits">
-    <img src="https://img.shields.io/github/last-commit/noctalia-dev/noctalia-shell?style=for-the-badge&labelColor=FFF59B&color=FFF59B&logo=git&logoColor=070722&label=commit" alt="Last commit" />
+  <a href="https://github.com/noctalia-dev/noctalia/commits">
+    <img src="https://img.shields.io/github/last-commit/noctalia-dev/noctalia?style=for-the-badge&labelColor=FFF59B&color=FFF59B&logo=git&logoColor=070722&label=commit" alt="Last commit" />
   </a>
-  <a href="https://github.com/noctalia-dev/noctalia-shell/stargazers">
-    <img src="https://img.shields.io/github/stars/noctalia-dev/noctalia-shell?style=for-the-badge&labelColor=FFF59B&color=FFF59B&logo=github&logoColor=070722" alt="GitHub stars" />
+  <a href="https://github.com/noctalia-dev/noctalia/stargazers">
+    <img src="https://img.shields.io/github/stars/noctalia-dev/noctalia?style=for-the-badge&labelColor=FFF59B&color=FFF59B&logo=github&logoColor=070722" alt="GitHub stars" />
   </a>
   <a href="https://docs.noctalia.dev">
     <img src="https://img.shields.io/badge/docs-FFF59B?style=for-the-badge&logo=gitbook&logoColor=070722&labelColor=FFF59B" alt="Documentation" />
@@ -287,7 +287,7 @@ discussion, join the community on [Discord](https://discord.noctalia.dev).
 
 ## Credits
 
-Thank you to the [contributors](https://github.com/noctalia-dev/noctalia-shell/graphs/contributors) and community
+Thank you to the [contributors](https://github.com/noctalia-dev/noctalia/graphs/contributors) and community
 members who test Noctalia, report issues, share configurations, and help shape the project.
 
 ## Donations
@@ -310,7 +310,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 ## Star History
 
 <p align="center">
-  <a href="https://github.com/noctalia-dev/noctalia-shell/stargazers">
+  <a href="https://github.com/noctalia-dev/noctalia/stargazers">
     <img src="https://api.noctalia.dev/stars" alt="Star History" />
   </a>
 </p>

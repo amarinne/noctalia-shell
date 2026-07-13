@@ -97,6 +97,7 @@ public:
   void onIdleLiveStatusChanged();
   void markSettingsWriteSuccess(bool requestRebuild = true);
   void markSettingsWriteError(std::string message);
+  void warnOnUnusableCustomSchedule(const std::vector<std::string>& path);
   void showTransientStatus(std::string message, bool isError = false);
 
 private:

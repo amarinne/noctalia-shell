@@ -2,9 +2,11 @@
 #include "core/toml.h"
 
 #include <cstdint>
+#include <format>
 #include <limits>
 #include <print>
 #include <string>
+#include <string_view>
 
 namespace {
 
@@ -82,6 +84,51 @@ radius = -7
     expect(
         root["bar"]["main"]["radius"].value<std::int64_t>() == 500,
         "extreme negative radius did not normalize safely"
+    );
+  }
+
+  void checkCustomScheduleMigration() {
+    toml::table legacy = toml::parse(R"(
+[location]
+sunset = "20:30"
+sunrise = "07:30"
+)");
+    noctalia::config::LegacyConfigIssues issues;
+    noctalia::config::normalizeLegacyConfig(legacy, issues);
+    expect(
+        legacy["location"]["custom_schedule"].value<bool>() == true,
+        "a times-only location did not opt into custom scheduling"
+    );
+    expect(issues.size() == 1, "times-only location did not report a legacy issue");
+
+    noctalia::config::LegacyConfigIssues secondPassIssues;
+    noctalia::config::normalizeLegacyConfig(legacy, secondPassIssues);
+    expect(secondPassIssues.empty(), "custom scheduling normalization was not idempotent");
+
+    // Coordinates won under the old rules, so these configs must keep using them.
+    for (const std::string_view source : {"auto_locate = true", "address = \"Toronto, ON\"",
+                                          "latitude = 52.52\nlongitude = 13.405"}) {
+      toml::table coords = toml::parse(std::format("[location]\nsunset = \"20:30\"\nsunrise = \"07:30\"\n{}\n", source));
+      noctalia::config::LegacyConfigIssues coordIssues;
+      noctalia::config::normalizeLegacyConfig(coords, coordIssues);
+      expect(
+          !coords["location"]["custom_schedule"].value<bool>().has_value(),
+          "a location with coordinates was switched to custom scheduling"
+      );
+      expect(coordIssues.empty(), "a location with coordinates reported a legacy issue");
+    }
+
+    toml::table explicitOff = toml::parse(R"(
+[location]
+custom_schedule = false
+sunset = "20:30"
+sunrise = "07:30"
+)");
+    noctalia::config::LegacyConfigIssues offIssues;
+    noctalia::config::normalizeLegacyConfig(explicitOff, offIssues);
+    expect(
+        explicitOff["location"]["custom_schedule"].value<bool>() == false,
+        "an explicit custom_schedule = false was overwritten"
     );
   }
 
@@ -225,6 +272,7 @@ radius = -10
 int main() {
   checkNegativeRadiusMigration();
   checkExtremeNegativeRadius();
+  checkCustomScheduleMigration();
   checkVersionGating();
   checkReminderFingerprint();
   checkRegistryOrdering();

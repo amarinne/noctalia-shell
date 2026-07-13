@@ -687,6 +687,8 @@
       "calendar-google-connect-start-failed": "Impossibile avviare l'autorizzazione Google. Controlla la connessione di rete e riprova.",
       "calendar-google-connect-start-http": "Impossibile avviare l'autorizzazione Google. Il broker OAuth ha restituito HTTP {status}.",
       "calendar-google-connect-timeout": "Autorizzazione Google scaduta. Avvia di nuovo la connessione quando sei pronto ad accedere.",
+      "config-migration-body": "È in corso la migrazione della configurazione legacy in memoria, incluso {path}. Aggiorna la configurazione di origine; Le impostazioni e la convalida della configurazione di noctalia mostrano la sostituzione richiesta.",
+      "config-migration-title": "È necessario l'aggiornamento della configurazione",
       "dbus-disabled": "Notifiche DBus disabilitate",
       "desktop-widgets-editor": "Editor widget",
       "desktop-widgets-editor-enabled": "L'editor dei widget desktop è attivo. Passa a uno spazio di lavoro vuoto per visualizzarlo.",
@@ -991,7 +993,17 @@
             "grouping": "Raggruppamento",
             "presentation": "Visualizzazione",
             "runtime": "Runtime",
-            "widget": "Widget"
+            "taskbar": {
+              "grouping": "Raggruppamento",
+              "windows": "Finestre",
+              "workspace-labels": "Etichette dell'area di lavoro"
+            },
+            "widget": "Widget",
+            "workspaces": {
+              "colors": "Colori",
+              "list": "Spazi di lavoro",
+              "pills": "Stile pillola"
+            }
           }
         }
       }
@@ -1051,7 +1063,7 @@
         "name-label": "Nome",
         "name-placeholder": "comportamento-inattività",
         "resume-command-label": "Comando ripresa",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · timeout disabilitato",
         "timeout-label": "Secondi timeout",
@@ -1065,6 +1077,7 @@
     },
     "navigation": {
       "groups": {
+        "accessibility": "Accessibilità",
         "audio": "Audio",
         "authentication": "Autenticazione",
         "automation": "Automazione",
@@ -1081,6 +1094,7 @@
         "control-center": "Centro di controllo",
         "dead-zone": "Zona morta",
         "directories": "Directory",
+        "display": "Mostra",
         "effects": "Effetti",
         "filtering": "Filtri",
         "focus-styling": "Stile focus",
@@ -1132,6 +1146,7 @@
         "widgets": "Widget"
       },
       "sections": {
+        "accessibility": "Accessibilità",
         "appearance": "Aspetto",
         "backdrop": "Sfondo pannelli",
         "bar": "Barra",
@@ -1405,6 +1420,12 @@
       }
     },
     "schema": {
+      "accessibility": {
+        "high-contrast": {
+          "description": "Aumenta il contrasto spingendo i colori della superficie e dello sfondo verso valori estremi",
+          "label": "Alto contrasto"
+        }
+      },
       "appearance": {
         "animation-speed": {
           "description": "Moltiplicatore di velocità per le animazioni",
@@ -1462,6 +1483,10 @@
         "palette-source": {
           "description": "Da dove ricavare la palette colori",
           "label": "Sorgente palette"
+        },
+        "pure-black-dark": {
+          "description": "Ancora le superfici scure al nero assoluto, prevenendo il banding sui pannelli OLED (solo modalità scura)",
+          "label": "Nero puro"
         },
         "theme-mode": {
           "description": "Scegli scuro, chiaro o automatico in base all'ora del giorno",
@@ -3160,6 +3185,7 @@
         "minimal": {
           "description": "Mostra solo etichette ID o nome workspace, senza pillole animate",
           "label": "Stile minimale",
+          "taskbar-description": "Etichette dell'area di lavoro di solo testo senza sfondi colorati nei cerchi",
           "workspaces-description": "Etichette workspace solo testo senza sfondi pillola o animazione di scorrimento"
         },
         "mirrored": {
@@ -3380,6 +3406,7 @@
       "export-config": "Esporta configurazione...",
       "export-config-saved": "Esportazione configurazione salvata.",
       "filter-modified": "Modificate",
+      "legacy-config-warning": "È in corso la migrazione della configurazione legacy in memoria: {issue}. Esegui la convalida della configurazione di noctalia per tutte le modifiche richieste.",
       "native-title": "Impostazioni Noctalia",
       "no-results": "Nessuna impostazione trovata",
       "no-results-hint": "Prova un nome impostazione o una chiave configurazione diversa.",

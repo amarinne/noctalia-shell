@@ -1,6 +1,7 @@
 #include "config/schema/config_schema.h"
 
 #include "config/config_types.h"
+#include "config/schema/config_sections.h"
 #include "config/schema/engine.h"
 #include "config/schema/ranges.h"
 #include "core/input/key_chord.h"
@@ -89,7 +90,7 @@ namespace noctalia::config::schema {
         field(&LockscreenConfig::blurredDesktop, "blurred_desktop"),
         field(&LockscreenConfig::blurIntensity, "blur_intensity", kUnitRange),
         field(&LockscreenConfig::tintIntensity, "tint_intensity", kUnitRange),
-        field(&LockscreenConfig::wallpaper, "wallpaper"),
+        pathStringField(&LockscreenConfig::wallpaper, "wallpaper"),
         field(&LockscreenConfig::monitors, "monitors"),
     };
     return s;
@@ -172,9 +173,13 @@ namespace noctalia::config::schema {
 
   const Schema<LocationConfig>& locationSchema() {
     static const Schema<LocationConfig> s = {
-        field(&LocationConfig::autoLocate, "auto_locate"), field(&LocationConfig::address, "address"),
-        field(&LocationConfig::sunset, "sunset"),          field(&LocationConfig::sunrise, "sunrise"),
-        field(&LocationConfig::latitude, "latitude"),      field(&LocationConfig::longitude, "longitude"),
+        field(&LocationConfig::autoLocate, "auto_locate"),
+        field(&LocationConfig::address, "address"),
+        field(&LocationConfig::customSchedule, "custom_schedule"),
+        field(&LocationConfig::sunset, "sunset"),
+        field(&LocationConfig::sunrise, "sunrise"),
+        field(&LocationConfig::latitude, "latitude"),
+        field(&LocationConfig::longitude, "longitude"),
     };
     return s;
   }
@@ -396,7 +401,7 @@ namespace noctalia::config::schema {
         field(&DockConfig::showInstanceCount, "show_instance_count"),
         enumField(&DockConfig::launcherPosition, "launcher_position", kDockLauncherPositions),
         field(&DockConfig::launcherIcon, "launcher_icon"),
-        field(&DockConfig::launcherCustomImage, "launcher_custom_image"),
+        pathStringField(&DockConfig::launcherCustomImage, "launcher_custom_image"),
         field(&DockConfig::launcherCustomImageColorize, "launcher_custom_image_colorize"),
         field(&DockConfig::pinned, "pinned"),
         field(&DockConfig::monitors, "monitors"),
@@ -633,36 +638,6 @@ namespace noctalia::config::schema {
               tbl.insert_or_assign(key, colorSpecToConfigString(*(in.*member)));
             } else if (alwaysEmit) {
               tbl.insert_or_assign(key, std::string{});
-            }
-          }
-      );
-    }
-
-    // String holding a filesystem path: ~ and $VARS expand on read, emitted raw.
-    template <typename Struct> Field<Struct> pathStringField(std::string Struct::* member, std::string_view key) {
-      return custom<Struct>(
-          key,
-          [member, key](const toml::table& tbl, Struct& out, std::string_view, Diagnostics&) {
-            if (auto v = tbl[key].value<std::string>()) {
-              out.*member = v->empty() ? *v : FileUtils::expandUserPath(*v).string();
-            }
-          },
-          [member, key](toml::table& tbl, const Struct& in) { tbl.insert_or_assign(key, in.*member); }
-      );
-    }
-
-    template <typename Struct>
-    Field<Struct> optionalPathStringField(std::optional<std::string> Struct::* member, std::string_view key) {
-      return custom<Struct>(
-          key,
-          [member, key](const toml::table& tbl, Struct& out, std::string_view, Diagnostics&) {
-            if (auto v = tbl[key].value<std::string>()) {
-              out.*member = v->empty() ? *v : FileUtils::expandUserPath(*v).string();
-            }
-          },
-          [member, key](toml::table& tbl, const Struct& in) {
-            if ((in.*member).has_value()) {
-              tbl.insert_or_assign(key, *(in.*member));
             }
           }
       );
@@ -1369,6 +1344,7 @@ namespace noctalia::config::schema {
   const Schema<ShellConfig>& shellSchema() {
     static const Schema<ShellConfig> s = {
         field(&ShellConfig::cornerRadiusScale, "corner_radius_scale", kCornerRadiusScaleRange),
+        field(&ShellConfig::buttonBorders, "button_borders"),
         // font_family is trimmed; empty falls back to sans-serif.
         custom<ShellConfig>(
             "font_family",
@@ -1514,81 +1490,19 @@ namespace noctalia::config::schema {
     // Run collectUnknownKeys for `section`'s schema; false if the section name is
     // unknown. The single dispatch from a section name to its schema.
     bool collectUnknownInSection(std::string_view section, const toml::table& tbl, std::vector<std::string>& unknown) {
-      const auto chk = [&](const auto& sch) {
-        collectUnknownKeys(tbl, sch, section, unknown);
+      if (const SectionSpec* spec = findSection(section); spec != nullptr) {
+        spec->collectUnknown(tbl, unknown);
         return true;
-      };
-      if (section == "shell") {
-        return chk(shellSchema());
       }
-      if (section == "wallpaper") {
-        return chk(wallpaperSchema());
-      }
-      if (section == "theme") {
-        return chk(themeSchema());
-      }
-      if (section == "backdrop") {
-        return chk(backdropSchema());
-      }
-      if (section == "lockscreen") {
-        return chk(lockscreenSchema());
-      }
-      if (section == "notification" || section == "notifications") {
-        return chk(notificationSchema());
-      }
-      if (section == "osd") {
-        return chk(osdSchema());
-      }
-      if (section == "system") {
-        return chk(systemSchema());
-      }
-      if (section == "weather") {
-        return chk(weatherSchema());
-      }
-      if (section == "calendar") {
-        return chk(calendarSchema());
-      }
-      if (section == "audio") {
-        return chk(audioSchema());
-      }
-      if (section == "brightness") {
-        return chk(brightnessSchema());
-      }
-      if (section == "battery") {
-        return chk(batterySchema());
-      }
-      if (section == "nightlight") {
-        return chk(nightlightSchema());
-      }
-      if (section == "location") {
-        return chk(locationSchema());
-      }
-      if (section == "idle") {
-        return chk(idleSchema());
-      }
-      if (section == "keybinds") {
-        return chk(keybindsSchema());
-      }
-      if (section == "dock") {
-        return chk(dockSchema());
-      }
+      // Schema-backed but not plain sections: their read/write shape is bespoke, so
+      // they are custom root keys rather than SectionSpec rows.
       if (section == "desktop_widgets") {
-        return chk(desktopWidgetsSchema());
-      }
-      if (section == "hot_corners") {
-        return chk(hotCornersSchema());
+        collectUnknownKeys(tbl, desktopWidgetsSchema(), section, unknown);
+        return true;
       }
       if (section == "lockscreen_widgets") {
-        return chk(lockscreenWidgetsSchema());
-      }
-      if (section == "control_center") {
-        return chk(controlCenterSchema());
-      }
-      if (section == "hooks") {
-        return chk(hooksSchema());
-      }
-      if (section == "accessibility") {
-        return chk(accessibilitySchema());
+        collectUnknownKeys(tbl, lockscreenWidgetsSchema(), section, unknown);
+        return true;
       }
       return false;
     }

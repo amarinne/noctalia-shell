@@ -1005,7 +1005,7 @@
         "name-label": "Имя",
         "name-placeholder": "idle-behavior",
         "resume-command-label": "Команда возобновления",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds} с",
         "summary-disabled-timeout": "{name} · таймаут отключён",
         "timeout-label": "Тайм-аут в секундах",

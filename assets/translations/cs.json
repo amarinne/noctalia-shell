@@ -1027,7 +1027,7 @@
         "name-label": "Název",
         "name-placeholder": "chovani-necinnosti",
         "resume-command-label": "Příkaz při obnovení",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · časový limit zakázán",
         "timeout-label": "Časový limit (sekundy)",

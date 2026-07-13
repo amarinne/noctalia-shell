@@ -234,11 +234,14 @@ bool IdleManager::runBehavior(BehaviorState& behavior) {
 
 void IdleManager::runResumeBehavior(BehaviorState& behavior) {
   const ResolvedIdleBehavior resolved = resolveIdleBehaviorActions(behavior.config);
-  if (resolved.resumeAction.kind == IdleActionKind::None) {
-    return;
+  if (resolved.resumeAction.kind != IdleActionKind::None && !runAction(behavior.config, resolved.resumeAction)) {
+    kLog.warn("idle behavior '{}' native resume action failed", behavior.config.name);
   }
-  if (!runAction(behavior.config, resolved.resumeAction)) {
-    kLog.warn("idle behavior '{}' resume action failed", behavior.config.name);
+  if (!resolved.resumeCommand.empty()
+      && !runAction(
+          behavior.config, IdleActionRequest{.kind = IdleActionKind::Command, .command = resolved.resumeCommand}
+      )) {
+    kLog.warn("idle behavior '{}' resume command failed", behavior.config.name);
   }
 }
 

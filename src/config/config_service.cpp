@@ -7,6 +7,7 @@
 #include "config/config_migrations.h"
 #include "config/config_validate.h"
 #include "config/schema/config_schema.h"
+#include "config/schema/config_sections.h"
 #include "config/schema/engine.h"
 #include "config/widget_config.h"
 #include "core/build_info.h"
@@ -667,6 +668,7 @@ void ConfigService::fireReloadCallbacks() {
     add(m_lastChange.theme, "theme");
     add(m_lastChange.controlCenter, "controlCenter");
     add(m_lastChange.plugins, "plugins");
+    add(m_lastChange.accessibility, "accessibility");
     kLog.info("reload: changed sections = [{}]", changed.empty() ? "none" : changed);
   }
 
@@ -854,6 +856,7 @@ Config ConfigService::makeDefaultConfig() {
   config.bars.push_back(BarConfig{});
   config.controlCenter.shortcuts = defaultControlCenterShortcuts();
   config.shell.session.actions = defaultSessionPanelActions();
+  config.plugins.sources = defaultPluginSources();
   return config;
 }
 
@@ -1645,57 +1648,44 @@ void ConfigService::parseConfigTable(
     }
   }
 
-  // Parse [shell]
-  bool sessionActionsConfigured = false;
-  if (auto* shellTbl = tbl["shell"].as_table()) {
-    // Schema reads can't tell whether an empty actions list was explicit.
-    sessionActionsConfigured = [&] {
-      const auto* sessionTbl = (*shellTbl)["session"].as_table();
-      return sessionTbl != nullptr && (*sessionTbl)["actions"].as_array() != nullptr;
-    }();
-    readConfigSection(*shellTbl, config.shell, schema::shellSchema(), "shell", schemaDiag);
+  // Every schema-backed section is read through the section registry, so the loader
+  // cannot recognize a section that the validator and exporter do not.
+  for (const schema::SectionSpec& spec : schema::sections()) {
+    const auto* sectionTbl = tbl[spec.name].as_table();
+    if (sectionTbl == nullptr) {
+      continue;
+    }
+    try {
+      spec.read(*sectionTbl, config, schemaDiag);
+    } catch (const std::exception& e) {
+      schemaDiag.error(std::string(spec.name), e.what());
+      kLog.warn("{}: {}", spec.name, e.what());
+    }
   }
+
+  // Default seeding must apply even when the section is absent, so it runs after the
+  // registry pass. A schema read can't tell an explicitly empty list from a missing
+  // one, so these probe the raw table for the list key.
+  const auto hasExplicitArray = [&tbl](std::string_view section, std::string_view key) {
+    const auto* sectionTbl = tbl[section].as_table();
+    return sectionTbl != nullptr && (*sectionTbl)[key].as_array() != nullptr;
+  };
+  const bool sessionActionsConfigured = [&tbl] {
+    const auto* shellTbl = tbl["shell"].as_table();
+    const auto* sessionTbl = shellTbl != nullptr ? (*shellTbl)["session"].as_table() : nullptr;
+    return sessionTbl != nullptr && (*sessionTbl)["actions"].as_array() != nullptr;
+  }();
   if (!sessionActionsConfigured && config.shell.session.actions.empty()) {
     config.shell.session.actions = defaultSessionPanelActions();
   }
-
-  // Parse [theme]
-  if (auto* themeTbl = tbl["theme"].as_table()) {
-    readConfigSection(*themeTbl, config.theme, schema::themeSchema(), "theme", schemaDiag);
+  if (!hasExplicitArray("control_center", "shortcuts") && config.controlCenter.shortcuts.empty()) {
+    config.controlCenter.shortcuts = defaultControlCenterShortcuts();
   }
-
-  // Parse [wallpaper] (config keys only; app-managed state keys default/last/
-  // monitors/favorite are handled separately by extractWallpaperFromTable).
-  if (auto* wpTbl = tbl["wallpaper"].as_table()) {
-    readConfigSection(*wpTbl, config.wallpaper, schema::wallpaperSchema(), "wallpaper", schemaDiag);
+  if (!hasExplicitArray("plugins", "source") && config.plugins.sources.empty()) {
+    config.plugins.sources = defaultPluginSources();
   }
-
-  // Parse [backdrop]
-  if (auto* ovTbl = tbl["backdrop"].as_table()) {
-    readConfigSection(*ovTbl, config.backdrop, schema::backdropSchema(), "backdrop", schemaDiag);
-  }
-
-  // Parse [lockscreen]
-  if (auto* lockTbl = tbl["lockscreen"].as_table()) {
-    readConfigSection(*lockTbl, config.lockscreen, schema::lockscreenSchema(), "lockscreen", schemaDiag);
-  }
-
-  // Parse [osd]
-  if (auto* osdTbl = tbl["osd"].as_table()) {
-    readConfigSection(*osdTbl, config.osd, schema::osdSchema(), "osd", schemaDiag);
-  }
-
-  if (auto* notifTbl = tbl["notification"].as_table()) {
-    readConfigSection(*notifTbl, config.notification, schema::notificationSchema(), "notification", schemaDiag);
-  }
-  // Compatibility alias: accept [notifications] as well.
-  if (auto* notifTbl = tbl["notifications"].as_table()) {
-    readConfigSection(*notifTbl, config.notification, schema::notificationSchema(), "notifications", schemaDiag);
-  }
-
-  // Parse [dock]
-  if (auto* dockTbl = tbl["dock"].as_table()) {
-    readConfigSection(*dockTbl, config.dock, schema::dockSchema(), "dock", schemaDiag);
+  if (config.idle.behaviors.empty()) {
+    config.idle.behaviors = defaultIdleBehaviors();
   }
 
   // Parse [desktop_widgets]
@@ -1724,87 +1714,6 @@ void ConfigService::parseConfigTable(
     );
   }
 
-  // Parse [hot_corners]
-  if (auto* hotCornersTbl = tbl["hot_corners"].as_table()) {
-    readConfigSection(*hotCornersTbl, config.hotCorners, schema::hotCornersSchema(), "hot_corners", schemaDiag);
-  }
-
-  // Parse [weather]
-  if (auto* weatherTbl = tbl["weather"].as_table()) {
-    readConfigSection(*weatherTbl, config.weather, schema::weatherSchema(), "weather", schemaDiag);
-  }
-
-  // Parse [calendar]
-  if (auto* calendarTbl = tbl["calendar"].as_table()) {
-    readConfigSection(*calendarTbl, config.calendar, schema::calendarSchema(), "calendar", schemaDiag);
-  }
-
-  // Parse [system]
-  if (auto* systemTbl = tbl["system"].as_table()) {
-    readConfigSection(*systemTbl, config.system, schema::systemSchema(), "system", schemaDiag);
-  }
-
-  // Parse [audio]
-  if (auto* audioTbl = tbl["audio"].as_table()) {
-    readConfigSection(*audioTbl, config.audio, schema::audioSchema(), "audio", schemaDiag);
-  }
-
-  // Parse [brightness]
-  if (auto* brightnessTbl = tbl["brightness"].as_table()) {
-    readConfigSection(*brightnessTbl, config.brightness, schema::brightnessSchema(), "brightness", schemaDiag);
-  }
-
-  // Parse [battery]
-  if (auto* batteryTbl = tbl["battery"].as_table()) {
-    readConfigSection(*batteryTbl, config.battery, schema::batterySchema(), "battery", schemaDiag);
-  }
-
-  // Parse [keybinds]
-  if (auto* keybindsTbl = tbl["keybinds"].as_table()) {
-    readConfigSection(*keybindsTbl, config.keybinds, schema::keybindsSchema(), "keybinds", schemaDiag);
-  }
-
-  // Parse [nightlight]
-  if (auto* nightlightTbl = tbl["nightlight"].as_table()) {
-    readConfigSection(*nightlightTbl, config.nightlight, schema::nightlightSchema(), "nightlight", schemaDiag);
-  }
-
-  // Parse [location]
-  if (auto* locationTbl = tbl["location"].as_table()) {
-    readConfigSection(*locationTbl, config.location, schema::locationSchema(), "location", schemaDiag);
-  }
-
-  // Parse [hooks]
-  if (auto* hooksTbl = tbl["hooks"].as_table()) {
-    readConfigSection(*hooksTbl, config.hooks, schema::hooksSchema(), "hooks", schemaDiag);
-  }
-
-  // Parse [control_center]. The default-shortcuts seeding stays here because it
-  // must apply even when [control_center] (or its shortcuts array) is absent.
-  bool controlCenterShortcutsConfigured = false;
-  if (auto* ccTbl = tbl["control_center"].as_table()) {
-    controlCenterShortcutsConfigured = (*ccTbl)["shortcuts"].as_array() != nullptr;
-    readConfigSection(*ccTbl, config.controlCenter, schema::controlCenterSchema(), "control_center", schemaDiag);
-  }
-  if (!controlCenterShortcutsConfigured && config.controlCenter.shortcuts.empty()) {
-    config.controlCenter.shortcuts = defaultControlCenterShortcuts();
-  }
-
-  // Parse [plugins]. Default-seeding stays here because it must apply even when
-  // [plugins] (or its source array) is absent.
-  bool pluginSourcesConfigured = false;
-  if (auto* pluginsTbl = tbl["plugins"].as_table()) {
-    pluginSourcesConfigured = (*pluginsTbl)["source"].as_array() != nullptr;
-    readConfigSection(*pluginsTbl, config.plugins, schema::pluginsSchema(), "plugins", schemaDiag);
-  }
-  if (!pluginSourcesConfigured && config.plugins.sources.empty()) {
-    config.plugins.sources = defaultPluginSources();
-  }
-
-  if (auto* accTbl = tbl["accessibility"].as_table()) {
-    readConfigSection(*accTbl, config.accessibility, schema::accessibilitySchema(), "accessibility", schemaDiag);
-  }
-
   // Parse [plugin_settings."author/plugin"] — open-ended per-plugin setting maps,
   // validated against the manifest schema (not the static pluginsSchema). Keys may
   // contain '/', so this is a top-level table rather than nested under [plugins].
@@ -1821,15 +1730,6 @@ void ConfigService::parseConfigTable(
         }
       }
     }
-  }
-
-  // Parse [idle] and [idle.behavior.*]. Default-seeding stays here because it
-  // must apply even when [idle] is absent.
-  if (auto* idleTbl = tbl["idle"].as_table()) {
-    readConfigSection(*idleTbl, config.idle, schema::idleSchema(), "idle", schemaDiag);
-  }
-  if (config.idle.behaviors.empty()) {
-    config.idle.behaviors = defaultIdleBehaviors();
   }
 
   if (config.bars.empty()) {

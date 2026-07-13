@@ -302,8 +302,8 @@ Input::Input() {
     if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL || m_inputArea == nullptr || !m_inputArea->focused()) {
       return false;
     }
-    const float delta = data.scrollDelta(1.0f);
-    if (std::abs(delta) < 0.001f) {
+    const float delta = data.scrollSteps();
+    if (delta == 0.0f) {
       return false;
     }
     if (m_multiline) {

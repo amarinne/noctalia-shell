@@ -79,7 +79,7 @@ Slider::Slider() {
     if (!m_enabled || !m_wheelAdjustEnabled || data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
       return false;
     }
-    const auto lines = static_cast<double>(data.scrollDelta(1.0f));
+    const auto lines = static_cast<double>(data.scrollSteps());
     if (lines == 0.0) {
       return false;
     }

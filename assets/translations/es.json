@@ -1041,7 +1041,7 @@
         "name-label": "Nombre",
         "name-placeholder": "idle-behavior",
         "resume-command-label": "Comando de reanudación",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · tiempo de espera desactivado",
         "timeout-label": "Segundos de tiempo de espera",

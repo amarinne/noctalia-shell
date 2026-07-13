@@ -357,6 +357,7 @@ void Application::initStyleThemeAndWayland() {
     const bool cornerChanged =
         std::isfinite(lastCornerRadiusScale) && std::abs(corner - lastCornerRadiusScale) > 1.0e-4f;
     Style::setCornerRadiusScale(corner);
+    Style::setButtonBordersEnabled(m_configService.config().shell.buttonBorders);
     lastCornerRadiusScale = corner;
     if (cornerChanged) {
       m_notificationToast.requestLayout();
@@ -662,9 +663,9 @@ void Application::initWaylandCallbacks() {
 void Application::initAuxServicesAndHooks() {
   auto shouldRefreshControlCenter = [this]() { return m_panelManager.isOpenPanel("control-center"); };
 
-  m_hookManager.setCommandRunner([this](const std::string& command) { return runUserCommand(command); });
+  m_hookManager.setCommandRunner([this](const std::string& command) { return runShellCommand(command); });
   m_hookManager.setBlockingCommandRunner([this](const std::string& command) {
-    return runUserCommandBlocking(command);
+    return runShellCommandBlocking(command);
   });
   m_hookManager.reload(m_configService.config().hooks);
   m_configService.addReloadCallback(
@@ -1257,8 +1258,8 @@ void Application::triggerShellAction(const std::string& action, wl_output* outpu
   } else if (action == "overview") {
     // There is no public toggle for overview in OverviewLauncherCapture.
     // Try to execute a generic compositor action, or use niri directly if using niri.
-    runUserCommand("niri msg action toggle-overview");
+    runShellCommand("niri msg action toggle-overview");
   } else if (action == "window_switcher") {
-    runUserCommand("noctalia:window-switcher");
+    m_windowSwitcher.show(output);
   }
 }

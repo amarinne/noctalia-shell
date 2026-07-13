@@ -22,7 +22,7 @@ if is_libcxx
 endif
 
 # Sanitizers are enabled via meson's built-in -Db_sanitize=address,undefined.
-# pipewire_lsan.cpp is only needed when address sanitizer is active.
+# lsan_suppressions.cpp is only needed when address sanitizer is active.
 sanitize = get_option('b_sanitize') != 'none'
 
 # Hardened standard-library assertions in debug builds only. A std::clamp(v, lo, hi)
@@ -420,6 +420,7 @@ _noctalia_sources = files(
   'src/config/config_validate.cpp',
   'src/config/widget_config.cpp',
   'src/config/schema/config_schema.cpp',
+  'src/config/schema/config_sections.cpp',
   'src/config/state_store.cpp',
   'src/config/cli.cpp',
   'src/core/build_info.cpp',
@@ -742,6 +743,7 @@ _noctalia_sources = files(
   'src/system/rfkill_helper.cpp',
   'src/system/screen_time_service.cpp',
   'src/system/cpu_temp_sensor.cpp',
+  'src/system/intel_gpu.cpp',
   'src/system/system_monitor_service.cpp',
   'src/system/weather_service.cpp',
   'src/time/time_format.cpp',
@@ -872,7 +874,7 @@ _noctalia_sources = files(
 )
 
 if sanitize
-  _noctalia_sources += files('src/pipewire/pipewire_lsan.cpp')
+  _noctalia_sources += files('src/core/lsan_suppressions.cpp')
 endif
 
 git_program = find_program('git', required: false)
@@ -1370,6 +1372,7 @@ config_schema_roundtrip_test = executable('config_schema_roundtrip_test',
   sources: files(
     'tests/config_schema_roundtrip_test.cpp',
     'src/config/schema/config_schema.cpp',
+    'src/config/schema/config_sections.cpp',
     'src/config/config_export.cpp',
     'src/config/config_types.cpp',
     'src/notification/notification_filter.cpp',
@@ -1429,6 +1432,7 @@ config_path_resolution_test = executable('config_path_resolution_test',
   sources: files(
     'tests/config_path_resolution_test.cpp',
     'src/config/schema/config_schema.cpp',
+    'src/config/schema/config_sections.cpp',
     'src/config/config_types.cpp',
     'src/notification/notification_filter.cpp',
     'src/render/core/color.cpp',

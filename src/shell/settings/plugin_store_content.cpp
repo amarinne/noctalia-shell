@@ -219,7 +219,7 @@ namespace settings {
           auto btn = ui::button({
               .text = allTags[i],
               .fontSize = Style::fontSizeCaption * scale,
-              .variant = selected ? ButtonVariant::Default : ButtonVariant::Outline,
+              .variant = selected ? ButtonVariant::Primary : ButtonVariant::Default,
               .radius = Style::scaledRadiusMd(scale),
               .onClick = [this, i]() {
                 m_selectedTag = i == 0 ? std::string{} : m_tags[i - 1];

@@ -1138,21 +1138,21 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                   ui::button({
                       .glyph = "copy-plus",
                       .enabled = canCloneSelected,
-                      .variant = ButtonVariant::Outline,
+                      .variant = ButtonVariant::Default,
                       .tooltip = i18n::tr("desktop-widgets.editor.actions.clone"),
                       .onClick = [this]() { deferEditorMutation([this]() { cloneSelectedWidgets(); }); },
                   }),
                   ui::button({
                       .glyph = "stack-back",
                       .enabled = canSendSelectedToBack,
-                      .variant = ButtonVariant::Outline,
+                      .variant = ButtonVariant::Default,
                       .tooltip = i18n::tr("desktop-widgets.editor.actions.stack-back"),
                       .onClick = [this]() { deferEditorMutation([this]() { sendSelectedWidgetToBack(); }); },
                   }),
                   ui::button({
                       .glyph = "stack-front",
                       .enabled = canBringSelectedToFront,
-                      .variant = ButtonVariant::Outline,
+                      .variant = ButtonVariant::Default,
                       .tooltip = i18n::tr("desktop-widgets.editor.actions.stack-front"),
                       .onClick = [this]() { deferEditorMutation([this]() { bringSelectedWidgetToFront(); }); },
                   }),
@@ -1160,7 +1160,7 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                       .glyph = "flip-vertical",
                       .enabled = hasSelectedWidget && !selectedIsLoginBox,
                       .selected = selectedFlipX,
-                      .variant = ButtonVariant::Outline,
+                      .variant = ButtonVariant::Default,
                       .tooltip = i18n::tr("desktop-widgets.editor.actions.flip-horizontal"),
                       .onClick = [this]() { deferEditorMutation([this]() { flipSelectedWidgetHorizontal(); }); },
                   }),
@@ -1168,7 +1168,7 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                       .glyph = "flip-horizontal",
                       .enabled = hasSelectedWidget && !selectedIsLoginBox,
                       .selected = selectedFlipY,
-                      .variant = ButtonVariant::Outline,
+                      .variant = ButtonVariant::Default,
                       .tooltip = i18n::tr("desktop-widgets.editor.actions.flip-vertical"),
                       .onClick = [this]() { deferEditorMutation([this]() { flipSelectedWidgetVertical(); }); },
                   }),
@@ -1176,7 +1176,7 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                       .glyph = "settings",
                       .enabled = hasSelectedWidget,
                       .selected = m_inspectorOpen,
-                      .variant = ButtonVariant::Outline,
+                      .variant = ButtonVariant::Default,
                       .tooltip = i18n::tr("desktop-widgets.editor.actions.settings"),
                       .onClick =
                           [this]() {
@@ -1205,7 +1205,7 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                         .glyph = selectedWidgetEnabled ? "eye" : "eye-off",
                         .enabled = canToggleVisibility,
                         .selected = selectedWidgetEnabled,
-                        .variant = ButtonVariant::Outline,
+                        .variant = ButtonVariant::Default,
                         .tooltip = selectedWidgetEnabled ? i18n::tr("desktop-widgets.editor.actions.hide")
                                                          : i18n::tr("desktop-widgets.editor.actions.show"),
                         .onClick = [this]() { deferEditorMutation([this]() { toggleSelectedWidgetEnabled(); }); },
@@ -1233,7 +1233,7 @@ void DesktopWidgetsEditor::rebuildScene(OverlaySurface& surface) {
                                                           : i18n::tr("desktop-widgets.editor.state.grid-off"),
                           .controlHeight = Style::controlHeightSm,
                           .selected = m_snapshot.grid.visible,
-                          .variant = ButtonVariant::Outline,
+                          .variant = ButtonVariant::Default,
                           .onClick =
                               [this]() {
                                 deferEditorMutation([this]() {

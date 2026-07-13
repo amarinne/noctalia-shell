@@ -60,9 +60,12 @@ void VolumeWidget::create() {
     if (node == nullptr) {
       return;
     }
-    const float delta = data.scrollDelta(1.0f) > 0 ? -m_scrollStep : m_scrollStep;
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
+      return;
+    }
     const float maxVolume = (m_config != nullptr && m_config->audio.enableOverdrive) ? 1.5f : 1.0f;
-    const float newValue = std::clamp(node->volume + delta, 0.0f, maxVolume);
+    const float newValue = std::clamp(node->volume - steps * m_scrollStep, 0.0f, maxVolume);
     if (m_target == VolumeWidgetTarget::Input) {
       m_audio->setSourceVolume(node->id, newValue);
     } else {

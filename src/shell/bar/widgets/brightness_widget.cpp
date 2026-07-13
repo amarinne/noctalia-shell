@@ -40,8 +40,11 @@ void BrightnessWidget::create() {
     if (display == nullptr) {
       return;
     }
-    const float delta = data.scrollDelta(1.0f) > 0 ? -m_scrollStep : m_scrollStep;
-    const float newValue = std::clamp(display->brightness + delta, 0.0f, 1.0f);
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
+      return;
+    }
+    const float newValue = std::clamp(display->brightness - steps * m_scrollStep, 0.0f, 1.0f);
     m_brightness->setBrightness(display->id, newValue);
   });
 

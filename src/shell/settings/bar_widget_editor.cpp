@@ -161,7 +161,7 @@ namespace settings {
           ui::button({
               .glyph = std::move(glyph),
               .glyphSize = Style::fontSizeBody * ctx.scale,
-              .variant = ButtonVariant::Outline,
+              .variant = ButtonVariant::Default,
               .minWidth = Style::controlHeight * ctx.scale,
               .minHeight = Style::controlHeight * ctx.scale,
               .paddingV = Style::spaceXs * ctx.scale,
@@ -1211,7 +1211,7 @@ namespace settings {
       }
 
       SelectSetting selectSetting{std::move(options), std::move(selectedValue)};
-      selectSetting.integerValue = spec.integerValue;
+      selectSetting.valueType = spec.integerValue ? SelectValueType::Integer : SelectValueType::String;
       return selectSetting;
     }
 
@@ -1432,7 +1432,7 @@ namespace settings {
               ui::button({
                   .glyph = "apps",
                   .glyphSize = Style::fontSizeBody * ctx.scale,
-                  .variant = ButtonVariant::Outline,
+                  .variant = ButtonVariant::Default,
                   .minWidth = Style::controlHeight * ctx.scale,
                   .minHeight = Style::controlHeight * ctx.scale,
                   .paddingV = Style::spaceXs * ctx.scale,
@@ -1664,7 +1664,7 @@ namespace settings {
             selectSetting = SelectSetting{std::move(options), selectedValue};
           }
           selectSetting.segmented = spec.segmented;
-          selectSetting.integerValue = spec.integerValue;
+          selectSetting.valueType = spec.integerValue ? SelectValueType::Integer : SelectValueType::String;
           if (const auto* defaultString = std::get_if<std::string>(&spec.schema.defaultValue);
               defaultString != nullptr) {
             selectSetting.clearOnEmpty = defaultString->empty();
@@ -2228,7 +2228,7 @@ namespace settings {
               .glyph = "stack-pop",
               .fontSize = Style::fontSizeCaption * ctx.scale,
               .glyphSize = Style::fontSizeCaption * ctx.scale,
-              .variant = ButtonVariant::Outline,
+              .variant = ButtonVariant::Default,
               .minHeight = Style::controlHeightSm * ctx.scale,
               .paddingV = Style::spaceXs * ctx.scale,
               .paddingH = Style::spaceSm * ctx.scale,

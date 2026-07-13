@@ -694,18 +694,7 @@ void Application::initIpc() {
   m_windowSwitcher.registerIpc(m_ipcService);
 }
 
-bool Application::runUserCommand(const std::string& command) {
-  constexpr std::string_view prefix = "noctalia:";
-
-  if (command.starts_with(prefix)) {
-    const std::string response = m_ipcService.execute(command.substr(prefix.size()));
-    if (response.starts_with("error:")) {
-      kLog.warn("IPC command '{}' failed: {}", command, response.substr(0, response.find('\n')));
-      return false;
-    }
-    return true;
-  }
-
+bool Application::runShellCommand(const std::string& command) {
   if (!process::runAsync(command)) {
     kLog.warn("command failed to launch: {}", command);
     return false;
@@ -713,18 +702,7 @@ bool Application::runUserCommand(const std::string& command) {
   return true;
 }
 
-bool Application::runUserCommandBlocking(const std::string& command) {
-  constexpr std::string_view prefix = "noctalia:";
-
-  if (command.starts_with(prefix)) {
-    const std::string response = m_ipcService.execute(command.substr(prefix.size()));
-    if (response.starts_with("error:")) {
-      kLog.warn("IPC command '{}' failed: {}", command, response.substr(0, response.find('\n')));
-      return false;
-    }
-    return true;
-  }
-
+bool Application::runShellCommandBlocking(const std::string& command) {
   const auto result = process::runSync(command);
   if (!result) {
     kLog.warn("command failed: {} exit_code={} stderr={}", command, result.exitCode, result.err);
@@ -738,7 +716,7 @@ bool Application::runIdleAction(const IdleActionRequest& action) {
   case IdleActionKind::None:
     return true;
   case IdleActionKind::Command:
-    return runUserCommand(action.command);
+    return runShellCommand(action.command);
   case IdleActionKind::Lock:
     if (!m_configService.isLockScreenEnabled()) {
       return true;
