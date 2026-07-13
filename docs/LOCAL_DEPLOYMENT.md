@@ -4,7 +4,7 @@
 
 - Source: `/home/eza/Projects/noctalia-shell`
 - Branch: `noctalia-v5-workspace-apps`
-- Current merge: `b9cccdb4a` (`upstream/main` at `ed3cb9853`)
+- Current merge: `435207171` (`upstream/main` at `680663a65`)
 - Active prefix: `$HOME/.local/opt/noctalia-v5-patched`
 - Active binary: `$HOME/.local/opt/noctalia-v5-patched/bin/noctalia`
 - Active launcher: `$HOME/.local/bin/noctalia-v5 --daemon`
