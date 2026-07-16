@@ -4,7 +4,7 @@
 
 - Source: `/home/eza/Projects/noctalia-shell`
 - Branch: `noctalia-v5-workspace-apps`
-- Current merge: `435207171` (`upstream/main` at `680663a65`)
+- Current merge: `7955d8a4c` (`upstream/main` at `cb15ce1c8`, `v5.0.0-beta.3`)
 - Active prefix: `$HOME/.local/opt/noctalia-v5-patched`
 - Active binary: `$HOME/.local/opt/noctalia-v5-patched/bin/noctalia`
 - Active launcher: `$HOME/.local/bin/noctalia-v5 --daemon`
@@ -32,7 +32,7 @@ just test release
 just install release
 ```
 
-`just test release` must finish `38/38` tests with zero failures before install.
+`just test release` must finish `40/40` tests with zero failures before install.
 Install local prefix as normal user. Do not use `sudo` for this prefix.
 
 If Meson install fails on `build-release/meson-logs/install-log.txt` permission, stale log came from prior root install. Remove that generated log, then retry:
