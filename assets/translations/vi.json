@@ -1376,7 +1376,6 @@
         "refreshing": "Đang làm mới các plugin...",
         "remove": "Loại bỏ plugin",
         "requires": "Cần: {dependencies}",
-        "requires-newer-noctalia": "Yêu cầu phiên bản Noctalia mới hơn",
         "title": "Plugins"
       },
       "settings": {
@@ -1407,8 +1406,7 @@
         "remove": "Xóa nguồn",
         "save": "Lưu",
         "title": "Các nguồn",
-        "update": "Cập nhật",
-        "update-on-startup": "Cập nhật khi khởi động"
+        "update": "Cập nhật"
       },
       "store": {
         "add": "Thêm vào Noctalia",
@@ -3128,8 +3126,7 @@
         },
         "minimal": {
           "description": "Chỉ hiển thị nhãn ID hoặc tên không gian làm việc, không có hiệu ứng viên thuốc động",
-          "label": "Phong cách tối giản",
-          "workspaces-description": "Nhãn không gian làm việc chỉ văn bản, không có nền viên thuốc hoặc hoạt ảnh trượt"
+          "label": "Phong cách tối giản"
         },
         "mirrored": {
           "description": "Phản chiếu trình hiển thị xung quanh tâm của nó",

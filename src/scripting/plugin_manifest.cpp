@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
@@ -173,7 +174,11 @@ namespace scripting {
           return false;
         }
         if (optTable->contains("label")) {
-          error = "setting '" + out.key + "' option '" + opt.value + "' uses 'label'; use 'label_key' instead";
+          error = "setting '"
+              + out.key
+              + "' option '"
+              + opt.value
+              + "' uses 'label'; use 'label_key' that points to translation key instead";
           return false;
         }
         opt.labelKey = tableString(*optTable, "label_key");
@@ -227,11 +232,13 @@ namespace scripting {
       }
       out.type = parseFieldType(tableString(field, "type", "string"));
       if (field.contains("label")) {
-        error = "setting '" + out.key + "' uses 'label'; use 'label_key' instead";
+        error = "setting '" + out.key + "' uses 'label'; use 'label_key' that points to translation key instead";
         return std::nullopt;
       }
       if (field.contains("description")) {
-        error = "setting '" + out.key + "' uses 'description'; use 'description_key' instead";
+        error = "setting '"
+            + out.key
+            + "' uses 'description'; use 'description_key' that points to translation key instead";
         return std::nullopt;
       }
       out.labelKey = tableString(field, "label_key");
@@ -453,10 +460,16 @@ namespace scripting {
     if (manifest.name.empty()) {
       return fail("missing mandatory key 'name'");
     }
-    manifest.minNoctalia = tableString(root, "min_noctalia");
-    if (manifest.minNoctalia.empty()) {
-      return fail("missing mandatory key 'min_noctalia'");
+    if (!root.contains("plugin_api")) {
+      return fail("missing mandatory key 'plugin_api'");
     }
+    const auto pluginApiVersion = root["plugin_api"].value<std::int64_t>();
+    if (!pluginApiVersion.has_value()
+        || *pluginApiVersion <= 0
+        || static_cast<std::uint64_t>(*pluginApiVersion) > std::numeric_limits<std::uint32_t>::max()) {
+      return fail("invalid 'plugin_api' (expected a positive integer)");
+    }
+    manifest.pluginApiVersion = static_cast<std::uint32_t>(*pluginApiVersion);
 
     manifest.version = tableString(root, "version");
     manifest.author = tableString(root, "author");

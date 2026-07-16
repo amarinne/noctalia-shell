@@ -31,6 +31,7 @@
       "choose-display": "Escolha o monitor",
       "confirm-region": "Enter ou Espaço para capturar · Esc para cancelar · arraste para reselecionar",
       "fullscreen": "Tela cheia",
+      "overlay-alloc-failed": "Não foi possível mostrar a camada de captura de tela (GPU sem memória disponível?",
       "region": "Selecione a área"
     },
     "widgets": {
@@ -446,6 +447,7 @@
         "bands": "Faixas",
         "bar-width": "Largura da Barra",
         "bloom-intensity": "Bloom",
+        "center-password-text": "Centralizar Texto de Senha",
         "center-text": "Centralizar Texto",
         "centered": "Centralizado",
         "change-image": "Mudar...",
@@ -503,6 +505,7 @@
         "show-label": "Mostrar rótulo",
         "show-login-button": "Botão de Login",
         "show-password-hint": "Dica de Senha",
+        "show-vpn-label": "Mostra Rótulo VPN",
         "show-when-idle": "Mostrar Quando Ocioso",
         "stat": "Estatísticas",
         "stat-cpu-temp": "Temperatura da CPU",
@@ -671,6 +674,7 @@
     },
     "internal": {
       "battery": "Bateria",
+      "battery-critical-body": "{device}: {percent}% — seu computador será desligado em breve",
       "battery-critical-title": "Bateria criticamente baixa",
       "battery-device": "Dispositivo de bateria",
       "battery-low-body": "{device}: {percent}% restantes",
@@ -685,11 +689,18 @@
       "calendar-google-connect-start-failed": "Não foi possível iniciar a autorização do Google. Verifique sua conexão de rede e tente novamente.",
       "calendar-google-connect-start-http": "Não foi possível iniciar a autorização do Google. O agente OAuth retornou HTTP {status}.",
       "calendar-google-connect-timeout": "A autorização do Google expirou. Reinicie a conexão quando estiver pronto para fazer login.",
+      "config-migration-body": "A configuração antiga está sendo migrada na memória, incluindo {path}. Atualize a configuração de origem; as opções “Configurações” e “Validar configuração do noctalia” mostram a substituição necessária.",
+      "config-migration-title": "Atualiação de configuração necessária",
       "dbus-disabled": "Notificações DBus desabilitadas",
       "desktop-widgets-editor": "Editor de Widget",
       "desktop-widgets-editor-enabled": "O editor de widgets da área de trabalho está ativado. Alterne para uma área de trabalho vazia para visualizar a sobreposição do editor.",
       "greeter-sync": "Noctalia Greeter",
+      "greeter-sync-pending": "Aguardando aprovação do administrador para gravar no greeter.",
+      "greeter-sync-pending-console": "Aguardando aprovação do administrador. Aprove o prompt do polkit no Noctalia, em um TTY ou console, ou execute o pkexec manualmente.",
+      "greeter-sync-pending-manual": "Os arquivos estão preparados. Execute no terminal: pkexec noctalia-greeter-apply-appearance \\\"$XDG_RUNTIME_DIR/noctalia-greeter-sync\\\". Ou defina shell.greeter_sync.privilege_command (por exemplo, ghostty -e pkexec) e sincronize novamente.",
       "greeter-sync-success": "Aparência sincronizada. As alterações serão aplicadas na próxima tela de login.",
+      "greeter-sync-timeout": "A sincronização do Greeter ainda está aguardando a aprovação do administrador. Verifique se há um prompt do polkit em um TTY ou console, habilite o agente polkit nas configurações de Segurança ou execute o pkexec manualmente.",
+      "greeter-sync-timeout-manual": "A sincronização do Greeter ainda precisa da aprovação do administrador. Execute no terminal: pkexec noctalia-greeter-apply-appearance \\\"$XDG_RUNTIME_DIR/noctalia-greeter-sync\\\"",
       "keybind-app": "Noctalia",
       "keybind-invalid-modifier": "Este atalho aceita uma única tecla sem modificadores.",
       "keybind-invalid-printable": "Teclas imprimíveis (letras, números, símbolos) requerem uma tecla modificadora como Ctrl ou Alt.",
@@ -702,6 +713,7 @@
       "lockscreen-widgets-editor-enabled": "O editor de widgets da tela de bloqueio está ativado. Organize os widgets na sobreposição de visualização e, em seguida, bloqueie a sessão para verificar o layout.",
       "mpris-disabled": "MPRIS desabilitado",
       "polkit-agent": "Agente de Autenticação",
+      "polkit-no-session": "Agente Polkit precisa de logind, elogind or XDG_SESSION_ID. Em configurações que utilizam apenas o seatd, ele não consegue se registrar para solicitações gráficas. Use o pkexec no terminal para sincronizar o greeter ou instale o elogind para autenticação durante a sessão.",
       "screen-time-reset": "Tempo de Tela",
       "screen-time-reset-success": "Histórico de uso limpo.",
       "session-bus-unavailable": "Sessão bus indisponível",
@@ -755,7 +767,15 @@
   },
   "plugins": {
     "auto-disabled": {
+      "body-errors": "{plugin} causou muitos erros e foi desativado. Recarregue após corrigir o problema.",
+      "body-timeouts": "O {plugin} parou de responder e foi desativado. Atualize a página após corrigir o problema.",
       "title": "Plugin desabilitado"
+    },
+    "enable-failed": {
+      "body-error": "{plugin}: {error}",
+      "body-incompatible": "{plugin} requer Noctalia {version} ou mais recente.",
+      "body-timeout": "A instalação do {plugin} demorou muito.",
+      "title": "Plugin não está ativado"
     }
   },
   "power": {
@@ -807,6 +827,7 @@
     "badges": {
       "advanced": "Avançado",
       "community": "Comunidade",
+      "deprecated": "Obsoleto",
       "inherited": "herdado",
       "monitor": "Monitor",
       "official": "Oficial",
@@ -901,6 +922,16 @@
           "border": "Borda",
           "border-description": "Função da cor do contorno da cápsula; deixe em Padrão para nenhum contorno.",
           "clear": "Limpar",
+          "drawer-columns": "Número de ícones do tray por linha no painel do drawer.",
+          "drawer-columns-description": "Número de widgets por linha no painel gaveta",
+          "drawer-detached": "Painel Destacado",
+          "drawer-detached-description": "Abrir a gaveta como um painel flutuante com seu próprio fundo ao invés de mesclar com a barra",
+          "drawer-enabled": "Gaveta",
+          "drawer-enabled-description": "Mover os widgets do grupo para um painel deslizante ativado por um botão",
+          "drawer-glyph-closed": "Ícone de fechado",
+          "drawer-glyph-closed-description": "Glifo exibido no botão de alternância da gaveta quando o painel está fechado",
+          "drawer-glyph-opened": "Ícone de Aberto",
+          "drawer-glyph-opened-description": "Glifo exibido no botão de alternância da gaveta quando o painel está aberto",
           "edit": "Editar estilo",
           "fill": "Plano de fundo",
           "fill-description": "Função de cor de fundo da cápsula; cores hexadecimais fixas também são suportadas",
@@ -964,7 +995,17 @@
             "grouping": "Agrupamento",
             "presentation": "Apresentação",
             "runtime": "Tempo de execução",
-            "widget": "Widget"
+            "taskbar": {
+              "grouping": "Agrupando",
+              "windows": "Janelas",
+              "workspace-labels": "Rótulos de Espaços de Trabalho"
+            },
+            "widget": "Widget",
+            "workspaces": {
+              "colors": "Cores",
+              "list": "Espaços de Trabalho",
+              "pills": "Estilo de Pílula"
+            }
           }
         }
       }
@@ -972,6 +1013,8 @@
     "errors": {
       "avatar-accounts": "Não foi possível atualizar o avatar da conta do sistema.",
       "avatar-invalid-path": "O caminho do avatar selecionado não é um arquivo de imagem legível.",
+      "avatar-load": "Não foi possível carregar a imagem selecionada. Use PNG, JPEG, WebP, GIF, BMP ou SVG.",
+      "avatar-write": "Não foi possível preparar a imagem do avatar para salvar.",
       "bar": {
         "create": "Não foi possível criar a barra.",
         "delete": "Não foi possível deletar a barra.",
@@ -979,6 +1022,7 @@
         "rename": "Não foi possível renomear a barra."
       },
       "batch-write": "Algumas configurações não foram salvas.",
+      "custom-schedule-times": "Uma programação personalizada precisa tanto da hora do nascer do sol quanto da hora do pôr do sol no formato HH:MM.",
       "export-config": "Falha em salvar configuração exportada.",
       "export-wallpaper-palette": "Não foi possível salvar a paleta de papéis de parede como uma paleta personalizada.",
       "monitor-override": {
@@ -989,6 +1033,8 @@
       "reset-page": "Falha em resetar algumas configurações.",
       "support-report": "Falha em salvar o relatório de suporte.",
       "sync-greeter": "Não foi possível sincronizar a aparência com o Noctalia Greeter.",
+      "sync-greeter-timeout": "A sincronização do Greeter ainda está aguardando a aprovação do administrador. Verifique se há um prompt do polkit em um TTY ou console, habilite o agente polkit nas configurações de Segurança ou execute o pkexec manualmente.",
+      "sync-greeter-timeout-manual": "A sincronização do Greeter ainda precisa da aprovação do administrador. Execute no terminal: pkexec noctalia-greeter-apply-appearance \\\"$XDG_RUNTIME_DIR/noctalia-greeter-sync\\\"",
       "widget": {
         "rename": "Não foi possível renomar o widget nomeado."
       },
@@ -1020,7 +1066,7 @@
         "name-label": "Nome",
         "name-placeholder": "idle-behavior",
         "resume-command-label": "Comando ao retomar",
-        "resume-command-placeholder": "",
+        "resume-command-placeholder": "notify-send 'Retorno de repouso'",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · timeout disabled",
         "timeout-label": "Tempo limite em segundos",
@@ -1034,7 +1080,9 @@
     },
     "navigation": {
       "groups": {
+        "accessibility": "Acessibilidade",
         "audio": "áudio",
+        "authentication": "Autenticação",
         "automation": "Automação",
         "backdrop": "Camada de fundo",
         "background": "Plano de fundo",
@@ -1049,11 +1097,13 @@
         "control-center": "Central de Controle",
         "dead-zone": "Zona Morta",
         "directories": "Diretórios",
+        "display": "Tela",
         "effects": "Efeitos",
         "filtering": "Filtragem",
         "focus-styling": "Estilo de foco",
         "formats": "Formatos",
         "general": "Geral",
+        "greeter": "Greeter",
         "grouping": "Agrupamento",
         "home": "Início",
         "hot-corners": "Hot Corners",
@@ -1082,6 +1132,7 @@
         "power": "Energia",
         "privacy": "Privacidade",
         "profile": "Perfil",
+        "providers": "Provedores",
         "screen-corners": "Cantos da Tela",
         "screen-time": "Tempo de Tela",
         "screenshot": "Captura de Tela",
@@ -1099,6 +1150,7 @@
         "widgets": "Widgets"
       },
       "sections": {
+        "accessibility": "Acessibilidade",
         "appearance": "Aparência",
         "backdrop": "Camada de Fundo",
         "bar": "Barra",
@@ -1107,6 +1159,7 @@
         "dock": "Dock",
         "hooks": "Hooks",
         "keybinds": "Atalhos do Teclado",
+        "launcher": "Launcher",
         "location": "Localização",
         "niri": "Niri",
         "notifications": "Notificações",
@@ -1135,15 +1188,29 @@
           "sound": "som",
           "toast": "notificação flutuante"
         },
+        "flags-label": "Quando corresponder",
+        "match-content-label": "Regex do Conteúdo",
+        "match-content-placeholder": "Padrão do Regex para identificar o resumo ou o corpo do texto…",
         "match-label": "App",
         "match-placeholder": "Nome do app, entrada da área de trabalho, ou categoria...",
+        "override-duration": "Sobrescrever duração",
         "play-sound": "Tocar som",
         "save-history": "Salvar no histórico",
         "show-toast": "Mostrar notificação flutuante",
+        "summary": "{match} · {flags}",
+        "summary-blocked": "{match} · bloqueados",
+        "summary-disabled": "{match} · desativados",
         "unnamed": "Filtro Não Nomeado"
       }
     },
     "options": {
+      "bar": {
+        "auto-hide": {
+          "off": "Desligado",
+          "on": "Ligado",
+          "smart": "Inteligente"
+        }
+      },
       "clipboard": {
         "auto-paste": {
           "ctrl-shift-v": "Ctrl+Shift+V",
@@ -1203,6 +1270,10 @@
       "orientation": {
         "horizontal": "Horizontal",
         "vertical": "Vertical"
+      },
+      "panel-bar-alignment": {
+        "centered": "Centralizado",
+        "near-trigger": "Próximo ao Gatilho"
       },
       "panel-position": {
         "auto": "Seguir a Barra"
@@ -1266,6 +1337,7 @@
           "crop": "Cortar",
           "fit": "Encaixar",
           "repeat": "Repetir",
+          "span": "Extender",
           "stretch": "Esticar"
         },
         "order": {
@@ -1292,25 +1364,33 @@
       "browse-store": "Navegar Plugins",
       "panels": {
         "open-near-click": {
+          "description": "Abrir o painel próximo ao widget da barra que o abriu; abrir sem um gatilho na barra é centralizado",
           "label": "Abrir Próximo ao Clique"
         },
         "placement": {
+          "description": "Anexe o painel à barra ou deixe-o flutuando próximo à borda da barra",
           "label": "Posicionamento"
         },
         "position": {
+          "description": "Posição da tela quando o painel está flutuando",
           "label": "Posição"
         }
       },
       "plugins": {
         "configure": "Configurar",
+        "delete": "Apagar",
+        "delete-confirm-desc": "Este plug-in será desinstalado e removido do disco.",
+        "delete-confirm-title": "Apagar \"{name}\"?",
         "deprecated": "Obsoleto",
         "empty": "Nenhum plugin encontrado. Adicione uma fonte ou cheque sua conexão.",
         "loading": "Carregando plugins...",
         "refreshing": "Atualizando plugins...",
         "remove": "Remover plugin",
         "requires": "Requer: {dependencies}",
-        "requires-newer-noctalia": "Requer Noctalia mais atualizado",
-        "title": "Plugins"
+        "title": "Plugins",
+        "update-all": "Atualizar todos({count})",
+        "update-available": "atualização disponível",
+        "update-to": "atualizar para {version}"
       },
       "settings": {
         "empty": "Nenhuma configuração disponível."
@@ -1318,6 +1398,7 @@
       "sources": {
         "add": "Adicionar fonte",
         "add-title": "Adicionar fonte de plugin",
+        "auto-update": "Auto-atualizar plugins",
         "edit": "Editar fonte",
         "edit-title": "Editar fonte de plugin",
         "empty": "Nenhuma fonte configurada.",
@@ -1339,8 +1420,7 @@
         "remove": "Remover fonte",
         "save": "Salvar",
         "title": "Fontes",
-        "update": "Atualizar",
-        "update-on-startup": "Atualizar ao Iniciar o Sistema"
+        "update": "Atualizar"
       },
       "store": {
         "add": "Adicionar ao Noctalia",
@@ -1994,6 +2074,9 @@
         "placement-wallpaper": {
           "description": "Escolhe se o selecionador de papéis de parede se fixa a barra, flutua próximo ou abre centralizada",
           "label": "Posicionamento"
+        },
+        "position-clipboard": {
+          "label": "Posição"
         },
         "shadow": {
           "description": "Faz as superfícies dos painéis projetarem a sombra global da superfície"
@@ -2845,8 +2928,7 @@
         },
         "minimal": {
           "description": "Exibir apenas o nome do rótulo ou id do espaço de trabalho, sem as pílulas animadas.",
-          "label": "Estilo Simplificado",
-          "workspaces-description": "Rótulos de espaço de trabalho somente com texto, sem fundos de pílulas ou animação de slides"
+          "label": "Estilo Simplificado"
         },
         "mirrored": {
           "description": "Espelhe o visualizador em torno do seu centro",

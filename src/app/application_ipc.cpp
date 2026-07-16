@@ -620,15 +620,13 @@ void Application::initIpc() {
           if (sub == "list") {
             std::string out;
             for (const auto& s : m_configService.config().plugins.sources) {
-              out += std::format(
-                  "{} {} {}{}\n", s.name, enumToKey(kPluginSourceKinds, s.kind), s.location, s.autoUpdate ? " auto" : ""
-              );
+              out += std::format("{} {} {}\n", s.name, enumToKey(kPluginSourceKinds, s.kind), s.location);
             }
             return out.empty() ? "(no sources)\n" : out;
           }
           if (sub == "add") {
             if (parts.size() < 5) {
-              return "error: plugins source add <name> <git|path> <location> [auto]\n";
+              return "error: plugins source add <name> <git|path> <location>\n";
             }
             const auto kind = enumFromKey(kPluginSourceKinds, parts[3]);
             if (!kind.has_value()) {
@@ -641,7 +639,6 @@ void Application::initIpc() {
                 .kind = *kind,
                 .name = parts[2],
                 .location = parts[4],
-                .autoUpdate = parts.size() > 5 && (parts[5] == "auto" || parts[5] == "true"),
             };
             m_pluginManager.addSource(source);
             return "ok\n";

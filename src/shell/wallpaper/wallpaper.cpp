@@ -1417,6 +1417,13 @@ Wallpaper::redirectActiveTransition(WallpaperInstance& instance, const std::stri
 void Wallpaper::startTransition(WallpaperInstance& instance) {
   const auto& wpConfig = m_config->config().wallpaper;
 
+  if (wpConfig.transitions.empty()) {
+    instance.transitioning = true;
+    instance.transitionDirection = WallpaperTransitionDirection::Forward;
+    finishTransition(instance);
+    return;
+  }
+
   float aspectRatio = 1.777f;
   if (instance.surface->height() > 0) {
     aspectRatio = static_cast<float>(instance.surface->width()) / static_cast<float>(instance.surface->height());

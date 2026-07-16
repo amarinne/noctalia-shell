@@ -293,6 +293,11 @@ void Application::syncPolkitAgent() {
       }
       return;
     }
+    // Open once the session asks for a response so preferredHeight includes the
+    // password field. BeginAuthentication alone still has responseRequired=false.
+    if (!m_polkitAgent->isResponseRequired() && !m_panelManager.isOpenPanel("polkit")) {
+      return;
+    }
     if (!m_panelManager.isOpenPanel("polkit")) {
       wl_output* output = m_compositorPlatform.preferredInteractiveOutput(std::chrono::milliseconds(1200));
       m_panelManager.openPanel("polkit", PanelOpenRequest{.output = output});

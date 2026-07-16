@@ -447,6 +447,7 @@
         "bands": "Grupos",
         "bar-width": "Ancho de la barra",
         "bloom-intensity": "Bloom",
+        "center-password-text": "Centrar el texto de la contraseña",
         "center-text": "Centrar texto",
         "centered": "Centrado",
         "change-image": "Cambiar...",
@@ -688,6 +689,7 @@
       "calendar-google-connect-start-http": "No se pudo iniciar la autorización de Google. El intermediario de OAuth devolvió HTTP {status}.",
       "calendar-google-connect-timeout": "La autorización de Google expiró. Inicie la conexión nuevamente cuando esté listo para iniciar sesión.",
       "config-migration-body": "La configuración heredada se está migrando en memoria, incluyendo {path}. Actualice la configuración de origen; Settings y noctalia config validate muestran el reemplazo necesario.",
+      "config-migration-title": "Se necesita actualizar configuracion",
       "dbus-disabled": "Notificaciones DBus deshabilitada",
       "desktop-widgets-editor": "Editor de Widget",
       "desktop-widgets-editor-enabled": "El editor de widgets del escritorio está activado. Cambia a un espacio de trabajo vacío para ver el panel del editor.",
@@ -982,7 +984,10 @@
             "grouping": "Agrupación",
             "presentation": "Presentación",
             "runtime": "Runtime",
-            "widget": "Widget"
+            "widget": "Widget",
+            "workspaces": {
+              "colors": "Colores"
+            }
           }
         }
       }
@@ -1056,6 +1061,7 @@
     },
     "navigation": {
       "groups": {
+        "accessibility": "Accesibilidad",
         "audio": "Sonido",
         "authentication": "Autenticacion",
         "automation": "Automatizacion",
@@ -1123,6 +1129,7 @@
         "widgets": "Widgets"
       },
       "sections": {
+        "accessibility": "Accesibilidad",
         "appearance": "Apariencia",
         "backdrop": "Fondo",
         "bar": "Barra",
@@ -1173,6 +1180,12 @@
       }
     },
     "options": {
+      "bar": {
+        "auto-hide": {
+          "off": "Apagado",
+          "on": "Encendido"
+        }
+      },
       "clipboard": {
         "auto-paste": {
           "ctrl-shift-v": "Ctrl+Shift+V",
@@ -1232,6 +1245,9 @@
       "orientation": {
         "horizontal": "Horizontal",
         "vertical": "Vertical"
+      },
+      "panel-bar-alignment": {
+        "centered": "Centrado"
       },
       "panel-position": {
         "auto": "Seguir barra"
@@ -1345,7 +1361,6 @@
         "refreshing": "Actualizando plugins...",
         "remove": "Eliminar plugin",
         "requires": "Requiere: {dependencies}",
-        "requires-newer-noctalia": "requiere una versión más reciente de Noctalia",
         "title": "Plugins"
       },
       "settings": {
@@ -1376,8 +1391,7 @@
         "remove": "Eliminar fuente",
         "save": "Guardar",
         "title": "Fuentes",
-        "update": "Actualizar",
-        "update-on-startup": "Actualizar al iniciar"
+        "update": "Actualizar"
       },
       "store": {
         "add": "Añadir a Noctalia",
@@ -1393,6 +1407,11 @@
       }
     },
     "schema": {
+      "accessibility": {
+        "high-contrast": {
+          "label": "Alto contraste"
+        }
+      },
       "appearance": {
         "animation-speed": {
           "description": "Multiplicador de velocidad para todas las animaciones",
@@ -1450,6 +1469,9 @@
         "palette-source": {
           "description": "Dónde obtener la paleta de colores",
           "label": "Fuente de la paleta"
+        },
+        "pure-black-dark": {
+          "label": "Negro puro"
         },
         "theme-mode": {
           "description": "Elige oscuro, claro o automático según la hora del día",
@@ -2812,6 +2834,7 @@
         "instance": "Por ubicación",
         "kilobytes": "kB/s",
         "megabytes": "MB/s",
+        "minimal": "Minimo",
         "name": "Nombre",
         "net-rx": "Recepción de red",
         "net-tx": "Transmisión de red",
@@ -2820,6 +2843,7 @@
         "output": "Salida",
         "ram-percent": "Porcentaje de RAM",
         "ram-used": "RAM usada",
+        "regular": "Regular",
         "screenshot-primary-fullscreen": "Pantalla completa",
         "screenshot-primary-region": "Región",
         "shared": "Compartido",
@@ -3135,8 +3159,7 @@
         },
         "minimal": {
           "description": "Mostrar solo etiquetas de ID o nombre de espacio de trabajo, sin píldoras animadas",
-          "label": "Estilo minimalista",
-          "workspaces-description": "Etiquetas de espacio de trabajo de solo texto sin fondos de píldora ni animación de deslizamiento"
+          "label": "Estilo minimalista"
         },
         "mirrored": {
           "description": "Reflejar el visualizador alrededor de su centro",
@@ -3266,6 +3289,9 @@
         "stat": {
           "description": "Estadística del sistema a mostrar",
           "label": "Estadística"
+        },
+        "style": {
+          "label": "Estilo"
         },
         "taskbar-max-width": {
           "description": "Presupuesto de ancho total en píxeles; los títulos de ventana se reducen para ajustarse y se ocultan cuando son demasiado estrechos",

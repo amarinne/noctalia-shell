@@ -3,6 +3,7 @@
 #include "config/config_types.h"
 #include "render/scene/input_dispatcher.h"
 #include "ui/controls/context_menu.h"
+#include "ui/controls/scroll_view.h"
 #include "ui/popup_chrome.h"
 #include "ui/popup_parent.h"
 
@@ -67,10 +68,16 @@ private:
   std::unique_ptr<PopupSurface> m_surface;
   std::unique_ptr<Node> m_sceneRoot;
   InputDispatcher m_inputDispatcher;
+  ScrollViewState m_scrollState{};
+  ScrollView* m_scrollView = nullptr;
+  ContextMenuControl* m_menu = nullptr;
+  std::size_t m_highlightedIndex = 0;
   wl_surface* m_wlSurface = nullptr;
   bool m_pointerInside = false;
 
   void restoreParentKeyboardInteractivity();
+  void ensureHighlightedVisible();
+  void requestVisualUpdate();
 
   std::function<void(const ContextMenuControlEntry&)> m_onActivate;
   std::function<void()> m_onDismissed;

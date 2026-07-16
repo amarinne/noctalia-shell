@@ -37,6 +37,9 @@ namespace noctalia::config::schema {
   void appendUniqueCustomColors(
       std::vector<ThemeConfig::TemplateColorConfig>& into, std::vector<ThemeConfig::TemplateColorConfig> additional
   );
+  // Template palette files (e.g. user-templates.toml) store palette extensions under
+  // [config.custom_colors]; lift them into theme.templates.customColors.
+  void liftTemplateConfigCustomColors(const toml::table& root, Config& config);
   const Schema<ShellConfig>& shellSchema();
   const Schema<AccessibilityConfig>& accessibilitySchema();
 

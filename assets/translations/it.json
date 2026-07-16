@@ -447,6 +447,7 @@
         "bands": "Bande",
         "bar-width": "Larghezza barra",
         "bloom-intensity": "Bagliore",
+        "center-password-text": "Centra testo password",
         "center-text": "Testo centrato",
         "centered": "Centrato",
         "change-image": "Cambia...",
@@ -1130,6 +1131,7 @@
         "power": "Energia",
         "privacy": "Privacy",
         "profile": "Profilo",
+        "providers": "Provider",
         "screen-corners": "Angoli schermo",
         "screen-time": "Tempo schermo",
         "screenshot": "Cattura schermo",
@@ -1240,7 +1242,7 @@
         "heavy": "Pesante",
         "light": "Leggero",
         "medium": "Medio",
-        "regular": "Regolare",
+        "regular": "Normale",
         "semi-bold": "Semigrassetto",
         "semi-light": "Semileggero",
         "thin": "Sottile",
@@ -1384,8 +1386,10 @@
         "refreshing": "Aggiornamento plugin...",
         "remove": "Rimuovi plugin",
         "requires": "Richiede: {dependencies}",
-        "requires-newer-noctalia": "Richiede Noctalia aggiornato",
-        "title": "Elenco plugin"
+        "title": "Elenco plugin",
+        "update-all": "Aggiorna tutti ({count})",
+        "update-available": "aggiornamento disponibile",
+        "update-to": "aggiorna alla {version}"
       },
       "settings": {
         "empty": "Nessuna impostazione disponibile."
@@ -1393,6 +1397,8 @@
       "sources": {
         "add": "Aggiungi sorgente",
         "add-title": "Aggiungi sorgente plugin",
+        "auto-update": "Aggiorna plugin in automatico",
+        "auto-update-desc": "Controlla in background nuove versioni per le sorgenti abilitate e mantieni aggiornati i plugin installati",
         "edit": "Configura sorgente",
         "edit-title": "Configura sorgente plugin",
         "empty": "Nessuna sorgente configurata.",
@@ -1415,8 +1421,7 @@
         "remove": "Rimuovi sorgente",
         "save": "Salva",
         "title": "Sorgenti",
-        "update": "Aggiorna",
-        "update-on-startup": "Aggiorna all'avvio"
+        "update": "Aggiorna sorgente"
       },
       "store": {
         "add": "Aggiungi a Noctalia",
@@ -1426,6 +1431,8 @@
         "incompatible": "Incompatibile",
         "loading": "Caricamento catalogo...",
         "no-readme": "Nessuna descrizione disponibile.",
+        "open-page": "Apri la pagina plugin su noctalia.dev",
+        "open-source": "Apri il repository dei sorgenti dei plugin",
         "results-count": "{count} plugin",
         "search-placeholder": "Ricerca plugin...",
         "title": "Plugin Store"
@@ -1532,7 +1539,7 @@
       },
       "bar": {
         "auto-hide": {
-          "description": "Nasconde automaticamente la barra quando non è in uso"
+          "description": "Off mantiene la barra visibile; On la nasconde finché non sposti il ​​puntatore sul bordo dello schermo; Smart mostra la barra su un'area di lavoro vuota e la nasconde quando le finestre sono aperte"
         },
         "background-opacity": {
           "description": "Opacità dello sfondo della barra"
@@ -1770,7 +1777,7 @@
           "label": "Solo monitor attivo"
         },
         "auto-hide": {
-          "description": "Nasconde automaticamente la dock quando non è in uso"
+          "description": "Off mantiene il dock visibile; On lo nasconde finché non sposti il ​​puntatore sul bordo dello schermo; Smart mostra il dock su un'area di lavoro vuota e lo nasconde quando le finestre sono aperte"
         },
         "background-opacity": {
           "description": "Opacità dello sfondo della dock"
@@ -2146,6 +2153,50 @@
         "launcher-compact": {
           "description": "Usa icone più piccole e righe risultato più compatte",
           "label": "Righe compatte"
+        },
+        "launcher-global-calculator": {
+          "description": "Mostra anche la calcolatrice nei risultati senza prefisso",
+          "label": "Calcolatrice nella ricerca globale"
+        },
+        "launcher-global-emoji": {
+          "description": "Mostra anche emoji nei risultati senza prefisso",
+          "label": "Emoji nella ricerca globale"
+        },
+        "launcher-global-session": {
+          "description": "Mostra anche i comandi sessione nei risultati senza prefisso",
+          "label": "Comandi sessione nella ricerca globale"
+        },
+        "launcher-global-wallpaper": {
+          "description": "Mostra anche gli sfondi nei risultati senza prefisso",
+          "label": "Sfondi nella ricerca globale"
+        },
+        "launcher-global-windows": {
+          "description": "Mostra anche le finestre aperte nei risultati senza prefisso",
+          "label": "Finestre nella ricerca globale"
+        },
+        "launcher-prefix-calculator": {
+          "description": "Prefisso di attivazione calcoli con la calcolatrice",
+          "label": "Prefisso calcolatrice"
+        },
+        "launcher-prefix-character": {
+          "description": "Carattere prefisso comune utilizzato per attivare tutti i prefissi del provider (ad esempio /)",
+          "label": "Carattere comune per prefisso"
+        },
+        "launcher-prefix-emoji": {
+          "description": "Prefisso di attivazione  per ricerca emoji",
+          "label": "Prefisso Emoji"
+        },
+        "launcher-prefix-session": {
+          "description": "Prefisso di attivazione per comandi di sessione",
+          "label": "Prefisso sessione"
+        },
+        "launcher-prefix-wallpaper": {
+          "description": "Prefisso di attivazione per selettore sfondi",
+          "label": "Prefisso sfondi"
+        },
+        "launcher-prefix-windows": {
+          "description": "Prefisso di attivazione per ricerca finestre",
+          "label": "Prefisso finestre"
         },
         "launcher-reset-usage": {
           "button": "Reset",
@@ -2858,6 +2909,7 @@
         "cpu-temp": "Temperatura CPU",
         "cpu-usage": "Uso CPU",
         "disk-percent": "Percentuale disco",
+        "focus-hint": "Focalizzato",
         "full": "Completo",
         "gauge": "Indicatore",
         "glyph": "Glifo",
@@ -2873,6 +2925,7 @@
         "instance": "Per posizionamento",
         "kilobytes": "kB/s",
         "megabytes": "MB/s",
+        "minimal": "Minimale",
         "name": "Nome",
         "net-rx": "Rete RX",
         "net-tx": "Rete TX",
@@ -2881,6 +2934,7 @@
         "output": "Uscita",
         "ram-percent": "Percentuale RAM",
         "ram-used": "RAM usata",
+        "regular": "Normale",
         "screenshot-primary-fullscreen": "Schermo intero",
         "screenshot-primary-region": "Area",
         "shared": "Condiviso",
@@ -3205,8 +3259,7 @@
         "minimal": {
           "description": "Mostra solo etichette ID o nome workspace, senza pillole animate",
           "label": "Stile minimale",
-          "taskbar-description": "Etichette dell'area di lavoro di solo testo senza sfondi colorati nei cerchi",
-          "workspaces-description": "Etichette workspace solo testo senza sfondi pillola o animazione di scorrimento"
+          "taskbar-description": "Etichette dell'area di lavoro di solo testo senza sfondi colorati nei cerchi"
         },
         "mirrored": {
           "description": "Specchia il visualizzatore dal centro",
@@ -3336,6 +3389,11 @@
         "stat": {
           "description": "Statistica di sistema da mostrare",
           "label": "Statistica"
+        },
+        "style": {
+          "description": "Aspetto dello switcher dell'area di lavoro",
+          "label": "Stile",
+          "workspaces-description": "Normale mostra le pillole animate; Minimale mostra solo le etichette; Focalizzato usa i puntini per aree di lavoro inattive e una pillola attiva estesa con l'icona dell'app in focus"
         },
         "taskbar-max-width": {
           "description": "Budget larghezza totale in pixel; i titoli finestra si riducono per adattarsi e si nascondono quando troppo stretti",

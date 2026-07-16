@@ -447,6 +447,7 @@
         "bands": "Bänder",
         "bar-width": "Leistenbreite",
         "bloom-intensity": "Bloom",
+        "center-password-text": "Passworttext zentrieren",
         "center-text": "Text zentrieren",
         "centered": "Zentriert",
         "change-image": "Ändern…",
@@ -1020,6 +1021,7 @@
         "rename": "Leiste konnte nicht umbenannt werden."
       },
       "batch-write": "Einige Einstellungen konnten nicht gespeichert werden.",
+      "custom-schedule-times": "Ein benutzerdefinierter Zeitplan benötigt sowohl eine Sonnenaufgangs- als auch eine Sonnenuntergangszeit im Format HH:MM.",
       "export-config": "Speichern des Konfigurationsexports fehlgeschlagen.",
       "export-wallpaper-palette": "Die Hintergrundbild-Palette konnte nicht als benutzerdefinierte Palette gespeichert werden.",
       "monitor-override": {
@@ -1129,6 +1131,7 @@
         "power": "Energie",
         "privacy": "Privatsphäre",
         "profile": "Profil",
+        "providers": "Module",
         "screen-corners": "Bildschirmecken",
         "screen-time": "Bildschirmzeit",
         "screenshot": "Screenshot",
@@ -1383,8 +1386,10 @@
         "refreshing": "Plugins werden aktualisiert…",
         "remove": "Plugin entfernen",
         "requires": "Erfordert: {dependencies}",
-        "requires-newer-noctalia": "erfordert eine neuere Version von Noctalia",
-        "title": "Plugins"
+        "title": "Plugins",
+        "update-all": "Alle aktualisieren ({count})",
+        "update-available": "Update verfügbar",
+        "update-to": "auf {version} aktualisieren"
       },
       "settings": {
         "empty": "Keine Einstellungen verfügbar."
@@ -1392,6 +1397,8 @@
       "sources": {
         "add": "Quelle hinzufügen",
         "add-title": "Plugin-Quelle hinzufügen",
+        "auto-update": "Plugins automatisch aktualisieren",
+        "auto-update-desc": "Überprüfe aktivierte Quellen im Hintergrund auf neue Versionen und halte installierte Plugins aktuell",
         "edit": "Quelle bearbeiten",
         "edit-title": "Plugin-Quelle bearbeiten",
         "empty": "Keine Quellen konfiguriert.",
@@ -1414,8 +1421,7 @@
         "remove": "Quelle entfernen",
         "save": "Speichern",
         "title": "Quellen",
-        "update": "Aktualisieren",
-        "update-on-startup": "Beim Start aktualisieren"
+        "update": "Quelle aktualisieren"
       },
       "store": {
         "add": "Zu Noctalia hinzufügen",
@@ -1425,6 +1431,8 @@
         "incompatible": "Inkompatibel",
         "loading": "Katalog wird geladen…",
         "no-readme": "Keine Beschreibung vorhanden.",
+        "open-page": "Plugin-Seite auf noctalia.dev öffnen",
+        "open-source": "Quell-Repository des Plugins öffnen",
         "results-count": "{count} Plugins",
         "search-placeholder": "Suche Plugins…",
         "title": "Plugin Store"
@@ -1504,7 +1512,7 @@
           "label": "Reines Schwarz"
         },
         "theme-mode": {
-          "description": "Wähle dunkel, hell oder automatisch basierend auf der Tageszeit",
+          "description": "Dunkel oder hell, bzw. automatisch abhängig von der Tageszeit wählen..",
           "label": "Theme-Modus"
         },
         "ui-scale": {
@@ -1512,7 +1520,7 @@
           "label": "UI-Skalierung"
         },
         "wallpaper-generation-scheme": {
-          "description": "Wähle, wie Hintergrundbildfarben in eine Palette umgewandelt werden",
+          "description": "Festlegen wie aus den Hintergrundbildfarben eine Farbpalette erzeugt wird.",
           "label": "Hintergrundbild-Generierungsschema"
         }
       },
@@ -1531,7 +1539,7 @@
       },
       "bar": {
         "auto-hide": {
-          "description": "„Aus\" lässt die Leiste sichtbar; „An\" blendet sie aus, bis du den Mauszeiger an den Bildschirmrand bewegst; „Smart\" zeigt die Leiste auf einem leeren Arbeitsbereich und blendet sie aus, wenn Fenster geöffnet sind"
+          "description": "„Aus“ lässt die Leiste sichtbar; „An“ blendet sie aus, bis du den Mauszeiger an den Bildschirmrand bewegst; „Smart“ zeigt die Leiste auf einem leeren Arbeitsbereich und blendet sie aus, wenn Fenster geöffnet sind"
         },
         "background-opacity": {
           "description": "Hintergrunddeckkraft der Leiste"
@@ -1769,7 +1777,7 @@
           "label": "Nur aktiver Monitor"
         },
         "auto-hide": {
-          "description": "„Aus\" lässt das Dock sichtbar; „An\" blendet es aus, bis du den Mauszeiger an den Bildschirmrand bewegst; „Smart\" zeigt das Dock auf einem leeren Arbeitsbereich und blendet es aus, wenn Fenster geöffnet sind"
+          "description": "„Aus“ lässt das Dock sichtbar; „An“ blendet es aus, bis du den Mauszeiger an den Bildschirmrand bewegst; „Smart“ zeigt das Dock auf einem leeren Arbeitsbereich und blendet es aus, wenn Fenster geöffnet sind"
         },
         "background-opacity": {
           "description": "Hintergrunddeckkraft des Docks"
@@ -1962,7 +1970,7 @@
           "label": "Verhalten"
         },
         "pre-action-fade": {
-          "description": "Sekunden der Vollbilddimmung vor dem Inaktivitätsbefehl; verwende 0 zum Deaktivieren",
+          "description": "Sekunden der Vollbilddimmung vor dem Inaktivitätsbefehl (0 deaktiviert)",
           "label": "Inaktivitätsdimmung"
         }
       },
@@ -2146,6 +2154,50 @@
           "description": "Verwende kleinere Icons und engere Ergebniszeilen",
           "label": "Kompakte Zeilen"
         },
+        "launcher-global-calculator": {
+          "description": "Zeige Rechner-Ergebnisse auch in der unpräfixierten Suche",
+          "label": "Rechner in globaler Suche"
+        },
+        "launcher-global-emoji": {
+          "description": "Zeige Emoji-Ergebnisse auch in der unpräfixierten Suche",
+          "label": "Emoji in globaler Suche"
+        },
+        "launcher-global-session": {
+          "description": "Zeige Sitzungsaktionen auch in der unpräfixierten Suche",
+          "label": "Sitzung in globaler Suche"
+        },
+        "launcher-global-wallpaper": {
+          "description": "Zeige Hintergrundbilder auch in der unpräfixierten Suche",
+          "label": "Hintergrundbild in globaler Suche"
+        },
+        "launcher-global-windows": {
+          "description": "Zeige offene Fenster auch in der unpräfixierten Suche",
+          "label": "Fenster in globaler Suche"
+        },
+        "launcher-prefix-calculator": {
+          "description": "Trigger-Präfix für Rechnerberechnungen",
+          "label": "Rechnerpräfix"
+        },
+        "launcher-prefix-character": {
+          "description": "Gemeinsames Präfixzeichen zum Auslösen aller Modul-Präfixe (z. B. /)",
+          "label": "Gemeinsames Präfixzeichen"
+        },
+        "launcher-prefix-emoji": {
+          "description": "Trigger-Präfix für die Emoji-Suche",
+          "label": "Emoji-Präfix"
+        },
+        "launcher-prefix-session": {
+          "description": "Trigger-Präfix für Sitzungs- und Energieaktionen",
+          "label": "Sitzungspräfix"
+        },
+        "launcher-prefix-wallpaper": {
+          "description": "Trigger-Präfix für die Hintergrundbild-Auswahl",
+          "label": "Hintergrundbildpräfix"
+        },
+        "launcher-prefix-windows": {
+          "description": "Trigger-Präfix für die Fenstersuche",
+          "label": "Fensterpräfix"
+        },
         "launcher-reset-usage": {
           "button": "Zurücksetzen",
           "description": "Lösche Startzähler und den Verlauf der zuletzt verwendeten Einträge, die für die Launcher-Sortierung genutzt werden",
@@ -2245,7 +2297,7 @@
           "label": "Einträge"
         },
         "session-grid": {
-          "description": "Zeige Sitzungspanel-Aktionen in einem Rasterlayout an",
+          "description": "Zeige Sitzungs-Panel-Aktionen in einem Rasterlayout an",
           "label": "Rasterlayout"
         },
         "session-grid-columns": {
@@ -2274,6 +2326,10 @@
         "calendar-refresh-interval": {
           "description": "Wie oft Kalenderereignisse synchronisiert werden (Minuten)",
           "label": "Aktualisierungsintervall"
+        },
+        "custom-schedule": {
+          "description": "Verwende manuelle Sonnenaufgangs-/Sonnenuntergangszeiten statt der Berechnung aus Koordinaten",
+          "label": "Benutzerdefinierter Zeitplan"
         },
         "day-temperature": {
           "description": "Farbtemperatur tagsüber (Kelvin)",
@@ -2358,7 +2414,7 @@
             "label": "Festplatten-Abfrageintervall"
           },
           "gpu-poll": {
-            "description": "Sekunden zwischen den Stichproben von GPU-Temperatur und VRAM (0 deaktiviert es, was das Aufwecken einer dedizierten GPU vermeidet; 5 ist ein gutes Intervall bei aktivierter Erfassung)",
+            "description": "Sekunden zwischen den Stichproben von GPU-Temperatur und VRAM (0 deaktiviert, was das Aufwecken einer dedizierten GPU vermeidet; 5 ist ein gutes Intervall bei aktivierter Erfassung)",
             "label": "GPU-Abfrageintervall"
           },
           "label": "Systemmonitor",
@@ -2703,11 +2759,11 @@
       },
       "system": {
         "battery-device-warning-threshold": {
-          "description": "Überschreibe den Akku-Warnschwellenwert für dieses Gerät. Setze 0, um Warnungen für dieses Gerät zu deaktivieren.",
+          "description": "Überschreibe den Akku-Warnschwellenwert für dieses Gerät (0 deaktiviert Warnungen für dieses Gerät)",
           "label": "Warnschwellenwert für {device}"
         },
         "battery-warning-threshold": {
-          "description": "Akku-Prozentsatz, bei dem oder unter dem die Shell eine Warnung bei niedrigem Akkustand sendet und Akku-Widgets ihre Warnfarbe verwenden; auf 0 setzen zum Deaktivieren",
+          "description": "Akku-Prozentsatz, bei dem oder unter dem die Shell eine Warnung bei niedrigem Akkustand sendet und Akku-Widgets ihre Warnfarbe verwenden (0 deaktiviert)",
           "label": "Akku-Warnschwellenwert"
         }
       },
@@ -2738,7 +2794,7 @@
           "label": "Automatische Rotation"
         },
         "automation-interval": {
-          "description": "Sekunden zwischen Hintergrundbildwechseln",
+          "description": "Sekunden zwischen dem Wechsel der Hintergrundbilder",
           "label": "Rotationsintervall"
         },
         "automation-order": {
@@ -2759,7 +2815,7 @@
           "placeholder": "~/Pictures/Wallpapers"
         },
         "directory-light": {
-          "description": "Hintergrundbild-Ordner für den hellen Modus",
+          "description": "Hintergrundbildordner für den hellen Modus",
           "label": "Verzeichnis für hellen Modus",
           "placeholder": "~/Pictures/Wallpapers"
         },
@@ -2791,7 +2847,7 @@
         },
         "panel": {
           "button": "Panel öffnen",
-          "description": "Öffne das Hintergrundbildauswahl-Panel",
+          "description": "Öffne das Hintergrundbild-Auswahl-Panel",
           "label": "Hintergrundbild-Panel"
         },
         "per-monitor-directories": {
@@ -2853,6 +2909,7 @@
         "cpu-temp": "CPU-Temperatur",
         "cpu-usage": "CPU-Auslastung",
         "disk-percent": "Festplatte (Prozent)",
+        "focus-hint": "Fokushinweis",
         "full": "Vollständig",
         "gauge": "Gauge",
         "glyph": "Symbol",
@@ -2868,6 +2925,7 @@
         "instance": "Pro Platzierung",
         "kilobytes": "kB/s",
         "megabytes": "MB/s",
+        "minimal": "Minimal",
         "name": "Name",
         "net-rx": "Netzwerk RX",
         "net-tx": "Netzwerk TX",
@@ -2876,6 +2934,7 @@
         "output": "Ausgabe",
         "ram-percent": "RAM (Prozent)",
         "ram-used": "RAM verwendet",
+        "regular": "Regulär",
         "screenshot-primary-fullscreen": "Vollbild",
         "screenshot-primary-region": "Bereich",
         "shared": "Geteilt",
@@ -3200,8 +3259,7 @@
         "minimal": {
           "description": "Zeige nur Beschriftungen mit Arbeitsbereichs-ID oder -Namen, ohne animierte Pills",
           "label": "Minimaler Stil",
-          "taskbar-description": "Nur-Text-Arbeitsbereichsbeschriftungen ohne farbige Disc-Hintergründe",
-          "workspaces-description": "Nur-Text-Arbeitsbereichsbeschriftungen ohne Pill-Hintergründe oder Gleitanimation"
+          "taskbar-description": "Arbeitsbereichsbeschriftungen nur als Text ohne farbige Disc-Hintergründe"
         },
         "mirrored": {
           "description": "Spiegele den Visualizer um sein Zentrum",
@@ -3331,6 +3389,11 @@
         "stat": {
           "description": "Anzuzeigende Systemstatistik",
           "label": "Statistik"
+        },
+        "style": {
+          "description": "Erscheinungsbild des Arbeitsbereichsumschalters",
+          "label": "Stil",
+          "workspaces-description": "„Regulär“ zeigt animierte Pills; „Minimal“ zeigt Beschriftungen nur als Text; „Fokushinweis“ verwendet Punkte für inaktive Arbeitsbereiche und eine erweiterte aktive Pill mit dem Icon der fokussierten App"
         },
         "taskbar-max-width": {
           "description": "Gesamtbreite in Pixeln; Fenstertitel werden verkleinert und ausgeblendet, wenn der Platz zu gering ist",

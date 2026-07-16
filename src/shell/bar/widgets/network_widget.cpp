@@ -30,6 +30,15 @@ namespace {
     return {};
   }
 
+  std::string firstActiveVpnName(const std::vector<VpnConnectionInfo>& vpns) {
+    for (const auto& vpn : vpns) {
+      if (vpn.active && !vpn.name.empty()) {
+        return vpn.name;
+      }
+    }
+    return {};
+  }
+
   std::string onOffText(bool enabled) {
     return i18n::tr(enabled ? "bar.widgets.network.on" : "bar.widgets.network.off");
   }
@@ -49,9 +58,9 @@ namespace {
 } // namespace
 
 NetworkWidget::NetworkWidget(
-    INetworkService* network, SystemMonitorService* monitor, wl_output* /*output*/, bool showLabel
+    INetworkService* network, SystemMonitorService* monitor, wl_output* /*output*/, bool showLabel, bool showVpnLabel
 )
-    : m_network(network), m_monitor(monitor), m_showLabel(showLabel) {}
+    : m_network(network), m_monitor(monitor), m_showLabel(showLabel), m_showVpnLabel(showVpnLabel) {}
 
 void NetworkWidget::create() {
   auto area = std::make_unique<InputArea>();
@@ -203,6 +212,11 @@ void NetworkWidget::syncState(Renderer& renderer) {
     m_label->setVisible(showLabel);
     if (showLabel) {
       std::string text = labelForState(s);
+      if (m_showVpnLabel && s.vpnActive) {
+        if (std::string vpnName = firstActiveVpnName(m_network->vpnConnections()); !vpnName.empty()) {
+          text = std::move(vpnName);
+        }
+      }
       if (m_isVertical && text.size() > 3) {
         text = text.substr(0, 3);
       }

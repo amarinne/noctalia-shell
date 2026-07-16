@@ -1038,6 +1038,46 @@ input_area_test = executable('input_area_test',
 
 test('input_area', input_area_test)
 
+input_password_mode_test = executable('input_password_mode_test',
+  sources: files(
+    'tests/input_password_mode_test.cpp',
+    'src/core/deferred_call.cpp',
+    'src/core/files/resource_paths.cpp',
+    'src/core/input/key_chord.cpp',
+    'src/core/log.cpp',
+    'src/core/timer_manager.cpp',
+    'src/core/ui_phase.cpp',
+    'src/render/animation/animation.cpp',
+    'src/render/animation/animation_manager.cpp',
+    'src/render/animation/motion_service.cpp',
+    'src/render/core/color.cpp',
+    'src/render/scene/input_area.cpp',
+    'src/render/scene/node.cpp',
+    'src/render/text/glyph_registry.cpp',
+    'src/theme/builtin_palettes.cpp',
+    'src/theme/fixed_palette.cpp',
+    'src/theme/color.cpp',
+    'src/theme/contrast.cpp',
+    'src/ui/controls/input.cpp',
+    'src/ui/controls/label.cpp',
+    'src/ui/palette.cpp',
+    'src/ui/style.cpp',
+    'src/wayland/text_input_service.cpp',
+  ) + _protocol_headers + _protocol_sources,
+  dependencies: [
+    wayland_client_dep,
+    xkbcommon_dep,
+  ],
+  include_directories: _noctalia_inc,
+  cpp_args: [
+    '-DNOCTALIA_SOURCE_ASSETS_DIR="' + meson.project_source_root() / 'assets' + '"',
+    '-DNOCTALIA_INSTALL_PREFIX="' + get_option('prefix') + '"',
+    '-DNOCTALIA_INSTALL_DATADIR="' + get_option('datadir') + '"',
+  ],
+)
+
+test('input_password_mode', input_password_mode_test)
+
 log_test = executable('log_test',
   sources: files(
     'tests/log_test.cpp',
@@ -1541,6 +1581,18 @@ dock_pinned_apps_test = executable('dock_pinned_apps_test',
 )
 
 test('dock_pinned_apps', dock_pinned_apps_test)
+
+triad_workspace_backend_test = executable('triad_workspace_backend_test',
+  sources: files(
+    'tests/triad_workspace_backend_test.cpp',
+    'src/compositors/triad/triad_runtime.cpp',
+    'src/compositors/triad/triad_workspace_backend.cpp',
+    'src/core/log.cpp',
+  ),
+  include_directories: _noctalia_inc,
+)
+
+test('triad_workspace_backend', triad_workspace_backend_test)
 
 wayland_toplevels_identity_test = executable('wayland_toplevels_identity_test',
   sources: files(

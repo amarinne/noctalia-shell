@@ -1323,7 +1323,6 @@
         "refreshing": "Obnovování pluginů...",
         "remove": "Odebrat plugin",
         "requires": "Vyžaduje: {dependencies}",
-        "requires-newer-noctalia": "vyžaduje novější Noctalii",
         "title": "Pluginy"
       },
       "settings": {
@@ -1354,8 +1353,7 @@
         "remove": "Odebrat zdroj",
         "save": "Uložit",
         "title": "Zdroje",
-        "update": "Aktualizovat",
-        "update-on-startup": "Aktualizovat při spuštění"
+        "update": "Aktualizovat"
       },
       "store": {
         "add": "Přidat do Noctalie",
@@ -3074,8 +3072,7 @@
         },
         "minimal": {
           "description": "Zobrazit pouze id nebo název plochy jako text, bez animovaných pilulek",
-          "label": "Minimalistický styl",
-          "workspaces-description": "Textové popisky ploch bez pozadí pilulek nebo posuvné animace"
+          "label": "Minimalistický styl"
         },
         "mirrored": {
           "description": "Zrcadlit vizualizér kolem jeho středu",

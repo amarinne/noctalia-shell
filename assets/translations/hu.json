@@ -447,6 +447,7 @@
         "bands": "Sávok",
         "bar-width": "Sáv szélessége",
         "bloom-intensity": "Ragyogás",
+        "center-password-text": "Középső jelszó szöveg",
         "center-text": "Szöveg középre",
         "centered": "Középre zárt",
         "change-image": "Módosítás…",
@@ -1020,6 +1021,7 @@
         "rename": "Nem sikerült átnevezni a sávot."
       },
       "batch-write": "Néhány beállítást nem sikerült menteni.",
+      "custom-schedule-times": "Egy egyéni ütemtervhez mind a napkelte, mind a napnyugta idejére szükség van ÓÓ:PP formátumban.",
       "export-config": "Nem sikerült menteni a konfigurációexportálást.",
       "export-wallpaper-palette": "Nem sikerült elmenteni a háttérkép-palettát egyedi palettaként.",
       "monitor-override": {
@@ -1129,6 +1131,7 @@
         "power": "Energiagazdálkodás",
         "privacy": "Adatvédelem",
         "profile": "Profil",
+        "providers": "Szolgáltatók",
         "screen-corners": "Képernyősarkok",
         "screen-time": "Képernyőidő",
         "screenshot": "Képernyőkép",
@@ -1200,6 +1203,13 @@
       }
     },
     "options": {
+      "bar": {
+        "auto-hide": {
+          "off": "Kikapcsolva",
+          "on": "Bekapcsolva",
+          "smart": "Okos"
+        }
+      },
       "clipboard": {
         "auto-paste": {
           "ctrl-shift-v": "Ctrl+Shift+V",
@@ -1259,6 +1269,9 @@
       "orientation": {
         "horizontal": "Vízszintes",
         "vertical": "Függőleges"
+      },
+      "panel-bar-alignment": {
+        "centered": "Középre igazítva"
       },
       "panel-position": {
         "auto": "Sáv követése"
@@ -1372,7 +1385,6 @@
         "refreshing": "Bővítmények frissítése…",
         "remove": "Bővítmény eltávolítása",
         "requires": "Szükséges: {dependencies}",
-        "requires-newer-noctalia": "újabb Noctalia szükséges",
         "title": "Bővítmények"
       },
       "settings": {
@@ -1403,8 +1415,7 @@
         "remove": "Forrás eltávolítása",
         "save": "Mentés",
         "title": "Források",
-        "update": "Frissítés",
-        "update-on-startup": "Frissítés indításkor"
+        "update": "Frissítés"
       },
       "store": {
         "add": "Hozzáadás a Noctaliához",
@@ -1414,6 +1425,8 @@
         "incompatible": "Nem kompatibilis",
         "loading": "A katalógus betöltése...",
         "no-readme": "Nincs elérhető leírás.",
+        "open-page": "A bővítmény a noctalia.dev oldalon történő megnyitása",
+        "open-source": "A bővítmény forráskód-tárának megnyitása",
         "results-count": "{count} bővítmény",
         "search-placeholder": "Bővítmények keresése…",
         "title": "Bővítményáruház"
@@ -2135,6 +2148,50 @@
           "description": "Kisebb ikonokat és kompaktabb eredménysorokat használj",
           "label": "Kompakt sorok"
         },
+        "launcher-global-calculator": {
+          "description": "A számológép eredményeit előtag nélküli keresés esetén is mutassa",
+          "label": "Számológép a Globális keresésben"
+        },
+        "launcher-global-emoji": {
+          "description": "Az előtag nélküli keresésnél is mutassa az emoji-találatokat",
+          "label": "Emoji a Globális keresésben"
+        },
+        "launcher-global-session": {
+          "description": "A munkamenet műveleteinek megjelenítése előtag nélküli keresés esetén is",
+          "label": "Munkamenet a Globális keresésben"
+        },
+        "launcher-global-wallpaper": {
+          "description": "A háttérképeket előtag nélküli keresés esetén is mutassa",
+          "label": "Háttérkép a Globális keresésben"
+        },
+        "launcher-global-windows": {
+          "description": "Az előtag nélküli keresés során a nyitott ablakokat is mutassa",
+          "label": "Ablakok a Globális keresésben"
+        },
+        "launcher-prefix-calculator": {
+          "description": "A számológépes számításokhoz használt indító előtag",
+          "label": "Számológép előtagja"
+        },
+        "launcher-prefix-character": {
+          "description": "Az összes szolgáltató előtagjának aktiválásához használt közös előtag (pl. /)",
+          "label": "Közös előtag karakter"
+        },
+        "launcher-prefix-emoji": {
+          "description": "Az emoji-kereséshez használt előtag",
+          "label": "Emoji előtag"
+        },
+        "launcher-prefix-session": {
+          "description": "A munkamenet-vezérlő műveletek indító előtagja",
+          "label": "Munkamenet-előtag"
+        },
+        "launcher-prefix-wallpaper": {
+          "description": "A háttérkép-választó indító előtagja",
+          "label": "Háttérkép-előtag"
+        },
+        "launcher-prefix-windows": {
+          "description": "Előtag az ablakkereséshez",
+          "label": "Ablakok előtag"
+        },
         "launcher-reset-usage": {
           "button": "Visszaállítás",
           "description": "A programindítók rendezéséhez használt programindítások és legutóbbi előzmények törlése",
@@ -2263,6 +2320,10 @@
         "calendar-refresh-interval": {
           "description": "Milyen gyakran szinkronizálja a naptáreseményeket (perc)",
           "label": "Frissítési időintervallum"
+        },
+        "custom-schedule": {
+          "description": "A koordinátákból történő kiszámítás helyett használja a napkelte/napnyugta manuálisan bevitt értékeit",
+          "label": "Egyéni ütemterv"
         },
         "day-temperature": {
           "description": "Színhőmérséklet nappal (Kelvin)",
@@ -2495,6 +2556,9 @@
         "greeter-sync-auto": {
           "description": "A háttérkép, a színek vagy a téma mód változásakor a greeter automatikusan szinkronizálódjon",
           "label": "Automatikus szinkronizálás – Greeter"
+        },
+        "greeter-sync-privilege-command": {
+          "label": "Greeter szinkronizálási jogosultsági parancs"
         },
         "launch-apps-as-systemd-services": {
           "description": "Alkalmazásokat indít külön systemd szolgáltatásokban, hogy ne osszák meg Noctalia cgroupját",
@@ -2838,6 +2902,7 @@
         "cpu-temp": "CPU-hőmérséklet",
         "cpu-usage": "CPU-használat",
         "disk-percent": "Lemez Százalék",
+        "focus-hint": "Fókusz-tipp",
         "full": "Teljes",
         "gauge": "Mérő",
         "glyph": "Szimbólum",
@@ -2853,6 +2918,7 @@
         "instance": "Elhelyezésenként",
         "kilobytes": "kB/s",
         "megabytes": "MB/s",
+        "minimal": "Minimális",
         "name": "Név",
         "net-rx": "Hálózati fogadás",
         "net-tx": "Hálózati adatátvitel",
@@ -2861,6 +2927,7 @@
         "output": "Kimenet",
         "ram-percent": "RAM Százalék",
         "ram-used": "RAM Használat",
+        "regular": "Normál",
         "screenshot-primary-fullscreen": "Teljes képernyő",
         "screenshot-primary-region": "Terület",
         "shared": "Közös",
@@ -3185,8 +3252,7 @@
         "minimal": {
           "description": "Csak a munkaterület azonosító vagy név címkéit mutasd, animált buborékok nélkül",
           "label": "Minimális stílus",
-          "taskbar-description": "Csak szöveges munkaterület-címkék színes kör alakú háttér nélkül",
-          "workspaces-description": "Csak szöveges munkaterület címkék pirula háttér vagy csúszó animáció nélkül"
+          "taskbar-description": "Csak szöveges munkaterület-címkék színes kör alakú háttér nélkül"
         },
         "mirrored": {
           "description": "Tükrözd a vizualizálót a középpontja körül",
@@ -3316,6 +3382,11 @@
         "stat": {
           "description": "Megjelenítendő rendszerstatisztika",
           "label": "Statisztika"
+        },
+        "style": {
+          "description": "A munkaterület-váltó megjelenése",
+          "label": "Stílus",
+          "workspaces-description": "A „Normál” beállítás animált ikonokat jelenít meg; a „Minimális” esetében csak szöveges címkék láthatók; a „Fókusz-tipp”-nél pedig pontok jelzik az inaktív munkaterületeket, ellenkező esetben pedig egy kiterjesztett aktív kapszula látható a fókuszban lévő alkalmazás ikonjával"
         },
         "taskbar-max-width": {
           "description": "Teljes szélességi keret pixelben; az ablakcímek zsugorodnak, hogy elférjenek, és elrejtőznek, ha túl keskenyek",

@@ -100,7 +100,10 @@ namespace {
   // PluginsConfig equality that compares the open-ended pluginSettings map with int/double coercion
   // (widgetSettingsEqual) instead of the defaulted operator== — same reason as widgets.
   bool pluginsConfigEqual(const PluginsConfig& a, const PluginsConfig& b) {
-    if (a.sources != b.sources || a.enabled != b.enabled || a.pluginSettings.size() != b.pluginSettings.size()) {
+    if (a.sources != b.sources
+        || a.enabled != b.enabled
+        || a.autoUpdate != b.autoUpdate
+        || a.pluginSettings.size() != b.pluginSettings.size()) {
       return false;
     }
     for (const auto& [id, aMap] : a.pluginSettings) {
@@ -777,9 +780,6 @@ void ConfigService::addPluginSource(const PluginSourceConfig& source) {
     entry.insert_or_assign("name", src.name);
     entry.insert_or_assign("kind", std::string(enumToKey(kPluginSourceKinds, src.kind)));
     entry.insert_or_assign("location", src.location);
-    if (src.autoUpdate) {
-      entry.insert_or_assign("auto_update", true);
-    }
     if (!src.enabled) {
       entry.insert_or_assign("enabled", false);
     }
@@ -970,6 +970,30 @@ void ConfigService::setDockEnabled(bool enabled) {
   fireReloadCallbacks();
 }
 
+void ConfigService::setPluginsAutoUpdate(bool enabled) {
+  if (m_overridesPath.empty()) {
+    return;
+  }
+
+  auto* pluginsTbl = ensureTable(m_overridesTable, "plugins");
+  const auto existing = (*pluginsTbl)["auto_update"].value<bool>();
+  if (existing.has_value() && *existing == enabled && m_config.plugins.autoUpdate == enabled) {
+    return;
+  }
+
+  pluginsTbl->insert_or_assign("auto_update", enabled);
+
+  if (!writeOverridesToFile()) {
+    kLog.warn("failed to write {}", m_overridesPath);
+    return;
+  }
+
+  m_ownOverridesWritePending = true;
+
+  loadAll();
+  fireReloadCallbacks();
+}
+
 namespace {
 
   void writeWidgetsPlacementToTable(
@@ -1067,6 +1091,16 @@ bool ConfigService::markSetupWizardCompleted() {
   }
   if (std::filesystem::exists(m_setupMarkerPath)) {
     return true;
+  }
+
+  // The bundled wallpaper is served via firstRunWallpaperPath() until setup
+  // completes. Persist it so finishing the wizard does not clear the desktop.
+  if (!hasConfiguredWallpaper()) {
+    const auto bundled = paths::assetPath("noctalia-wallpaper.png");
+    std::error_code ec;
+    if (std::filesystem::exists(bundled, ec)) {
+      setWallpaperPath(std::nullopt, bundled.string());
+    }
   }
 
   std::ofstream out(m_setupMarkerPath, std::ios::trunc);
@@ -1776,8 +1810,18 @@ bool ConfigService::renameOverrideTable(
   return true;
 }
 
+bool ConfigService::hasConfiguredWallpaper() const {
+  if (!m_defaultWallpaperPath.empty() || !m_lastWallpaperPath.empty()) {
+    return true;
+  }
+  return !m_monitorWallpaperPaths.empty();
+}
+
 std::string ConfigService::firstRunWallpaperPath() const {
   if (m_setupMarkerPath.empty() || std::filesystem::exists(m_setupMarkerPath)) {
+    return {};
+  }
+  if (hasConfiguredWallpaper()) {
     return {};
   }
   const auto path = paths::assetPath("noctalia-wallpaper.png");

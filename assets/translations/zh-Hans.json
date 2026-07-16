@@ -29,7 +29,7 @@
   "bar": {
     "screenshot": {
       "choose-display": "选择屏幕",
-      "confirm-region": "Enter 或 Space 键截图 · Esc 取消 · 拖动重新选择",
+      "confirm-region": "Enter 或 Space 键截图 · Esc 取消 · 拖动重选",
       "fullscreen": "全屏",
       "overlay-alloc-failed": "无法显示截图覆盖层（GPU 显存不足？）",
       "region": "选择区域"
@@ -447,6 +447,7 @@
         "bands": "频段",
         "bar-width": "条形宽度",
         "bloom-intensity": "泛光",
+        "center-password-text": "密码文本居中",
         "center-text": "文字居中",
         "centered": "居中",
         "change-image": "更改…",
@@ -1130,6 +1131,7 @@
         "power": "电源",
         "privacy": "隐私",
         "profile": "个人资料",
+        "providers": "提供者",
         "screen-corners": "屏幕圆角",
         "screen-time": "屏幕时间",
         "screenshot": "截图",
@@ -1384,8 +1386,10 @@
         "refreshing": "正在刷新插件…",
         "remove": "移除插件",
         "requires": "依赖：{dependencies}",
-        "requires-newer-noctalia": "需要更高版本的 Noctalia",
-        "title": "插件"
+        "title": "插件",
+        "update-all": "全部更新 ({count})",
+        "update-available": "有可用更新",
+        "update-to": "更新至 {version}"
       },
       "settings": {
         "empty": "无可用设置。"
@@ -1393,6 +1397,8 @@
       "sources": {
         "add": "添加源",
         "add-title": "添加插件源",
+        "auto-update": "自动更新插件",
+        "auto-update-desc": "在后台检查已启用的源是否有新版本，并保持已安装的插件为最新版本",
         "edit": "编辑源",
         "edit-title": "编辑插件源",
         "empty": "未配置任何源。",
@@ -1415,8 +1421,7 @@
         "remove": "移除源",
         "save": "保存",
         "title": "源",
-        "update": "更新",
-        "update-on-startup": "启动时更新"
+        "update": "更新该源"
       },
       "store": {
         "add": "添加到 Noctalia",
@@ -1426,6 +1431,8 @@
         "incompatible": "不兼容",
         "loading": "正在加载目录…",
         "no-readme": "没有可用的描述。",
+        "open-page": "在 noctalia.dev 上打开插件页面",
+        "open-source": "打开插件源码仓库",
         "results-count": "共 {count} 个插件",
         "search-placeholder": "搜索插件…",
         "title": "插件商店"
@@ -1532,7 +1539,7 @@
       },
       "bar": {
         "auto-hide": {
-          "description": "“关闭”时保持状态栏可见；“开启”时隐藏，直到将指针移至屏幕边缘。“智能”模式会在空工作区显示，并在有窗口时隐藏。"
+          "description": "“关闭”时保持状态栏可见；“开启”时隐藏，直到将指针移至屏幕边缘；“智能”模式会在空工作区显示，并在有窗口时隐藏。"
         },
         "background-opacity": {
           "description": "状态栏的背景不透明度"
@@ -1770,7 +1777,7 @@
           "label": "仅当前屏幕应用"
         },
         "auto-hide": {
-          "description": "“关闭”时保持 Dock 可见；“开启”时隐藏，直到将指针移至屏幕边缘。“智能”模式会在空工作区显示，并在有窗口时隐藏。"
+          "description": "“关闭”时保持 Dock 可见；“开启”时隐藏，直到将指针移至屏幕边缘；“智能”模式会在空工作区显示，并在有窗口时隐藏。"
         },
         "background-opacity": {
           "description": "Dock 的背景不透明度"
@@ -1963,7 +1970,7 @@
           "label": "行为"
         },
         "pre-action-fade": {
-          "description": "在执行空闲命令前全屏变暗的秒数；设为 0 时禁用",
+          "description": "在执行空闲命令前全屏变暗的秒数（设为 0 时禁用）",
           "label": "空闲变暗"
         }
       },
@@ -2147,6 +2154,50 @@
           "description": "使用更小的图标和更紧凑的结果行",
           "label": "紧凑行"
         },
+        "launcher-global-calculator": {
+          "description": "在无前缀搜索中显示计算器",
+          "label": "全局搜索中的计算器"
+        },
+        "launcher-global-emoji": {
+          "description": "在无前缀搜索中显示表情符号",
+          "label": "全局搜索中的表情符号"
+        },
+        "launcher-global-session": {
+          "description": "在无前缀搜索中显示会话操作",
+          "label": "全局搜索中的会话操作"
+        },
+        "launcher-global-wallpaper": {
+          "description": "在无前缀搜索中显示壁纸",
+          "label": "全局搜索中的壁纸"
+        },
+        "launcher-global-windows": {
+          "description": "在无前缀搜索中显示打开的窗口",
+          "label": "全局搜索中的窗口"
+        },
+        "launcher-prefix-calculator": {
+          "description": "触发计算器计算的前缀",
+          "label": "计算器前缀"
+        },
+        "launcher-prefix-character": {
+          "description": "用于触发所有提供者前缀的通用前缀字符（例如 /）",
+          "label": "通用前缀字符"
+        },
+        "launcher-prefix-emoji": {
+          "description": "触发表情符号搜索的前缀",
+          "label": "表情符号前缀"
+        },
+        "launcher-prefix-session": {
+          "description": "触发会话电源操作的前缀",
+          "label": "会话前缀"
+        },
+        "launcher-prefix-wallpaper": {
+          "description": "触发壁纸选择器的前缀",
+          "label": "壁纸前缀"
+        },
+        "launcher-prefix-windows": {
+          "description": "触发窗口搜索的前缀",
+          "label": "窗口前缀"
+        },
         "launcher-reset-usage": {
           "button": "重置",
           "description": "清除用于启动器排序的启动次数和最近使用记录",
@@ -2270,7 +2321,7 @@
         },
         "calendar-edit": {
           "button": "编辑",
-          "description": "更新此日历账户"
+          "description": "更新日历账户"
         },
         "calendar-refresh-interval": {
           "description": "同步日历事件的频率（分钟）",
@@ -2708,11 +2759,11 @@
       },
       "system": {
         "battery-device-warning-threshold": {
-          "description": "覆盖当前设备的电池警告阈值。设为 0 时禁用设备警告。",
+          "description": "覆盖当前设备的电池警告阈值（设为 0 时禁用设备警告）",
           "label": "{device} 警告阈值"
         },
         "battery-warning-threshold": {
-          "description": "当系统电量低于或等于此百分比时，Shell 将发送低电量通知，电池小组件也会使用警告颜色。设为 0 时禁用。",
+          "description": "当系统电量低于或等于此百分比时，Shell 将发送低电量通知，电池小组件也会使用警告颜色（设为 0 时禁用）",
           "label": "电池警告阈值"
         }
       },
@@ -2858,6 +2909,7 @@
         "cpu-temp": "CPU 温度",
         "cpu-usage": "CPU 使用率",
         "disk-percent": "磁盘使用率",
+        "focus-hint": "焦点提示",
         "full": "完整",
         "gauge": "仪表",
         "glyph": "图标",
@@ -2873,6 +2925,7 @@
         "instance": "独立运行",
         "kilobytes": "kB/s",
         "megabytes": "MB/s",
+        "minimal": "简约",
         "name": "名称",
         "net-rx": "网络下行",
         "net-tx": "网络上行",
@@ -2881,6 +2934,7 @@
         "output": "输出",
         "ram-percent": "内存百分比",
         "ram-used": "内存使用量",
+        "regular": "常规",
         "screenshot-primary-fullscreen": "全屏",
         "screenshot-primary-region": "区域",
         "shared": "共享运行",
@@ -3203,10 +3257,9 @@
           "label": "最小长度"
         },
         "minimal": {
-          "description": "仅显示工作区 ID 或名称标签，不显示动画胶囊",
+          "description": "仅显示工作区 ID 或名称标签，不显示动态胶囊",
           "label": "简约样式",
-          "taskbar-description": "仅显示工作区文字标签，不显示彩色圆形背景",
-          "workspaces-description": "仅显示工作区文字标签，不显示胶囊背景和滑动动画"
+          "taskbar-description": "仅显示工作区文字标签，不显示彩色圆形背景"
         },
         "mirrored": {
           "description": "将可视化围绕其中心镜像显示",
@@ -3233,7 +3286,7 @@
           "label": "非空工作区颜色"
         },
         "only-active-workspace": {
-          "description": "隐藏非活动工作区上的窗口。",
+          "description": "隐藏非活动工作区上的窗口",
           "label": "仅活动工作区"
         },
         "path": {
@@ -3336,6 +3389,11 @@
         "stat": {
           "description": "显示的系统统计项",
           "label": "统计项"
+        },
+        "style": {
+          "description": "工作区切换器的外观",
+          "label": "样式",
+          "workspaces-description": "“常规”显示动态胶囊；“简约”仅显示文字标签；“焦点提示”以圆点表示非活动工作区，活动工作区显示为带焦点应用图标的展开胶囊"
         },
         "taskbar-max-width": {
           "description": "总宽度限制（像素）；窗口标题会自适应缩小，过窄时隐藏",

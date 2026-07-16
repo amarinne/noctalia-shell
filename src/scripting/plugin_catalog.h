@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -19,9 +20,9 @@ namespace scripting {
     std::string icon;
     std::string description;
     std::string license = "MIT";
-    std::string minNoctalia;
+    std::uint32_t pluginApiVersion = 0;
     bool deprecated = false;
-    bool compatible = true; // version::atLeast(appVersion, minNoctalia)
+    bool compatible = false;
   };
 
   struct CatalogResult {
@@ -34,7 +35,7 @@ namespace scripting {
   // cache (blobless, no-checkout) and read `catalog.toml` via `git show`; path
   // sources read it straight from disk, falling back to scanning `*/plugin.toml`.
   // Blocking git/IO — call off the UI thread. Compatibility is computed against
-  // the running version so the list can badge incompatible plugins before any
+  // the supported plugin API range so the list can badge incompatible plugins before any
   // detail fetch.
   [[nodiscard]] CatalogResult discoverCatalog(const PluginSourceConfig& source);
 

@@ -2209,6 +2209,7 @@ InputArea* NotificationToast::buildCard(
   *outCardForeground = foreground.get();
 
   const float bgAlpha = m_config != nullptr ? m_config->config().notification.backgroundOpacity : 0.97f;
+  const float borderWidth = (m_config == nullptr || m_config->config().notification.border) ? Style::borderWidth : 0.0f;
   foreground->addChild(
       ui::progressBar({
           .out = outProgress,
@@ -2549,11 +2550,11 @@ InputArea* NotificationToast::buildCard(
       ui::box({
           .width = cardW,
           .height = cardHeight,
-          .configure = [scale, bgAlpha](Box& box) {
+          .configure = [scale, bgAlpha, borderWidth](Box& box) {
             box.setCardStyle();
             box.setRadius(Style::scaledRadiusXl(scale));
             box.setFill(colorSpecFromRole(ColorRole::Surface, bgAlpha));
-            box.setBorder(colorSpecFromRole(ColorRole::Outline), Style::borderWidth);
+            box.setBorder(colorSpecFromRole(ColorRole::Outline), borderWidth);
           },
       })
   );

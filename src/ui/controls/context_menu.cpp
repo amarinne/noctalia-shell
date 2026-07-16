@@ -42,6 +42,7 @@ ContextMenuControl::ContextMenuControl() : Node(NodeType::Base) {}
 
 void ContextMenuControl::setEntries(std::vector<ContextMenuControlEntry> entries) {
   m_entries = std::move(entries);
+  m_highlightedIndex = firstInteractiveIndex();
   m_needsRebuild = true;
   markLayoutDirty();
 }
@@ -86,6 +87,98 @@ void ContextMenuControl::setOnSubmenuOpen(
 
 void ContextMenuControl::setRedrawCallback(std::function<void()> redrawCallback) {
   m_redrawCallback = std::move(redrawCallback);
+}
+
+std::size_t ContextMenuControl::firstInteractiveIndex() const noexcept {
+  for (std::size_t i = 0; i < m_entries.size(); ++i) {
+    if (m_entries[i].enabled && !m_entries[i].separator) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+void ContextMenuControl::applyHighlightVisuals() {
+  for (std::size_t i = 0; i < m_rows.size(); ++i) {
+    if (m_rows[i].apply) {
+      m_rows[i].apply(i == m_highlightedIndex && m_rows[i].interactive);
+    }
+  }
+}
+
+void ContextMenuControl::setHighlightedIndex(std::size_t index) {
+  if (m_entries.empty()) {
+    m_highlightedIndex = 0;
+    applyHighlightVisuals();
+    return;
+  }
+  m_highlightedIndex = std::min(index, m_entries.size() - 1);
+  if (m_highlightedIndex < m_rows.size() && !m_rows[m_highlightedIndex].interactive) {
+    if (!moveHighlight(1) && !moveHighlight(-1)) {
+      applyHighlightVisuals();
+    }
+    return;
+  }
+  applyHighlightVisuals();
+  if (m_redrawCallback) {
+    m_redrawCallback();
+  }
+}
+
+bool ContextMenuControl::moveHighlight(int delta) {
+  if (m_rows.empty() || delta == 0) {
+    return false;
+  }
+  const std::size_t count = m_rows.size();
+  std::size_t idx = m_highlightedIndex < count ? m_highlightedIndex : 0;
+  for (std::size_t step = 0; step < count; ++step) {
+    if (delta > 0) {
+      idx = (idx + 1) % count;
+    } else {
+      idx = (idx + count - 1) % count;
+    }
+    if (m_rows[idx].interactive) {
+      m_highlightedIndex = idx;
+      applyHighlightVisuals();
+      if (m_redrawCallback) {
+        m_redrawCallback();
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ContextMenuControl::activateHighlighted() {
+  if (m_highlightedIndex >= m_entries.size() || m_highlightedIndex >= m_rows.size()) {
+    return false;
+  }
+  const ContextMenuControlEntry& entry = m_entries[m_highlightedIndex];
+  if (!entry.enabled || entry.separator) {
+    return false;
+  }
+  if (entry.hasSubmenu) {
+    if (m_onSubmenuOpen) {
+      const float centerY = m_rows[m_highlightedIndex].y + m_rows[m_highlightedIndex].height * 0.5f;
+      m_onSubmenuOpen(entry, centerY);
+    }
+    return true;
+  }
+  if (m_onActivate) {
+    m_onActivate(entry);
+  }
+  return true;
+}
+
+float ContextMenuControl::rowTop(std::size_t index) const noexcept {
+  return index < m_rows.size() ? m_rows[index].y : 0.0f;
+}
+
+float ContextMenuControl::rowBottom(std::size_t index) const noexcept {
+  if (index >= m_rows.size()) {
+    return 0.0f;
+  }
+  return m_rows[index].y + m_rows[index].height;
 }
 
 float ContextMenuControl::preferredHeight() const { return preferredHeight(m_entries, m_maxVisible, m_contentScale); }
@@ -149,6 +242,8 @@ void ContextMenuControl::rebuildRows(Renderer& renderer) {
   // radius tracks the container radius minus that inset at any corner roundness.
   const float highlightRadius = std::max(0.0f, Style::scaledRadiusLg(scale) - menuPadding);
   float currentY = menuPadding;
+  m_rows.clear();
+  m_rows.reserve(visibleItems);
 
   for (std::size_t i = 0; i < visibleItems; ++i) {
     const ContextMenuControlEntry& entry = m_entries[i];
@@ -268,8 +363,13 @@ void ContextMenuControl::rebuildRows(Renderer& renderer) {
       );
     }
 
+    RowVisual visual{
+        .y = currentY,
+        .height = rowHeight,
+        .interactive = interactive,
+    };
     if (rowBgPtr != nullptr && labelPtr != nullptr) {
-      const auto applyRowState = [rowBgPtr, labelPtr, togglePtr, chevronPtr, interactive, separator](bool highlighted) {
+      visual.apply = [rowBgPtr, labelPtr, togglePtr, chevronPtr, interactive, separator](bool highlighted) {
         rowBgPtr->setFill(highlighted ? colorSpecFromRole(ColorRole::Hover) : clearColorSpec());
         if (separator) {
           labelPtr->setColor(colorSpecFromRole(ColorRole::OnSurfaceVariant));
@@ -293,30 +393,28 @@ void ContextMenuControl::rebuildRows(Renderer& renderer) {
         }
       };
 
-      row->setOnEnter([this, applyRowState](const InputArea::PointerData& /*data*/) {
-        applyRowState(true);
+      row->setOnEnter([this, i](const InputArea::PointerData& /*data*/) { setHighlightedIndex(i); });
+      row->setOnLeave([this]() {
+        applyHighlightVisuals();
         if (m_redrawCallback) {
           m_redrawCallback();
         }
       });
-      row->setOnLeave([this, applyRowState]() {
-        applyRowState(false);
-        if (m_redrawCallback) {
-          m_redrawCallback();
-        }
-      });
-      row->setOnPress([this, applyRowState, interactive](const InputArea::PointerData& /*data*/) {
+      row->setOnPress([this, i, interactive](const InputArea::PointerData& /*data*/) {
         if (!interactive) {
           return;
         }
-        applyRowState(true);
-        if (m_redrawCallback) {
-          m_redrawCallback();
-        }
+        setHighlightedIndex(i);
       });
     }
+    m_rows.push_back(std::move(visual));
 
     addChild(std::move(row));
     currentY += rowHeight + itemGap;
   }
+
+  if (m_highlightedIndex >= m_rows.size()) {
+    m_highlightedIndex = firstInteractiveIndex();
+  }
+  applyHighlightVisuals();
 }

@@ -1385,7 +1385,6 @@
         "refreshing": "Actualizando complementos...",
         "remove": "Eliminar complemento",
         "requires": "Require: {dependencies}",
-        "requires-newer-noctalia": "require unha versión máis nova de Noctalia",
         "title": "Complementos"
       },
       "settings": {
@@ -1416,8 +1415,7 @@
         "remove": "Eliminar orixe",
         "save": "Gardar",
         "title": "Orixes",
-        "update": "Actualizar",
-        "update-on-startup": "Actualizar ao iniciar"
+        "update": "Actualizar"
       },
       "store": {
         "add": "Engadir a Noctalia",
@@ -3206,8 +3204,7 @@
         "minimal": {
           "description": "Mostra só etiquetas de ID ou nome dos espazos de traballo, sen pílulas animadas",
           "label": "Estilo mínimo",
-          "taskbar-description": "Etiquetas de espazo de traballo só con texto, sen fondos de disco de cor",
-          "workspaces-description": "Etiquetas de espazos de traballo só con texto, sen fondos de pílula nin animación de desprazamento"
+          "taskbar-description": "Etiquetas de espazo de traballo só con texto, sen fondos de disco de cor"
         },
         "mirrored": {
           "description": "Espella o visualizador arredor do seu centro",

@@ -111,6 +111,10 @@ public:
   void addPluginSource(const PluginSourceConfig& source);
   void removePluginSource(std::string_view name);
 
+  // Persist the global [plugins].auto_update override to settings.toml and trigger the
+  // reload pipeline. Drives background auto-update of every git source.
+  void setPluginsAutoUpdate(bool enabled);
+
   // Persist a theme-mode override to settings.toml and trigger the reload pipeline.
   void setThemeMode(ThemeMode mode);
   // Persist `[theme].source` and the palette field for that source, then reload.
@@ -185,6 +189,7 @@ private:
   void extractWallpaperFromOverrides();
   void extractWallpaperFromTable(const toml::table& table);
   void syncWallpaperFavoritesToOverridesTable();
+  [[nodiscard]] bool hasConfiguredWallpaper() const;
   [[nodiscard]] std::string firstRunWallpaperPath() const;
 
   Config m_config;

@@ -11,7 +11,6 @@
 //   - clamp goldens — pin parse-time range behavior.
 
 #include "config/config_export.h"
-#include "config/config_service.h"
 #include "config/config_types.h"
 #include "config/schema/config_schema.h"
 #include "config/schema/config_sections.h"
@@ -306,6 +305,7 @@ location = "https://example.invalid/bad"
     c.osd.orientation = "vertical";
     c.osd.scale = 1.4f;
     c.osd.backgroundOpacity = 0.42f;
+    c.osd.border = false;
     c.osd.offsetX = 33;
     c.osd.offsetY = 11;
     c.osd.monitors = {"DP-1", "HDMI-A-1"};
@@ -330,31 +330,35 @@ location = "https://example.invalid/bad"
     c.location.latitude = 52.52;
     c.location.longitude = 13.405;
     c.notification = NotificationConfig{
-        false,
-        false,
-        false,
-        "bottom_left",
-        "overlay",
-        1.3f,
-        0.5f,
-        12,
-        6,
-        {"DP-2"},
-        false,
-        {NotificationFilterConfig{
-            .name = "discord",
-            .enabled = true,
-            .match = "discord",
-            .showToast = false,
-            .saveHistory = false,
-            .playSound = false,
-            .allowPermanent = false,
-            .allowedUrgencies = {"normal", "critical"},
-        }},
+        .enableDaemon = false,
+        .showAppName = false,
+        .showActions = false,
+        .position = "bottom_left",
+        .layer = "overlay",
+        .scale = 1.3f,
+        .backgroundOpacity = 0.5f,
+        .border = false,
+        .offsetX = 12,
+        .offsetY = 6,
+        .monitors = {"DP-2"},
+        .collapseOnDismiss = false,
+        .filters =
+            {NotificationFilterConfig{
+                .name = "discord",
+                .enabled = true,
+                .match = "discord",
+                .showToast = false,
+                .saveHistory = false,
+                .playSound = false,
+                .allowPermanent = false,
+                .allowedUrgencies = {"normal", "critical"},
+            }},
     };
     c.dock.enabled = true;
     c.dock.position = DockEdge::Left;
     c.dock.iconSize = 40;
+    c.dock.border = colorSpecFromRole(ColorRole::Primary);
+    c.dock.borderWidth = 1.5f;
     c.dock.radius = 20;
     c.dock.radiusTopLeft = 10;
     c.dock.radiusTopRight = 12;
@@ -492,14 +496,14 @@ location = "https://example.invalid/bad"
     c.hotCorners.bottomRight = {.action = "command", .command = "notify-send corner"};
 
     // pluginSettings is not part of pluginsSchema ([plugin_settings] is its own root
-    // key), so the section round-trip covers sources + enabled only.
+    // key), so the section round-trip covers sources + enabled + auto_update only.
     c.plugins.sources = {
         {.kind = PluginSourceKind::Git,
          .name = "official",
-         .location = "https://github.com/noctalia-dev/official-plugins",
-         .autoUpdate = true},
+         .location = "https://github.com/noctalia-dev/official-plugins"},
     };
     c.plugins.enabled = {"noctalia/notes"};
+    c.plugins.autoUpdate = false; // non-default (default is true) so the round-trip exercises it
 
     c.bars = {makeProbeBar()};
     return c;
@@ -605,7 +609,7 @@ color = "#0000FF"
 blend = false
 )");
     Config config;
-    ConfigService::parseConfigTable(root, config, false, false);
+    liftTemplateConfigCustomColors(root, config);
     if (config.theme.templates.customColors.size() != 2) {
       fail("config.custom_colors lift: expected two custom colors in config");
     }

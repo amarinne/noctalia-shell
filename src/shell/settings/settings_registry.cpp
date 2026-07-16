@@ -715,7 +715,6 @@ namespace settings {
       for (const auto& t : cfg.wallpaper.transitions) {
         transitions.selectedValues.emplace_back(enumToKey(kWallpaperTransitions, t));
       }
-      transitions.requireAtLeastOne = true;
       entries.push_back(makeEntry(
           SettingsSection::Wallpaper, "transition", tr("settings.schema.wallpaper.transitions.label"),
           tr("settings.schema.wallpaper.transitions.description"), {"wallpaper", "transition"}, std::move(transitions),
@@ -988,6 +987,16 @@ namespace settings {
       e.visibleWhen = [](const Config& c) { return c.dock.marginEdge == 0; };
       entries.push_back(std::move(e));
     }
+    entries.push_back(makeEntry(
+        SettingsSection::Dock, "shape", tr("settings.schema.dock.border.label"),
+        tr("settings.schema.dock.border.description"), {"dock", "border"}, colorSpecPicker(cfg.dock.border),
+        "outline color", true
+    ));
+    entries.push_back(makeEntry(
+        SettingsSection::Dock, "shape", tr("settings.schema.dock.border-width.label"),
+        tr("settings.schema.dock.border-width.description"), {"dock", "border_width"},
+        sliderFor(cfg.dock.borderWidth, noctalia::config::schema::kDockBorderWidthRange, false), "outline stroke", true
+    ));
     entries.push_back(makeEntry(
         SettingsSection::Dock, "effects", tr("settings.schema.shared.background-opacity.label"),
         tr("settings.schema.dock.background-opacity.description"), {"dock", "background_opacity"},
@@ -1807,6 +1816,11 @@ namespace settings {
         SettingsSection::Osd, "osd", tr("settings.schema.shell.osd-background-opacity.label"),
         tr("settings.schema.shell.osd-background-opacity.description"), {"osd", "background_opacity"},
         sliderFor(cfg.osd.backgroundOpacity, noctalia::config::schema::kUnitRange, false), "hud overlay popup opacity"
+    ));
+    entries.push_back(makeEntry(
+        SettingsSection::Osd, "osd", tr("settings.schema.shell.osd-border.label"),
+        tr("settings.schema.shell.osd-border.description"), {"osd", "border"}, ToggleSetting{cfg.osd.border},
+        "outline border"
     ));
     entries.push_back(makeEntry(
         SettingsSection::Osd, "osd", tr("settings.schema.shell.osd-monitors.label"),
@@ -2643,6 +2657,11 @@ namespace settings {
         SettingsSection::Notifications, "toasts", tr("settings.schema.notifications.toast-opacity.label"),
         tr("settings.schema.notifications.toast-opacity.description"), {"notification", "background_opacity"},
         sliderFor(cfg.notification.backgroundOpacity, noctalia::config::schema::kUnitRange, false), "popup"
+    ));
+    entries.push_back(makeEntry(
+        SettingsSection::Notifications, "toasts", tr("settings.schema.notifications.border.label"),
+        tr("settings.schema.notifications.border.description"), {"notification", "border"},
+        ToggleSetting{cfg.notification.border}, "outline border"
     ));
     entries.push_back(makeEntry(
         SettingsSection::Notifications, "toasts", tr("settings.schema.notifications.monitors.label"),

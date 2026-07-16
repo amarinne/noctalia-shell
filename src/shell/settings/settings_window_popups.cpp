@@ -36,6 +36,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -60,7 +61,6 @@ namespace {
     PluginSourceKind kind = PluginSourceKind::Git;
     std::string name;
     std::string location;
-    bool autoUpdate = false;
     bool enabled = true;
     bool editing = false;
     bool nameInvalid = false;
@@ -1518,7 +1518,6 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
       draft->kind = existing->kind;
       draft->name = existing->name;
       draft->location = existing->location;
-      draft->autoUpdate = existing->autoUpdate;
       draft->enabled = existing->enabled;
       draft->editing = true;
     }
@@ -1591,9 +1590,6 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                   .equalSegmentWidths = true,
                   .onChange = [this, draft](std::size_t index) {
                     draft->kind = index == 1 ? PluginSourceKind::Path : PluginSourceKind::Git;
-                    if (draft->kind == PluginSourceKind::Path) {
-                      draft->autoUpdate = false;
-                    }
                     draft->error.clear();
                     if (m_editorSheetPopup != nullptr) {
                       m_editorSheetPopup->rebuildBody();
@@ -1637,31 +1633,6 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                   },
               })
           );
-
-          if (draft->kind == PluginSourceKind::Git) {
-            auto autoUpdate = ui::row({
-                .align = FlexAlign::Center,
-                .gap = Style::spaceSm * scale,
-                .fillWidth = true,
-            });
-            autoUpdate->addChild(
-                ui::label({
-                    .text = i18n::tr("settings.plugins.sources.update-on-startup"),
-                    .fontSize = Style::fontSizeCaption * scale,
-                    .fontWeight = FontWeight::Medium,
-                    .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
-                })
-            );
-            autoUpdate->addChild(ui::spacer());
-            autoUpdate->addChild(
-                ui::toggle({
-                    .checked = draft->autoUpdate,
-                    .scale = scale,
-                    .onChange = [draft](bool value) { draft->autoUpdate = value; },
-                })
-            );
-            body.addChild(std::move(autoUpdate));
-          }
 
           auto actions = ui::row({
               .align = FlexAlign::Center,
@@ -1723,7 +1694,6 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                             .kind = draft->kind,
                             .name = draft->name,
                             .location = draft->location,
-                            .autoUpdate = draft->kind == PluginSourceKind::Git && draft->autoUpdate,
                             .enabled = draft->enabled,
                         }
                     );
@@ -1786,183 +1756,195 @@ void SettingsWindow::openPluginSettingsEditor(std::string pluginId) {
 }
 
 void SettingsWindow::openPluginStore() {
-  DeferredCall::callLater([this]() {
-    if (m_wayland == nullptr
-        || m_renderContext == nullptr
-        || m_surface == nullptr
-        || m_surface->xdgSurface() == nullptr
-        || m_config == nullptr
-        || m_pluginManager == nullptr) {
-      return;
-    }
-
-    if (m_editorSheetPopup != nullptr && m_editorSheetPopup->isOpen()) {
-      m_editorSheetPopup->close();
-    }
-
-    const Config& cfg = m_config->config();
-    const float scale = uiScale();
-
-    std::vector<settings::StoreCatalogEntry> catalog;
-    for (const auto& source : cfg.plugins.sources) {
-      if (!source.enabled) {
-        continue;
+  if (m_config == nullptr || m_pluginManager == nullptr) {
+    return;
+  }
+  // Refresh the browsable catalog off the UI thread (throttled) before building the
+  // store, so it lists plugins published since the last fetch. The build itself stays
+  // on the main thread, reading the now-fetched catalog.
+  auto* manager = m_pluginManager;
+  PluginsConfig pluginsSnapshot = m_config->config().plugins;
+  std::thread([this, manager, pluginsSnapshot = std::move(pluginsSnapshot)]() mutable {
+    manager->fetchStaleCatalogs(pluginsSnapshot);
+    DeferredCall::callLater([this]() {
+      if (m_wayland == nullptr
+          || m_renderContext == nullptr
+          || m_surface == nullptr
+          || m_surface->xdgSurface() == nullptr
+          || m_config == nullptr
+          || m_pluginManager == nullptr) {
+        return;
       }
-      auto result = scripting::discoverCatalog(source);
-      if (!result.ok) {
-        continue;
+
+      if (m_editorSheetPopup != nullptr && m_editorSheetPopup->isOpen()) {
+        m_editorSheetPopup->close();
       }
-      for (auto& entry : result.entries) {
-        catalog.push_back(
-            settings::StoreCatalogEntry{
-                .entry = std::move(entry),
-                .source = source.name,
-                .sourceConfig = source,
-            }
-        );
-      }
-    }
 
-    std::unordered_set<std::string> onDiskIds;
-    for (const auto& p : m_pluginList) {
-      if (p.materialized) {
-        onDiskIds.insert(p.id);
-      }
-    }
+      const Config& cfg = m_config->config();
+      const float scale = uiScale();
 
-    auto catalogLookup = std::make_shared<std::unordered_map<std::string, scripting::CatalogEntry>>();
-    for (const auto& entry : catalog) {
-      catalogLookup->emplace(entry.entry.id, entry.entry);
-    }
-
-    auto storeContent = std::make_shared<settings::PluginStoreContent>(
-        std::move(catalog), std::move(onDiskIds),
-        settings::PluginStoreCallbacks{
-            .setEnabled =
-                [this, catalogLookup](std::string id, bool enable) {
-                  if (m_pluginManager == nullptr) {
-                    return;
-                  }
-                  if (enable) {
-                    (void)m_pluginManager->enable(id);
-                    if (m_editorSheetPopup != nullptr) {
-                      m_editorSheetPopup->close();
-                    }
-                    ++m_pluginListRefreshGeneration;
-                    m_pluginListDirty = false;
-                    auto existing = std::ranges::find_if(m_pluginList, [&](const auto& p) { return p.id == id; });
-                    if (existing != m_pluginList.end()) {
-                      existing->enabled = true;
-                    } else {
-                      scripting::PluginStatus placeholder{.id = id, .name = id, .enabled = true};
-                      if (auto it = catalogLookup->find(id); it != catalogLookup->end()) {
-                        placeholder.name = it->second.name;
-                        placeholder.version = it->second.version;
-                        placeholder.icon = it->second.icon;
-                        placeholder.description = it->second.description;
-                      }
-                      m_pluginList.push_back(std::move(placeholder));
-                    }
-                  } else {
-                    m_pluginManager->disable(id);
-                    m_pluginListDirty = true;
-                  }
-                  requestContentRebuild();
-                },
-            .isEnabling =
-                [this](const std::string& id) { return m_pluginManager != nullptr && m_pluginManager->isEnabling(id); },
-            .scale = scale,
-        },
-        &m_pluginFileCache
-    );
-
-    m_pluginFileCache.setOnReady([storeContent](
-                                     const std::string& pluginId, const std::string& filename, const std::string& path
-                                 ) { storeContent->onFileReady(pluginId, filename, path); });
-
-    if (m_editorSheetPopup == nullptr) {
-      m_editorSheetPopup = std::make_unique<settings::SettingsSheetPopup>();
-      m_editorSheetPopup->initialize(*m_wayland, *m_config, *m_renderContext);
-    }
-
-    storeContent->setOnRebuildNeeded([this]() {
-      if (m_editorSheetPopup != nullptr) {
-        m_editorSheetPopup->rebuildBody();
-      }
-    });
-
-    wl_output* output = m_wayland->lastPointerOutput();
-    if (output == nullptr) {
-      output = m_output;
-    }
-
-    m_editorSheetPopup->open(
-        settings::SettingsSheetPopupRequest{
-            .parent = popupParentFor(*m_surface, output, m_wayland->lastInputSerial()),
-            .sheetTitle = i18n::tr("settings.plugins.store.title"),
-            .removeAction = nullptr,
-            .createHeaderAction = [storeContent, scale]() -> std::unique_ptr<Node> {
-              const auto pageUrl = storeContent->detailPageUrl();
-              const auto sourceUrl = storeContent->detailSourceUrl();
-              if (!pageUrl.has_value() && !sourceUrl.has_value()) {
-                return nullptr;
-              }
-              auto actions = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
-              if (pageUrl.has_value()) {
-                actions->addChild(
-                    ui::button({
-                        .glyph = "external-link",
-                        .glyphSize = Style::fontSizeBody * scale,
-                        .variant = ButtonVariant::Ghost,
-                        .tooltip = i18n::tr("settings.plugins.store.open-page"),
-                        .minWidth = Style::controlHeightSm * scale,
-                        .minHeight = Style::controlHeightSm * scale,
-                        .padding = Style::spaceXs * scale,
-                        .radius = Style::scaledRadiusMd(scale),
-                        .onClick = [url = *pageUrl]() { (void)net::openInBrowser(url); },
-                    })
-                );
-              }
-              if (sourceUrl.has_value()) {
-                actions->addChild(
-                    ui::button({
-                        .glyph = "brand-git",
-                        .glyphSize = Style::fontSizeBody * scale,
-                        .variant = ButtonVariant::Ghost,
-                        .tooltip = i18n::tr("settings.plugins.store.open-source"),
-                        .minWidth = Style::controlHeightSm * scale,
-                        .minHeight = Style::controlHeightSm * scale,
-                        .padding = Style::spaceXs * scale,
-                        .radius = Style::scaledRadiusMd(scale),
-                        .onClick = [url = *sourceUrl]() { (void)net::openInBrowser(url); },
-                    })
-                );
-              }
-              return actions;
-            },
-            .populateSheetBody =
-                [storeContent, this](Flex& body) {
-                  if (m_renderContext == nullptr) {
-                    return;
-                  }
-                  storeContent->populateBody(body, *m_renderContext, nullptr);
-                },
-            .scale = scale,
-            .minWidth = 800.0f,
-            .maxWidth = 1100.0f,
-            .parentFraction = 0.85f,
-            .fillParentHeight = true,
-            .scrollableBody = false,
-            .onCloseRequested = [storeContent]() -> bool {
-              if (storeContent->isDetailView()) {
-                storeContent->closeDetail();
-                return true;
-              }
-              return false;
-            },
+      std::vector<settings::StoreCatalogEntry> catalog;
+      for (const auto& source : cfg.plugins.sources) {
+        if (!source.enabled) {
+          continue;
         }
-    );
-  });
+        auto result = scripting::discoverCatalog(source);
+        if (!result.ok) {
+          continue;
+        }
+        for (auto& entry : result.entries) {
+          catalog.push_back(
+              settings::StoreCatalogEntry{
+                  .entry = std::move(entry),
+                  .source = source.name,
+                  .sourceConfig = source,
+              }
+          );
+        }
+      }
+
+      std::unordered_set<std::string> onDiskIds;
+      for (const auto& p : m_pluginList) {
+        if (p.materialized) {
+          onDiskIds.insert(p.id);
+        }
+      }
+
+      auto catalogLookup = std::make_shared<std::unordered_map<std::string, scripting::CatalogEntry>>();
+      for (const auto& entry : catalog) {
+        catalogLookup->emplace(entry.entry.id, entry.entry);
+      }
+
+      auto storeContent = std::make_shared<settings::PluginStoreContent>(
+          std::move(catalog), std::move(onDiskIds),
+          settings::PluginStoreCallbacks{
+              .setEnabled =
+                  [this, catalogLookup](std::string id, bool enable) {
+                    if (m_pluginManager == nullptr) {
+                      return;
+                    }
+                    if (enable) {
+                      (void)m_pluginManager->enable(id);
+                      if (m_editorSheetPopup != nullptr) {
+                        m_editorSheetPopup->close();
+                      }
+                      ++m_pluginListRefreshGeneration;
+                      m_pluginListDirty = false;
+                      auto existing = std::ranges::find_if(m_pluginList, [&](const auto& p) { return p.id == id; });
+                      if (existing != m_pluginList.end()) {
+                        existing->enabled = true;
+                      } else {
+                        scripting::PluginStatus placeholder{.id = id, .name = id, .enabled = true};
+                        if (auto it = catalogLookup->find(id); it != catalogLookup->end()) {
+                          placeholder.name = it->second.name;
+                          placeholder.version = it->second.version;
+                          placeholder.icon = it->second.icon;
+                          placeholder.description = it->second.description;
+                        }
+                        m_pluginList.push_back(std::move(placeholder));
+                      }
+                    } else {
+                      m_pluginManager->disable(id);
+                      m_pluginListDirty = true;
+                    }
+                    requestContentRebuild();
+                  },
+              .isEnabling = [this](
+                                const std::string& id
+                            ) { return m_pluginManager != nullptr && m_pluginManager->isEnabling(id); },
+              .scale = scale,
+          },
+          &m_pluginFileCache
+      );
+
+      m_pluginFileCache.setOnReady([storeContent](
+                                       const std::string& pluginId, const std::string& filename, const std::string& path
+                                   ) { storeContent->onFileReady(pluginId, filename, path); });
+
+      if (m_editorSheetPopup == nullptr) {
+        m_editorSheetPopup = std::make_unique<settings::SettingsSheetPopup>();
+        m_editorSheetPopup->initialize(*m_wayland, *m_config, *m_renderContext);
+      }
+
+      storeContent->setOnRebuildNeeded([this]() {
+        if (m_editorSheetPopup != nullptr) {
+          m_editorSheetPopup->rebuildBody();
+        }
+      });
+
+      wl_output* output = m_wayland->lastPointerOutput();
+      if (output == nullptr) {
+        output = m_output;
+      }
+
+      m_editorSheetPopup->open(
+          settings::SettingsSheetPopupRequest{
+              .parent = popupParentFor(*m_surface, output, m_wayland->lastInputSerial()),
+              .sheetTitle = i18n::tr("settings.plugins.store.title"),
+              .removeAction = nullptr,
+              .createHeaderAction = [storeContent, scale]() -> std::unique_ptr<Node> {
+                const auto pageUrl = storeContent->detailPageUrl();
+                const auto sourceUrl = storeContent->detailSourceUrl();
+                if (!pageUrl.has_value() && !sourceUrl.has_value()) {
+                  return nullptr;
+                }
+                auto actions = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
+                if (pageUrl.has_value()) {
+                  actions->addChild(
+                      ui::button({
+                          .glyph = "external-link",
+                          .glyphSize = Style::fontSizeBody * scale,
+                          .variant = ButtonVariant::Ghost,
+                          .tooltip = i18n::tr("settings.plugins.store.open-page"),
+                          .minWidth = Style::controlHeightSm * scale,
+                          .minHeight = Style::controlHeightSm * scale,
+                          .padding = Style::spaceXs * scale,
+                          .radius = Style::scaledRadiusMd(scale),
+                          .onClick = [url = *pageUrl]() { (void)net::openInBrowser(url); },
+                      })
+                  );
+                }
+                if (sourceUrl.has_value()) {
+                  actions->addChild(
+                      ui::button({
+                          .glyph = "brand-git",
+                          .glyphSize = Style::fontSizeBody * scale,
+                          .variant = ButtonVariant::Ghost,
+                          .tooltip = i18n::tr("settings.plugins.store.open-source"),
+                          .minWidth = Style::controlHeightSm * scale,
+                          .minHeight = Style::controlHeightSm * scale,
+                          .padding = Style::spaceXs * scale,
+                          .radius = Style::scaledRadiusMd(scale),
+                          .onClick = [url = *sourceUrl]() { (void)net::openInBrowser(url); },
+                      })
+                  );
+                }
+                return actions;
+              },
+              .populateSheetBody =
+                  [storeContent, this](Flex& body) {
+                    if (m_renderContext == nullptr) {
+                      return;
+                    }
+                    storeContent->populateBody(body, *m_renderContext, nullptr);
+                  },
+              .scale = scale,
+              .minWidth = 800.0f,
+              .maxWidth = 1100.0f,
+              .parentFraction = 0.85f,
+              .fillParentHeight = true,
+              .scrollableBody = false,
+              .onCloseRequested = [storeContent]() -> bool {
+                if (storeContent->isDetailView()) {
+                  storeContent->closeDetail();
+                  return true;
+                }
+                return false;
+              },
+          }
+      );
+    });
+  }).detach();
 }
 
 void SettingsWindow::closeWidgetInspectorPopup() {

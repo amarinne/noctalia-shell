@@ -552,6 +552,9 @@ struct DockConfig {
   std::int32_t crossAxisPadding = 8; // inner padding perpendicular to the icon row
   std::int32_t itemSpacing = 6;      // gap between items
   float backgroundOpacity = 0.88f;
+  // Inside outline for the dock background.
+  ColorSpec border = colorSpecFromRole(ColorRole::Outline);
+  float borderWidth = 0.0f;
   std::int32_t radius = 16;            // dock background corner radius
   std::int32_t radiusTopLeft = 16;     // dock background top-left corner radius
   std::int32_t radiusTopRight = 16;    // dock background top-right corner radius
@@ -651,6 +654,7 @@ struct OsdConfig {
   std::string orientation = "horizontal";
   float scale = 1.0f;
   float backgroundOpacity = 0.97f;
+  bool border = true; // outline around OSD popup cards
   int offsetX = 20;
   int offsetY = 8;
   std::vector<std::string> monitors;
@@ -667,6 +671,7 @@ struct NotificationConfig {
   std::string layer = "top"; // top | overlay
   float scale = 1.0f;
   float backgroundOpacity = 0.97f; // toast card background alpha (0.0–1.0)
+  bool border = true;              // outline around toast cards
   int offsetX = 20;                // absolute horizontal margin from the screen edge
   int offsetY = 8;                 // absolute vertical margin from the screen edge
   std::vector<std::string> monitors;
@@ -1394,10 +1399,9 @@ constexpr EnumOption<PluginSourceKind> kPluginSourceKinds[] = {
 
 struct PluginSourceConfig {
   PluginSourceKind kind = PluginSourceKind::Git;
-  std::string name;        // stable handle (also the clone subdir for git sources)
-  std::string location;    // git URL or local path
-  bool autoUpdate = false; // git-only, opt-in
-  bool enabled = true;     // disabled sources are not scanned; their clone is kept
+  std::string name;     // stable handle (also the clone subdir for git sources)
+  std::string location; // git URL or local path
+  bool enabled = true;  // disabled sources are not scanned; their clone is kept
   bool operator==(const PluginSourceConfig&) const = default;
 };
 
@@ -1406,6 +1410,7 @@ struct PluginSourceConfig {
 struct PluginsConfig {
   std::vector<PluginSourceConfig> sources;
   std::vector<std::string> enabled; // active plugin ids ("author/plugin"); opt-in for every source
+  bool autoUpdate = true;           // background auto-update of all git sources (startup + every 6h)
   // Plugin-level setting overrides, keyed by plugin id then setting key. Seeded
   // into every entry runtime of the plugin (widget/shortcut/service). Open-ended
   // (validated against the manifest schema), so compared via configEqual rather

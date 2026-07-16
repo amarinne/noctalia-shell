@@ -1344,7 +1344,6 @@
         "loading": "Chargement des plugins…",
         "refreshing": "Actualisation des plugins…",
         "requires": "A besoins de : {dependencies}",
-        "requires-newer-noctalia": "Nécessite une version plus récente de Noctalia",
         "title": "Plugins"
       },
       "settings": {
@@ -1375,8 +1374,7 @@
         "remove": "Retirer la source",
         "save": "Sauvegarder",
         "title": "Sources",
-        "update": "Mettre à jour",
-        "update-on-startup": "Mettre à jour au démarrage"
+        "update": "Mettre à jour"
       },
       "store": {
         "add": "Ajoute à Noctalia",

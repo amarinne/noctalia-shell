@@ -335,7 +335,7 @@ namespace shell::dock {
       return;
     const float opacity = cfg.backgroundOpacity;
     instance.panel->setFill(colorSpecFromRole(ColorRole::Surface, opacity));
-    instance.panel->setBorder(colorSpecFromRole(ColorRole::Outline), 0.0f);
+    instance.panel->setBorder(cfg.border, cfg.borderWidth);
   }
 
   void resizeSurface(DockInstance& instance, const DockConfig& cfg, const ShellConfig::ShadowConfig& shadowConfig) {

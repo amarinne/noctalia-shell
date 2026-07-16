@@ -829,6 +829,11 @@ namespace settings {
       add(boolSpec("hide_when_no_media", false));
     } else if (type == "network") {
       add(boolSpec("show_label", true));
+      {
+        auto vpnName = boolSpec("show_vpn_label", false);
+        vpnName.visibleWhen = WidgetSettingVisibility{"show_label", {"true"}};
+        add(std::move(vpnName));
+      }
     } else if (type == "notifications") {
       add(boolSpec("hide_when_no_unread", false));
     } else if (type == "privacy") {

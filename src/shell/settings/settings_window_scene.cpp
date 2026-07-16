@@ -1025,6 +1025,14 @@ void SettingsWindow::rebuildSettingsContent() {
                   markPluginListDirty();
                   requestSceneRebuild();
                 },
+            .autoUpdateEnabled = cfg.plugins.autoUpdate,
+            .setAutoUpdate =
+                [this](bool on) {
+                  m_pluginManager->setAutoUpdateEnabled(on);
+                  markPluginListDirty();
+                  requestSceneRebuild();
+                },
+            .updateAll = [this]() { m_pluginManager->updateAll(); },
             .config = &cfg,
             .onConfigure = [this](std::string id) { openPluginSettingsEditor(std::move(id)); },
             .onRemove =

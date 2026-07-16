@@ -15,7 +15,9 @@ struct wl_output;
 
 class NetworkWidget : public Widget {
 public:
-  NetworkWidget(INetworkService* network, SystemMonitorService* monitor, wl_output* output, bool showLabel);
+  NetworkWidget(
+      INetworkService* network, SystemMonitorService* monitor, wl_output* output, bool showLabel, bool showVpnLabel
+  );
 
   void create() override;
 
@@ -28,6 +30,7 @@ private:
   INetworkService* m_network = nullptr;
   SystemMonitorService* m_monitor = nullptr;
   bool m_showLabel = true;
+  bool m_showVpnLabel = false;
   Glyph* m_glyph = nullptr;
   Spinner* m_spinner = nullptr;
   Label* m_label = nullptr;

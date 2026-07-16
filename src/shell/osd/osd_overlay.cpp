@@ -545,7 +545,6 @@ void OsdOverlay::buildScene(Instance& inst, std::uint32_t width, std::uint32_t h
   const float ch = cardHeight(s, m_lastOrientation, m_lastShowProgress);
   const float pad = cardPadding(s);
   const float gap = innerGap(s);
-  const float border = Style::borderWidth * s;
 
   inst.sceneRoot = std::make_unique<Node>();
   inst.sceneRoot->setSize(w, h);
@@ -555,6 +554,8 @@ void OsdOverlay::buildScene(Instance& inst, std::uint32_t width, std::uint32_t h
   const float cardX = cardBaseX(w, cw);
   const float cardY = cardBaseYForPosition(m_lastPosition, h, ch);
   const float backgroundOpacity = osdBackgroundOpacity(m_config);
+  const bool drawBorder = m_config == nullptr || m_config->config().osd.border;
+  const float border = drawBorder ? Style::borderWidth * s : 0.0f;
 
   inst.sceneRoot->addChild(
       ui::box({

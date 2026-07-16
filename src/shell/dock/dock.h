@@ -91,7 +91,7 @@ private:
     std::string idLower;
     std::string wmClassLower;
     wl_output* outputFilter = nullptr;
-    std::chrono::steady_clock::time_point deadline{};
+    std::chrono::steady_clock::time_point deadline;
   };
 
   std::unordered_map<std::string, zwlr_foreign_toplevel_handle_v1*> m_lastActiveHandleByAppIdLower;

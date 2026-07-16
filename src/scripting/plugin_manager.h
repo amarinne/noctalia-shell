@@ -2,11 +2,14 @@
 
 #include "config/config_types.h"
 
+#include <chrono>
 #include <filesystem>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -30,7 +33,8 @@ namespace scripting {
   struct PluginStatus {
     std::string id;
     std::string name;
-    std::string version;
+    std::string version;          // installed version when materialized, else the catalog version
+    std::string availableVersion; // catalog version offered when updateAvailable (else empty)
     std::string icon;
     std::string description;
     std::string license = "MIT";
@@ -40,6 +44,9 @@ namespace scripting {
     bool deprecated = false;
     bool enabled = false;
     bool materialized = false;
+    // An enabled+materialized git-source plugin whose fetched catalog version differs
+    // from the exported copy on disk — a newer release is available to apply via update().
+    bool updateAvailable = false;
   };
 
   // Owns the plugin distribution lifecycle: resolves the configured sources into
@@ -96,6 +103,20 @@ namespace scripting {
     [[nodiscard]] std::vector<PluginStatus> list() const;
     [[nodiscard]] std::vector<PluginStatus> list(const PluginsConfig& plugins) const;
 
+    // Throttled `git fetch` of the enabled git sources in `plugins`, so the settings
+    // browser / store show newly published plugins on open without waiting for the
+    // 6h auto-update. A source fetched within the throttle window is skipped. Blocking
+    // git/IO — call off the UI thread with a main-thread config snapshot. Only advances
+    // FETCH_HEAD (browsable catalog); it never advances HEAD or exports files.
+    void fetchStaleCatalogs(const PluginsConfig& plugins);
+
+    // Update every enabled git source (each via update()). Backs the store's "update all".
+    void updateAll();
+
+    // Turn the global background auto-update ([plugins].auto_update) on/off. Backs the
+    // single "auto-update plugins" settings toggle; drives every git source at once.
+    void setAutoUpdateEnabled(bool enabled);
+
     // Add (or replace) a source and refresh.
     void addSource(const PluginSourceConfig& source);
 
@@ -139,6 +160,11 @@ namespace scripting {
     std::unordered_set<std::string> m_enabling;
     PluginsConfig m_lastApplied;
     bool m_applied = false;
+
+    // Wall-clock of the last browse fetch per git source name; throttles store-open
+    // fetches. Touched from worker threads (settings refresh / store open), so guarded.
+    std::mutex m_browseFetchMutex;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> m_lastBrowseFetch;
   };
 
 } // namespace scripting

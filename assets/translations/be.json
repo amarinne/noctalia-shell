@@ -1342,7 +1342,6 @@
         "refreshing": "Абнаўленне сіпсу ўбудоў...",
         "remove": "Выдаліць убудову",
         "requires": "Патрабуе {dependencies}",
-        "requires-newer-noctalia": "патрабуе больш новую версію Noctalia",
         "title": "Убудовы"
       },
       "settings": {
@@ -1373,8 +1372,7 @@
         "remove": "Выдаліць крыніцы",
         "save": "Захаваць",
         "title": "Крыніцы",
-        "update": "Абнавіць",
-        "update-on-startup": "Абнаўляць на запуску"
+        "update": "Абнавіць"
       },
       "store": {
         "add": "Дадаць у Noctalia",

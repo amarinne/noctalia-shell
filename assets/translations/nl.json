@@ -1204,7 +1204,6 @@
         "empty": "Er zijn geen plugins gevonden. Voeg een bron toe of controleer je netwerk.",
         "loading": "Plugins laden...",
         "refreshing": "Plugins herladen...",
-        "requires-newer-noctalia": "Heeft een nieuwere Noctalia nodig",
         "title": "Plugins"
       },
       "settings": {
@@ -1234,8 +1233,7 @@
         "remove": "Verwijder bron",
         "save": "Opslaan",
         "title": "Bronnen",
-        "update": "Update",
-        "update-on-startup": "Update bij opstarten"
+        "update": "Update"
       }
     },
     "schema": {
@@ -2705,8 +2703,7 @@
         },
         "minimal": {
           "description": "Toon alleen werkruimte-ID's of naamlabels, zonder geanimeerde pills",
-          "label": "Minimale stijl",
-          "workspaces-description": "Alleen tekst voor werkruimtelabels zonder pill-achtergronden of schuifanimatie"
+          "label": "Minimale stijl"
         },
         "mirrored": {
           "description": "Spiegel de visualisatie rond het midden",
