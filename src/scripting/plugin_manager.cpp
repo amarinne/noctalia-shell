@@ -755,6 +755,9 @@ namespace scripting {
         }
         if (sourceRevisionChanged) {
           kLog.info("updated source '{}' -> {}", sourceName, newRev);
+          if (m_onSourceUpdated) {
+            m_onSourceUpdated(sourceName); // stale store thumbnails/READMEs re-fetch at the new HEAD
+          }
         } else if (materialized) {
           kLog.info("reconciled source '{}' at {}", sourceName, newRev);
         } else {

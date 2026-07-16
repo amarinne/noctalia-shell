@@ -143,6 +143,7 @@ private:
   float m_scrollOffset = 0.0f;
   float m_fullTextWidth = 0.0f;
   float m_marqueeLoopPeriod = 0.0f;
+  float m_marqueeRenderScale = 1.0f;
   float m_textBaseX = 0.0f;
   std::uint32_t m_marqueeAnimId = 0;
   std::uint32_t m_snapAnimId = 0;

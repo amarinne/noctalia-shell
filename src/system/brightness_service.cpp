@@ -189,6 +189,34 @@ namespace {
     return BrightnessBackendPreference::Auto;
   }
 
+  // Returns the explicit backlight device name/path configured for this output, if any.
+  std::optional<std::string> backlightDeviceForOutput(const BrightnessConfig& config, const WaylandOutput* output) {
+    if (output == nullptr) {
+      return std::nullopt;
+    }
+
+    for (const auto& override : config.monitorOverrides) {
+      if (override.match.empty() || !outputMatchesSelector(override.match, *output)) {
+        continue;
+      }
+      if (override.backlightDevice.has_value()) {
+        return override.backlightDevice;
+      }
+      break;
+    }
+
+    return std::nullopt;
+  }
+
+  // Returns the sysfs device name from either a bare name ("intel_backlight") or a path.
+  std::string_view extractBacklightDeviceName(std::string_view deviceSpec) {
+    const auto lastSlash = deviceSpec.rfind('/');
+    if (lastSlash != std::string_view::npos) {
+      return deviceSpec.substr(lastSlash + 1);
+    }
+    return deviceSpec;
+  }
+
   void applyOutputMetadata(BrightnessDisplay& display, const WaylandOutput& output) {
     display.label = output.description.empty() ? output.connectorName : output.description;
     display.physicalWidth = output.width;
@@ -839,6 +867,16 @@ struct BrightnessService::Impl {
       const BrightnessBackendPreference preference = backendPreferenceForOutput(activeConfig, output);
       if (preference == BrightnessBackendPreference::None || preference == BrightnessBackendPreference::Ddcutil) {
         continue;
+      }
+
+      if (const auto explicitDevice = backlightDeviceForOutput(activeConfig, output); explicitDevice.has_value()) {
+        if (extractBacklightDeviceName(*explicitDevice) != name) {
+          kLog.debug(
+              "skipping backlight '{}' for connector {} (explicit device '{}' configured)", name, connectorName,
+              *explicitDevice
+          );
+          continue;
+        }
       }
 
       DisplayInternal display;
@@ -1643,6 +1681,28 @@ void BrightnessService::registerIpc(IpcService& ipc, std::function<void()> onBat
   registerDeltaHandler(
       "brightness-down", -1.0f, "brightness-down [current|*|all|monitor-selector] [step]",
       "Decrease brightness (defaults to current monitor)"
+  );
+
+  ipc.registerHandler(
+      "brightness-list-backlight-devices",
+      [](const std::string& /*args*/) -> std::string {
+        const std::string backlightDir = "/sys/class/backlight";
+        DIR* dir = ::opendir(backlightDir.c_str());
+        if (dir == nullptr) {
+          return "error: no backlight devices available\n";
+        }
+        std::string result;
+        while (auto* entry = ::readdir(dir)) {
+          const std::string name = entry->d_name;
+          if (name == "." || name == "..") {
+            continue;
+          }
+          result += name + "\n";
+        }
+        ::closedir(dir);
+        return result.empty() ? "error: no backlight devices available\n" : result;
+      },
+      "brightness-list-backlight-devices", "List available sysfs backlight device names"
   );
 }
 

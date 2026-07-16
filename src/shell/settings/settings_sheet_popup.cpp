@@ -5,12 +5,14 @@
 #include "render/render_context.h"
 #include "render/scene/node.h"
 #include "shell/settings/settings_content_common.h"
+#include "shell/tooltip/tooltip_manager.h"
 #include "ui/builders.h"
 #include "ui/controls/label.h"
 #include "ui/controls/select_dropdown_popup.h"
 #include "ui/popup_chrome.h"
 #include "ui/style.h"
 #include "wayland/popup_surface.h"
+#include "wayland/wayland_connection.h"
 #include "wayland/wayland_seat.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -52,6 +54,16 @@ namespace settings {
 
   void SettingsSheetPopup::initialize(WaylandConnection& wayland, ConfigService& config, RenderContext& renderContext) {
     initializeBase(wayland, config, renderContext);
+    inputDispatcher().setHoverChangeCallback([this](InputArea* /*old*/, InputArea* next) {
+      if (xdgSurface() == nullptr) {
+        return;
+      }
+      wl_output* output = m_parentOutput;
+      if (output == nullptr && this->wayland() != nullptr) {
+        output = this->wayland()->outputForSurface(wlSurface());
+      }
+      TooltipManager::instance().onHoverChange(next, xdgSurface(), output);
+    });
   }
 
   void SettingsSheetPopup::open(SettingsSheetPopupRequest request) {
@@ -72,6 +84,7 @@ namespace settings {
     m_onCloseRequested = std::move(request.onCloseRequested);
     m_sheetTitle = std::move(request.sheetTitle);
     m_removeAction = std::move(request.removeAction);
+    m_createHeaderAction = std::move(request.createHeaderAction);
     m_populateSheetBody = std::move(request.populateSheetBody);
     m_root = nullptr;
     m_parentWidth = request.parent.width;
@@ -201,6 +214,12 @@ namespace settings {
         })
     );
     header->addChild(ui::spacer());
+
+    if (m_createHeaderAction) {
+      if (auto action = m_createHeaderAction()) {
+        header->addChild(std::move(action));
+      }
+    }
 
     if (m_removeAction) {
       header->addChild(

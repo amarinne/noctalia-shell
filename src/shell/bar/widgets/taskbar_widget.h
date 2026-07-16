@@ -47,6 +47,7 @@ struct TaskbarWidgetOptions {
   float windowTitleMaxWidth = 100.0f;
   float taskbarMaxWidth = 8192.0f;
   std::string barPosition;
+  std::string barName;
   ShellConfig::ShadowConfig shadowConfig;
 };
 
@@ -145,9 +146,12 @@ private:
   float m_windowTitleMaxWidth = 100.0;
   float m_taskbarMaxWidth = 8192.0;
   std::string m_barPosition;
+  std::string m_barName;
   ShellConfig::ShadowConfig m_shadowConfig;
   bool m_rebuildPending = true;
   bool m_vertical = false;
+  float m_containerWidth = 0.0f;
+  float m_containerHeight = 0.0f;
   std::uint64_t m_textMetricsGeneration = 0;
 
   Flex* m_root = nullptr;

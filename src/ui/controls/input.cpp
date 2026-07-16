@@ -831,8 +831,7 @@ void Input::rebuildCursorStops(Renderer& renderer) {
 
 void Input::recomputeContentLeadSlack(Renderer& renderer, float width, bool showClearButton) {
   m_contentLeadSlack = 0.0f;
-  const bool showPasswordGlyphs = m_passwordMode && !m_value.empty();
-  if (m_multiline || showPasswordGlyphs || m_textAlign != TextAlign::Center) {
+  if (m_multiline || m_textAlign != TextAlign::Center) {
     return;
   }
 
@@ -840,7 +839,12 @@ void Input::recomputeContentLeadSlack(Renderer& renderer, float width, bool show
   const float rightInset = showClearButton ? clearButtonTextReserveWidth() : textInset;
   const float viewportWidth = std::max(0.0f, width - textInset - rightInset);
   float textExtent = 0.0f;
-  if (!m_value.empty() && m_stopX.size() > 1U) {
+  const bool showPasswordGlyphs = m_passwordMode && !m_value.empty();
+  if (showPasswordGlyphs) {
+    const std::size_t charCount = !m_stopByte.empty() ? m_stopByte.size() - 1 : 0;
+    const float passwordCellSize = std::round(m_fontSize * kPasswordGlyphScale);
+    textExtent = static_cast<float>(charCount) * passwordCellSize;
+  } else if (!m_value.empty() && m_stopX.size() > 1U) {
     textExtent = m_stopX.back();
   } else if (m_value.empty() && !m_placeholder.empty()) {
     textExtent = renderer.measureText(m_placeholder, m_fontSize, m_label->fontWeight()).width;

@@ -347,6 +347,12 @@ void CairoTextRenderer::invalidateGlyphTextures() {
   m_cacheBytes = 0;
 }
 
+void CairoTextRenderer::abandonGlyphTextures() noexcept {
+  m_cache.clear();
+  m_lru.clear();
+  m_cacheBytes = 0;
+}
+
 void CairoTextRenderer::setContentScale(float scale) {
   if (scale <= 0.0f) {
     return;

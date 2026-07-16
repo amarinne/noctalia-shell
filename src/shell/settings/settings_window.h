@@ -77,6 +77,8 @@ public:
   void requestRedraw();
   void onExternalOptionsChanged();
   void onPluginsChanged();
+  // Drop cached plugin-store files for a source that just advanced its git revision.
+  void invalidatePluginSourceCache(const std::string& sourceName);
   void setOpenDesktopWidgetEditor(std::function<void()> callback) { m_openDesktopWidgetEditor = std::move(callback); }
   void setOpenLockscreenWidgetEditor(std::function<void()> callback) {
     m_openLockscreenWidgetEditor = std::move(callback);

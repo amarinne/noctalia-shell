@@ -368,11 +368,15 @@ WidgetBarCapsuleSpec resolveWidgetBarCapsuleSpec(const BarConfig& bar, const Wid
   if (bar.widgetCapsuleRadius.has_value()) {
     spec.radius = std::clamp(static_cast<float>(*bar.widgetCapsuleRadius), 0.0f, 80.0f);
   }
-  if (widget != nullptr && widget->hasSetting("capsule_radius")) {
-    spec.radius = std::clamp(
-        static_cast<float>(widget->getDouble("capsule_radius", static_cast<double>(spec.radius.value_or(0.0f)))), 0.0f,
-        80.0f
-    );
+  if (widget != nullptr) {
+    const auto radius = widget->settings.find("capsule_radius");
+    if (radius != widget->settings.end()
+        && (std::holds_alternative<double>(radius->second) || std::holds_alternative<std::int64_t>(radius->second))) {
+      spec.radius = std::clamp(
+          static_cast<float>(widget->getDouble("capsule_radius", static_cast<double>(spec.radius.value_or(0.0f)))),
+          0.0f, 80.0f
+      );
+    }
   }
   spec.opacity = bar.widgetCapsuleOpacity;
   if (widget != nullptr && widget->hasSetting("capsule_opacity")) {

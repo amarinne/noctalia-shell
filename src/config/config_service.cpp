@@ -16,7 +16,9 @@
 #include "core/scoped_timer.h"
 #include "i18n/i18n.h"
 #include "ipc/ipc_service.h"
+#include "launcher/launcher_provider.h"
 #include "notification/notification_manager.h"
+#include "scripting/plugin_id.h"
 #include "shell/desktop/desktop_widget_settings_registry.h"
 #include "shell/settings/widget_settings_registry.h"
 #include "system/distro_info.h"
@@ -966,6 +968,8 @@ BarConfig ConfigService::resolveForOutput(const BarConfig& base, const WaylandOu
       resolved.enabled = *ovr.enabled;
     if (ovr.autoHide)
       resolved.autoHide = *ovr.autoHide;
+    if (ovr.smartAutoHide)
+      resolved.smartAutoHide = *ovr.smartAutoHide;
     if (ovr.showOnWorkspaceSwitch)
       resolved.showOnWorkspaceSwitch = *ovr.showOnWorkspaceSwitch;
     if (ovr.reserveSpace)
@@ -1663,6 +1667,16 @@ void ConfigService::parseConfigTable(
     }
   }
 
+  // Template config files (e.g. user-templates.toml) store palette extensions under
+  // [config.custom_colors]; lift them into the canonical theme.templates slot.
+  if (const auto* configTbl = tbl["config"].as_table()) {
+    if (const auto* customColors = (*configTbl)["custom_colors"].as_table()) {
+      std::vector<ThemeConfig::TemplateColorConfig> lifted;
+      schema::parseCustomColorsMap(*customColors, lifted);
+      schema::appendUniqueCustomColors(config.theme.templates.customColors, std::move(lifted));
+    }
+  }
+
   // Default seeding must apply even when the section is absent, so it runs after the
   // registry pass. A schema read can't tell an explicitly empty list from a missing
   // one, so these probe the raw table for the list key.
@@ -1687,6 +1701,56 @@ void ConfigService::parseConfigTable(
   if (config.idle.behaviors.empty()) {
     config.idle.behaviors = defaultIdleBehaviors();
   }
+
+  // Launcher providers are resolved after the registry pass, once config.shell is
+  // populated. An empty common prefix falls back to '/', and providers that name
+  // nothing real (or a disabled plugin, or the fixed Applications provider) are
+  // dropped loudly rather than silently ignored.
+  if (config.shell.launcher.providerPrefix.empty()) {
+    schemaDiag.warn("shell.launcher.provider_prefix", "is empty, falling back to '/'");
+    config.shell.launcher.providerPrefix = "/";
+  }
+  std::unordered_set<std::string> enabledPlugins;
+  if (const auto* pluginsTbl = tbl["plugins"].as_table()) {
+    if (const auto* enabledArr = (*pluginsTbl)["enabled"].as_array()) {
+      for (const auto& node : *enabledArr) {
+        if (const auto* strVal = node.as_string()) {
+          enabledPlugins.insert(StringUtils::toLower(strVal->get()));
+        }
+      }
+    }
+  }
+  std::erase_if(config.shell.launcher.providers, [&](const LauncherProviderConfig& provider) {
+    if (provider.name == "applications") {
+      schemaDiag.warn(
+          "shell.launcher.providers.applications", "custom settings are not allowed (Applications is always global)"
+      );
+      return true;
+    }
+    const auto isBuiltin = std::ranges::contains(launcher::kBuiltinProviders, provider.name);
+    if (!isBuiltin) {
+      const std::size_t colon = provider.name.find(':');
+      bool isPlugin = false;
+      std::string pluginIdStr;
+      if (colon != std::string::npos) {
+        std::string_view pluginId = std::string_view(provider.name).substr(0, colon);
+        std::string_view entryName = std::string_view(provider.name).substr(colon + 1);
+        if (scripting::isValidPluginId(pluginId) && scripting::isValidPluginIdSegment(entryName)) {
+          isPlugin = true;
+          pluginIdStr = std::string(pluginId);
+        }
+      }
+      if (!isPlugin) {
+        schemaDiag.warn("shell.launcher.providers." + provider.name, "provider is nonexistent");
+        return true;
+      }
+      if (!enabledPlugins.contains(pluginIdStr)) {
+        schemaDiag.warn("shell.launcher.providers." + provider.name, "plugin '" + pluginIdStr + "' is not enabled");
+        return true;
+      }
+    }
+    return false;
+  });
 
   // Parse [desktop_widgets]
   if (auto* desktopWidgetsTbl = tbl["desktop_widgets"].as_table()) {

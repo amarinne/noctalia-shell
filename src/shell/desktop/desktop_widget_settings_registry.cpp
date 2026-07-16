@@ -422,6 +422,7 @@ namespace desktop_settings {
       add(boolSpec("show_keyboard_layout", true));
       add(doubleSpec("input_opacity", 1.0, 0.0, 1.0, 0.01));
       add(intSpec("input_radius", 6.0, 0.0, 32.0, 1.0));
+      add(boolSpec("center_password_text", false));
     }
 
     return specs;

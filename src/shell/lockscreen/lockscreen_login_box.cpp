@@ -199,6 +199,7 @@ namespace lockscreen_login_box {
     style.panelRadius = std::clamp(readFloat(settings, "background_radius", style.panelRadius), 0.0f, 32.0f);
     style.inputOpacity = std::clamp(readFloat(settings, kInputOpacityKey, style.inputOpacity), 0.0f, 1.0f);
     style.inputRadius = std::clamp(readFloat(settings, kInputRadiusKey, style.inputRadius), 0.0f, 32.0f);
+    style.centerPasswordText = readBool(settings, kCenterPasswordTextKey, style.centerPasswordText);
     style.showLoginButton = readBool(settings, kShowLoginButtonKey, style.showLoginButton);
     style.showPasswordHint = readBool(settings, kShowPasswordHintKey, style.showPasswordHint);
     style.showCapsLock = readBool(settings, kShowCapsLockKey, style.showCapsLock);
@@ -216,6 +217,7 @@ namespace lockscreen_login_box {
       settings.insert_or_assign(std::string(kShowKeyboardLayoutKey), true);
       settings.insert_or_assign(std::string(kInputOpacityKey), 1.0);
       settings.insert_or_assign(std::string(kInputRadiusKey), 6.0);
+      settings.insert_or_assign(std::string(kCenterPasswordTextKey), false);
     }
     if (scope == desktop_settings::DesktopWidgetSettingsScope::Background) {
       settings.insert_or_assign("background_color", std::string("surface_variant"));
@@ -241,6 +243,9 @@ namespace lockscreen_login_box {
     }
     if (!settings.contains(std::string(kShowKeyboardLayoutKey))) {
       settings.insert_or_assign(std::string(kShowKeyboardLayoutKey), true);
+    }
+    if (!settings.contains(std::string(kCenterPasswordTextKey))) {
+      settings.insert_or_assign(std::string(kCenterPasswordTextKey), false);
     }
     clampOpacitySetting(settings, "background_opacity");
     clampRadiusSetting(settings, "background_radius");

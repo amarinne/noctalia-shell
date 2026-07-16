@@ -228,10 +228,13 @@ namespace settings {
     const Config& cfg = m_ctx.config;
     // Range sliders own a second config path (high/critical); both reset and report "override" together.
     const auto* rangeSlider = std::get_if<RangeSliderSetting>(&entry.control);
+    const auto* selectSetting = std::get_if<SelectSetting>(&entry.control);
     const auto isOverridden = [&](const std::vector<std::string>& p) {
       return ctx.configService != nullptr && ctx.configService->hasEffectiveOverride(p);
     };
-    const bool overridden = isOverridden(entry.path) || (rangeSlider != nullptr && isOverridden(rangeSlider->highPath));
+    const bool overridden = isOverridden(entry.path)
+        || (rangeSlider != nullptr && isOverridden(rangeSlider->highPath))
+        || (selectSetting != nullptr && !selectSetting->linkedPath.empty() && isOverridden(selectSetting->linkedPath));
     const bool redundantGuiOverride =
         ctx.configService != nullptr && ctx.configService->hasOverride(entry.path) && !overridden;
     const bool monitorSetting = isMonitorOverrideSettingPath(entry.path);
@@ -278,6 +281,10 @@ namespace settings {
       actions->addChild(makeOverrideBadge());
       if (rangeSlider != nullptr) {
         actions->addChild(makeResetButton(std::vector<std::vector<std::string>>{entry.path, rangeSlider->highPath}));
+      } else if (selectSetting != nullptr && !selectSetting->linkedPath.empty()) {
+        actions->addChild(
+            makeResetButton(std::vector<std::vector<std::string>>{entry.path, selectSetting->linkedPath})
+        );
       } else {
         actions->addChild(makeResetButton(entry.path));
       }
@@ -340,14 +347,18 @@ namespace settings {
       }
       auto options = setting.options;
       const SelectValueType valueType = setting.valueType;
+      const auto groupedCommit = setting.groupedCommit;
       return ui::segmented({
           .options = std::move(segmentedOptions),
           .selectedIndex = optionIndex(setting.options, setting.selectedValue),
           .scale = scale,
-          .onChange = [setOverride = ctx.setOverride, clearOverride = ctx.clearOverride,
-                       requestRebuild = ctx.requestRebuild, path, options, valueType](std::size_t index) {
+          .onChange = [setOverride = ctx.setOverride, setOverrides = ctx.setOverrides,
+                       clearOverride = ctx.clearOverride, requestRebuild = ctx.requestRebuild, path, options, valueType,
+                       groupedCommit](std::size_t index) {
             if (index < options.size()) {
-              if (options[index].value.empty() && valueType == SelectValueType::Integer) {
+              if (groupedCommit) {
+                setOverrides(groupedCommit(options[index].value, path));
+              } else if (options[index].value.empty() && valueType == SelectValueType::Integer) {
                 clearOverride(path);
               } else if (valueType == SelectValueType::Integer) {
                 setOverride(path, static_cast<std::int64_t>(std::stoll(options[index].value)));
@@ -370,6 +381,7 @@ namespace settings {
     auto options = setting.options;
     const bool clearOnEmpty = setting.clearOnEmpty;
     const SelectValueType valueType = setting.valueType;
+    const auto groupedCommit = setting.groupedCommit;
     return ui::select({
         .options = optionLabels(setting.options),
         .selectedIndex = selectedIndex,
@@ -384,9 +396,14 @@ namespace settings {
         .colorSwatchPreviews = optionSwatchPreviews(setting.options),
         .width = selectWidth * scale,
         .height = Style::controlHeight * scale,
-        .onSelectionChanged = [clearOverride = ctx.clearOverride, setOverride = ctx.setOverride, path, options,
-                               clearOnEmpty, valueType](std::size_t index, std::string_view /*label*/) {
+        .onSelectionChanged = [clearOverride = ctx.clearOverride, setOverride = ctx.setOverride,
+                               setOverrides = ctx.setOverrides, path, options, clearOnEmpty, valueType,
+                               groupedCommit](std::size_t index, std::string_view /*label*/) {
           if (index < options.size()) {
+            if (groupedCommit) {
+              setOverrides(groupedCommit(options[index].value, path));
+              return;
+            }
             if (options[index].value.empty() && (clearOnEmpty || valueType == SelectValueType::Integer)) {
               clearOverride(path);
               return;

@@ -565,6 +565,12 @@ void SettingsWindow::prepareFrame(bool /*needsUpdate*/, bool needsLayout) {
     m_inputDispatcher.stashTabFocus();
     buildScene(width, height);
     m_inputDispatcher.restoreStashedTabFocus();
+    if (m_focusSearchOnRebuild) {
+      if (m_settingsSearchInput != nullptr && m_settingsSearchInput->inputArea() != nullptr) {
+        m_inputDispatcher.setFocus(m_settingsSearchInput->inputArea());
+      }
+      m_focusSearchOnRebuild = false;
+    }
     logSettingsProfile("prepareFrame buildScene", phaseProfileWatch);
     m_lastSceneWidth = width;
     m_lastSceneHeight = height;
@@ -1095,6 +1101,10 @@ void SettingsWindow::onPluginsChanged() {
   if (isOpen() && m_selectedSection == "plugins") {
     requestContentRebuild();
   }
+}
+
+void SettingsWindow::invalidatePluginSourceCache(const std::string& sourceName) {
+  m_pluginFileCache.invalidateSource(sourceName);
 }
 
 void SettingsWindow::refreshIdleLiveStatusText() {

@@ -242,7 +242,6 @@ namespace {
       {"outputName", luau_outputName},
       {"setVisible", luau_setVisible},
       {"render", luau_ui_render},
-      {"getConfig", scripting::luau_getConfig},
       {nullptr, nullptr},
   };
 
@@ -303,10 +302,12 @@ namespace {
   // launcher.setResults(query, results) — replaces this provider's result set.
   // `query` echoes the text passed to onQuery so late async results map back to the
   // right query. Each result is a table { id, title, subtitle?, glyph?, icon?,
-  // badge?, category?, presentation?, score? }. `category` matches a label
+  // badge?, category?, presentation?, score?, query? }. `category` matches a label
   // declared by a [[launcher_provider.category]] manifest entry, letting the
-  // launcher's category filter bar narrow this provider's results. An empty
-  // array clears the provider's results.
+  // launcher's category filter bar narrow this provider's results. A result's
+  // optional `query` rewrites the input to this provider's prefix + that sub-query
+  // when activated (staying in the provider), the declarative form of setQuery. An
+  // empty array clears the provider's results.
   int luau_launcher_setResults(lua_State* L) {
     size_t queryLen = 0;
     const char* query = luaL_checklstring(L, 1, &queryLen);
@@ -348,7 +349,10 @@ namespace {
     return 0;
   }
 
-  // launcher.setQuery(text) — replaces the open launcher input text.
+  // launcher.setQuery(text) — sets the launcher input to this provider's query.
+  // The host prepends the provider's resolved prefix, so `text` is the sub-query
+  // after the prefix (e.g. setQuery("fruits ")) and the panel stays in this provider
+  // regardless of the configured prefix. setQuery("") returns to the provider root.
   int luau_launcher_setQuery(lua_State* L) {
     size_t queryLen = 0;
     const char* query = luaL_checklstring(L, 1, &queryLen);
@@ -361,7 +365,6 @@ namespace {
   const luaL_Reg kLauncherLib[] = {
       {"setResults", luau_launcher_setResults},
       {"setQuery", luau_launcher_setQuery},
-      {"getConfig", scripting::luau_getConfig},
       {nullptr, nullptr},
   };
 
@@ -534,7 +537,6 @@ namespace {
       {"render", luau_ui_render},
       {"setWantsSecondTicks", luau_desktop_setWantsSecondTicks},
       {"setNeedsFrameTick", luau_desktop_setNeedsFrameTick},
-      {"getConfig", scripting::luau_getConfig},
       {nullptr, nullptr},
   };
 
@@ -560,7 +562,6 @@ namespace {
       {"render", luau_ui_render},
       {"close", luau_panel_close},
       {"setWantsSecondTicks", luau_panel_setWantsSecondTicks},
-      {"getConfig", scripting::luau_getConfig},
       {nullptr, nullptr},
   };
 

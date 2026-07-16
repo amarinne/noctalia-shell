@@ -2,6 +2,7 @@
 
 #include "config/config_types.h"
 #include "core/process/process.h"
+#include "scripting/script_arg.h"
 #include "ui/ui_tree.h"
 
 #include <chrono>
@@ -163,15 +164,23 @@ namespace scripting {
     Reload,
     Update,
     Call,
-    CallBool,
-    CallStrings,
+    CallArgs,
     AsyncCommandResult,
     AsyncProcessMatchResult,
     AsyncHttpResult,
+    ColorPickerResult,
     StateWatchResult,
     StreamLine,
     SettingsChanged,
     Stop,
+  };
+
+  // Queue policy for a callback invocation.
+  struct ScriptCallOptions {
+    // A newer queued call to the same callback replaces this one.
+    bool coalesce = false;
+    // This call may be dropped when the queue is full.
+    bool droppable = false;
   };
 
   struct ScriptEvent {
@@ -181,15 +190,19 @@ namespace scripting {
     std::string functionName;
     std::string chunkName;
     std::string source;
+    // StreamLine payload.
     std::string first;
-    std::string second;
-    bool boolValue = false;
+    // CallArgs payload: the callback's argument list, pushed in order.
+    ScriptArgs args;
     bool processMatchResult = false;
-    // When true, a newer CallStrings event with the same functionName supersedes
+    // When true, a newer CallArgs event with the same functionName supersedes
     // this one while it is still queued (only the latest payload matters, e.g.
     // onAudioSpectrum frames). IPC and other callbacks leave this false so every
     // event is delivered.
     bool coalesce = false;
+    // When true, this event may be dropped to make room once the queue is full
+    // (state-echo callbacks such as onHover, where a missed edge is harmless).
+    bool droppable = false;
     int callbackRef = 0;
     process::RunResult commandResult;
     // AsyncHttpResult payload.
@@ -197,8 +210,12 @@ namespace scripting {
     bool httpIsDownload = false;
     int httpStatus = 0;
     std::string httpBody;
+    // ColorPickerResult payload (nil on cancellation).
+    std::optional<std::string> colorPickerResult;
     // StateWatchResult payload (the changed value as JSON).
     std::string stateJson;
+    // Stop payload: SIGINT/SIGTERM for signal-driven process shutdown, otherwise 0.
+    int exitSignal = 0;
     // SettingsChanged payload: the new seeded settings snapshot to swap in.
     ScriptSettings newSettings;
     ScriptSnapshot snapshot;

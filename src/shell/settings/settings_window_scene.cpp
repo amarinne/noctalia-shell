@@ -1251,11 +1251,6 @@ std::unique_ptr<Flex> SettingsWindow::buildFilterRow(
     );
   }
 
-  if (m_focusSearchOnRebuild && searchInputPtr != nullptr && searchInputPtr->inputArea() != nullptr) {
-    m_inputDispatcher.setFocus(searchInputPtr->inputArea());
-    m_focusSearchOnRebuild = false;
-  }
-
   return filters;
 }
 
@@ -1613,11 +1608,21 @@ std::vector<std::vector<std::string>> SettingsWindow::currentPageResetPaths() co
     return resetPagePaths;
   }
   for (const auto& entry : m_settingsRegistry) {
-    if (!entry.path.empty()
-        && settingEntryBelongsToPage(entry, m_selectedSection, m_selectedBarName, m_selectedMonitorOverride)
-        && m_config->hasEffectiveOverride(entry.path)
-        && !containsPath(resetPagePaths, entry.path)) {
-      resetPagePaths.push_back(entry.path);
+    if (!settingEntryBelongsToPage(entry, m_selectedSection, m_selectedBarName, m_selectedMonitorOverride)) {
+      continue;
+    }
+
+    const auto appendIfOverridden = [this, &resetPagePaths](const std::vector<std::string>& path) {
+      if (!path.empty() && m_config->hasEffectiveOverride(path) && !containsPath(resetPagePaths, path)) {
+        resetPagePaths.push_back(path);
+      }
+    };
+    appendIfOverridden(entry.path);
+    if (const auto* range = std::get_if<settings::RangeSliderSetting>(&entry.control)) {
+      appendIfOverridden(range->highPath);
+    }
+    if (const auto* select = std::get_if<settings::SelectSetting>(&entry.control)) {
+      appendIfOverridden(select->linkedPath);
     }
   }
   return resetPagePaths;
@@ -1693,6 +1698,9 @@ void SettingsWindow::buildScene(std::uint32_t width, std::uint32_t height) {
   const float scale = uiScale();
   m_actionsMenuButton = nullptr;
   m_contentScrollView = nullptr;
+  m_sidebarScrollView = nullptr;
+  m_sidebarNav = nullptr;
+  m_settingsSearchInput = nullptr;
 
   const Config fallbackCfg{};
   const Config& cfg = m_config != nullptr ? m_config->config() : fallbackCfg;

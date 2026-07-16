@@ -177,6 +177,18 @@ void PluginWidget::create() {
     if (m_runtime)
       (void)m_runtime->enqueueCallBool("onHover", false, makeScriptSnapshot());
   });
+  area->setOnAxisHandler([this](const InputArea::PointerData& data) {
+    if (m_runtime == nullptr || !m_runtime->hasOnScroll())
+      return false;
+    // Whole detent steps, so a wheel notch and a touchpad flick mean the same
+    // thing to the script. Continuous sources report 0 until a detent accrues.
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f)
+      return false;
+    const char* axis = data.axis == WL_POINTER_AXIS_VERTICAL_SCROLL ? "vertical" : "horizontal";
+    (void)m_runtime->enqueueCallArgs("onScroll", {std::string(axis), static_cast<double>(steps)}, makeScriptSnapshot());
+    return true;
+  });
 
   auto flex = ui::row({
       .out = &m_flex,

@@ -192,6 +192,29 @@ namespace ui {
       return std::nullopt;
     }
 
+    // Named control-height tier, in unscaled logical pixels. Callers scale it.
+    // Distinct from ui.glyph's numeric `size`; use `height` for exact pixels.
+    std::optional<float> parseControlSize(const UiTreeNode& node) {
+      const std::string* token = strProp(node, "controlSize");
+      if (token == nullptr) {
+        if (node.props.contains("controlSize")) {
+          kLog.warn(
+              "ui node '{}': controlSize expects 'sm'/'md'/'lg', not a number - use 'height' for exact pixels",
+              node.type
+          );
+        }
+        return std::nullopt;
+      }
+      if (*token == "sm")
+        return Style::controlHeightSm;
+      if (*token == "md")
+        return Style::controlHeight;
+      if (*token == "lg")
+        return Style::controlHeightLg;
+      kLog.warn("ui node '{}': unknown controlSize '{}'", node.type, *token);
+      return std::nullopt;
+    }
+
     // The Node that a control's children reconcile into. Flex containers host
     // their children directly; a ScrollView hosts them in its inner content
     // Flex. Any other control returns nullptr — it cannot have children.
@@ -279,23 +302,25 @@ namespace ui {
                                                                  "color",   "spacing", "orientation"};
       static const std::unordered_set<std::string> kProgress = {"width",    "height", "flexGrow", "opacity", "visible",
                                                                 "progress", "fill",   "track",    "radius"};
-      static const std::unordered_set<std::string> kButton = {"width",     "height",  "flexGrow",     "opacity",
-                                                              "visible",   "text",    "glyph",        "fontSize",
-                                                              "glyphSize", "variant", "contentAlign", "enabled",
-                                                              "selected",  "onClick", "onRightClick"};
+      static const std::unordered_set<std::string> kButton = {"width",      "height",  "flexGrow",     "opacity",
+                                                              "visible",    "text",    "glyph",        "fontSize",
+                                                              "glyphSize",  "variant", "contentAlign", "enabled",
+                                                              "selected",   "onClick", "onRightClick", "tooltip",
+                                                              "controlSize"};
       static const std::unordered_set<std::string> kGraph = {"width",   "height",    "flexGrow",   "opacity",
                                                              "visible", "values",    "values2",    "color",
                                                              "color2",  "lineWidth", "fillOpacity"};
       static const std::unordered_set<std::string> kInput = {"width",    "height",   "flexGrow",    "opacity",
                                                              "visible",  "value",    "placeholder", "fontSize",
                                                              "enabled",  "password", "multiline",   "focus",
-                                                             "onChange", "onSubmit"};
-      static const std::unordered_set<std::string> kSelect = {"width",       "height",  "flexGrow",      "opacity",
-                                                              "visible",     "options", "selectedIndex", "enabled",
-                                                              "placeholder", "onChange"};
-      static const std::unordered_set<std::string> kSlider = {"width",   "height",  "flexGrow", "opacity",
-                                                              "visible", "min",     "max",      "step",
-                                                              "value",   "enabled", "onChange", "onDragEnd"};
+                                                             "onChange", "onSubmit", "controlSize"};
+      static const std::unordered_set<std::string> kSelect = {"width",       "height",   "flexGrow",      "opacity",
+                                                              "visible",     "options",  "selectedIndex", "enabled",
+                                                              "placeholder", "onChange", "controlSize"};
+      static const std::unordered_set<std::string> kSlider = {"width",      "height",  "flexGrow", "opacity",
+                                                              "visible",    "min",     "max",      "step",
+                                                              "value",      "enabled", "onChange", "onDragEnd",
+                                                              "controlSize"};
       static const std::unordered_set<std::string> kToggle = {"width",   "height",  "flexGrow", "opacity",
                                                               "visible", "checked", "enabled",  "onChange"};
       static const std::unordered_set<std::string> kScroll = {"width",       "height", "flexGrow", "opacity",
@@ -867,6 +892,10 @@ namespace ui {
       if (const bool* selected = boolProp(desired, "selected")) {
         button->setSelected(*selected);
       }
+      // Unconditional: a tooltip dropped between renders must clear on the
+      // retained Button. An empty text routes to InputArea::clearTooltip().
+      const std::string* tooltip = strProp(desired, "tooltip");
+      button->setTooltip(tooltip != nullptr ? *tooltip : "");
       if (const std::string* onClick = strProp(desired, "onClick");
           onClick != nullptr && *onClick != slot.callbackName) {
         slot.callbackName = *onClick;
@@ -893,6 +922,9 @@ namespace ui {
       if (m_compactControls) {
         button->setMinHeight(0.0f);
         button->setPadding(Style::spaceXs * m_scale);
+      }
+      if (auto size = parseControlSize(desired)) {
+        button->setControlHeight(scaled(*size));
       }
       if (width != nullptr) {
         button->setMinWidth(scaled(*width));
@@ -993,6 +1025,9 @@ namespace ui {
           }
         });
       }
+      if (auto size = parseControlSize(desired)) {
+        slider->setControlHeight(scaled(*size));
+      }
       return;
     }
 
@@ -1029,6 +1064,9 @@ namespace ui {
         if (const double* grow = numProp(desired, "flexGrow"); grow == nullptr || *grow <= 0.0) {
           select->setMaxWidth(w);
         }
+      }
+      if (auto size = parseControlSize(desired)) {
+        select->setControlHeight(scaled(*size));
       }
       if (height != nullptr) {
         select->setControlHeight(scaled(*height));
@@ -1088,6 +1126,9 @@ namespace ui {
       }
       if (width != nullptr) {
         input->setMinLayoutWidth(scaled(*width));
+      }
+      if (auto size = parseControlSize(desired)) {
+        input->setControlHeight(scaled(*size));
       }
       if (height != nullptr) {
         input->setControlHeight(scaled(*height));

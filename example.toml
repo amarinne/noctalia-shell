@@ -61,6 +61,33 @@ open_near_click_clipboard      = false # for attached/floating placement, follow
 open_near_click_wallpaper      = false # for attached/floating placement, follow the bar click instead of bar-center
 open_near_click_session        = false # for attached/floating placement, follow the bar click instead of bar-center
 
+[shell.launcher]
+categories    = true                    # show category filters in the launcher
+show_icons    = true                    # show application icons in launcher results
+compact       = false                   # use smaller icons and tighter result rows
+app_grid      = false                   # show app icon grid view when results are apps only
+sort_by_usage = true                    # sort apps by usage frequency
+provider_prefix = "/"                     # common prefix character for provider trigger words (e.g. "/" or ".")
+
+# For each provider: prefix = trigger word (empty falls back to its built-in default; triggers on
+# provider_prefix + trigger, e.g. "/emo"). global = true also surfaces it in unprefixed search.
+[shell.launcher.providers.calculator]
+prefix = ""                             # calculator has no default trigger, so it stays in global search
+global = true                           # set false to only show calculator results behind a custom prefix
+
+[shell.launcher.providers.emoji]
+prefix = "emo"
+
+[shell.launcher.providers.session]
+prefix = "session"
+global = false                          # set true to include session actions in unprefixed search
+
+[shell.launcher.providers.wallpaper]
+prefix = "wall"
+
+[shell.launcher.providers.windows]
+prefix = "win"
+
 [shell.mpris]
 blacklist = []                      # ignore MPRIS players by bus/identity/desktop entry token
 
@@ -218,6 +245,7 @@ enable_ddcutil = false
 # Per-monitor backend override:
 # [brightness.monitor.eDP-1]
 # backend = "backlight"             # auto | none | backlight | ddcutil
+# backlight_device = "intel_backlight"  # explicit sysfs device name or path; run: noctalia msg brightness-list-backlight-devices
 # [brightness.monitor.DP-1]
 # backend = "ddcutil"
 
@@ -285,6 +313,7 @@ widget_spacing     = 6
 scale              = 1.0
 shadow             = true
 auto_hide          = false
+# smart_auto_hide    = false       # show when the active workspace is empty; hide when it has windows
 # show_on_workspace_switch = true   # with auto_hide: briefly reveal when the active workspace changes
 reserve_space      = true
 capsule            = false
@@ -332,6 +361,7 @@ margin_v            = 8
 shadow              = true
 show_running        = true
 auto_hide           = false
+# smart_auto_hide   = false       # show when the active workspace is empty; hide when it has windows
 reserve_space       = true
 active_scale        = 1.0
 inactive_scale      = 0.85

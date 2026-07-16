@@ -30,6 +30,13 @@ namespace noctalia::config::schema {
   const Schema<IdleConfig>& idleSchema();
   const Schema<WallpaperConfig>& wallpaperSchema();
   const Schema<ThemeConfig>& themeSchema();
+  // Parses a name-keyed [custom_colors] map (bare string or { color, color_dark,
+  // color_light, blend } table). Appends valid entries to `out`.
+  void parseCustomColorsMap(const toml::table& map, std::vector<ThemeConfig::TemplateColorConfig>& out);
+  // Adds entries from `additional` whose names are not already in `into`.
+  void appendUniqueCustomColors(
+      std::vector<ThemeConfig::TemplateColorConfig>& into, std::vector<ThemeConfig::TemplateColorConfig> additional
+  );
   const Schema<ShellConfig>& shellSchema();
   const Schema<AccessibilityConfig>& accessibilitySchema();
 

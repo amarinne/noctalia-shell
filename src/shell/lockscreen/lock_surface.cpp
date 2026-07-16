@@ -618,6 +618,7 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
 
   m_passwordField->setSurfaceOpacity(loginStyle.inputOpacity);
   m_passwordField->setFrameRadius(loginStyle.inputRadius);
+  m_passwordField->setTextAlign(loginStyle.centerPasswordText ? TextAlign::Center : TextAlign::Start);
 
   const bool showLoginButton = loginVisible && loginStyle.showLoginButton;
   m_loginButton->setVisible(showLoginButton);
@@ -791,9 +792,10 @@ void LockSurface::applyWallpaperTexture() {
         renderer->makeCurrent(renderTarget());
         static constexpr int kBlurRounds = 3;
         const float blurRadius = m_blurIntensity * 40.0f;
+        const std::uint32_t blurWidth = renderTarget().bufferWidth();
+        const std::uint32_t blurHeight = renderTarget().bufferHeight();
         m_blurredWallpaperTexture = m_wallpaperBlurCache.get(
-            renderer->backend(), m_wallpaperTexture, static_cast<std::uint32_t>(m_wallpaperTexture.width),
-            static_cast<std::uint32_t>(m_wallpaperTexture.height), blurRadius, kBlurRounds
+            renderer->backend(), m_wallpaperTexture, blurWidth, blurHeight, blurRadius, kBlurRounds
         );
         if (m_blurredWallpaperTexture.id != 0) {
           textureToDisplay = m_blurredWallpaperTexture;
@@ -882,10 +884,10 @@ void LockSurface::applyBlurredDesktopTexture() {
 
   static constexpr int kBlurRounds = 3;
   const float blurRadius = m_blurIntensity * 40.0f;
-  m_blurredDesktopTexture = m_blurCache.get(
-      renderer->backend(), m_captureSourceTexture, static_cast<std::uint32_t>(texW), static_cast<std::uint32_t>(texH),
-      blurRadius, kBlurRounds
-  );
+  const std::uint32_t blurWidth = renderTarget().bufferWidth();
+  const std::uint32_t blurHeight = renderTarget().bufferHeight();
+  m_blurredDesktopTexture =
+      m_blurCache.get(renderer->backend(), m_captureSourceTexture, blurWidth, blurHeight, blurRadius, kBlurRounds);
   if (m_blurredDesktopTexture.id == 0) {
     return;
   }
@@ -905,7 +907,7 @@ void LockSurface::applyBlurredDesktopTexture() {
 void LockSurface::onGpuResourcesInvalidated() {
   releaseCaptureTextures();
 
-  if (m_wallpaperTexture.id != 0 && m_textureCache != nullptr) {
+  if (!m_wallpaperPath.empty() && m_textureCache != nullptr) {
     if (m_textureCache->shared()) {
       m_wallpaperTexture = m_textureCache->peek(m_wallpaperPath);
     } else if (renderContext() != nullptr) {
@@ -919,6 +921,17 @@ void LockSurface::onGpuResourcesInvalidated() {
   m_captureDirty = true;
   m_wallpaperDirty = true;
   requestLayout();
+}
+
+void LockSurface::prepareForGraphicsReset() noexcept {
+  m_blurCache.abandon();
+  m_wallpaperBlurCache.abandon();
+  m_wallpaperTexture = {};
+  m_blurredWallpaperTexture = {};
+  m_captureSourceTexture = {};
+  m_blurredDesktopTexture = {};
+  m_captureDirty = true;
+  m_wallpaperDirty = true;
 }
 
 void LockSurface::render() {

@@ -3,6 +3,7 @@
 #include "config/config_service.h"
 #include "config/config_validate.h"
 #include "config/widget_config.h"
+#include "core/files/resource_paths.h"
 #include "core/input/key_chord.h"
 #include "core/log.h"
 #include "scripting/plugin_id.h"
@@ -164,6 +165,9 @@ namespace {
     }
     if (ovr.autoHide) {
       resolved.autoHide = *ovr.autoHide;
+    }
+    if (ovr.smartAutoHide) {
+      resolved.smartAutoHide = *ovr.smartAutoHide;
     }
     if (ovr.showOnWorkspaceSwitch) {
       resolved.showOnWorkspaceSwitch = *ovr.showOnWorkspaceSwitch;
@@ -1772,7 +1776,22 @@ bool ConfigService::renameOverrideTable(
   return true;
 }
 
+std::string ConfigService::firstRunWallpaperPath() const {
+  if (m_setupMarkerPath.empty() || std::filesystem::exists(m_setupMarkerPath)) {
+    return {};
+  }
+  const auto path = paths::assetPath("noctalia-wallpaper.png");
+  std::error_code ec;
+  if (!std::filesystem::exists(path, ec)) {
+    return {};
+  }
+  return path.string();
+}
+
 std::string ConfigService::getWallpaperPath(const std::string& connectorName) const {
+  if (const std::string bundled = firstRunWallpaperPath(); !bundled.empty()) {
+    return bundled;
+  }
   auto it = m_monitorWallpaperPaths.find(connectorName);
   if (it != m_monitorWallpaperPaths.end()) {
     return it->second;
@@ -1780,9 +1799,17 @@ std::string ConfigService::getWallpaperPath(const std::string& connectorName) co
   return m_defaultWallpaperPath;
 }
 
-std::string ConfigService::getDefaultWallpaperPath() const { return m_defaultWallpaperPath; }
+std::string ConfigService::getDefaultWallpaperPath() const {
+  if (const std::string bundled = firstRunWallpaperPath(); !bundled.empty()) {
+    return bundled;
+  }
+  return m_defaultWallpaperPath;
+}
 
 std::string ConfigService::getPaletteWallpaperPath() const {
+  if (const std::string bundled = firstRunWallpaperPath(); !bundled.empty()) {
+    return bundled;
+  }
   if (!m_lastWallpaperPath.empty()) {
     return m_lastWallpaperPath;
   }

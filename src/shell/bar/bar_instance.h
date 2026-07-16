@@ -50,6 +50,8 @@ struct BarInstance {
   bool ipcLayoutReleased = false;
   // bar-auto-hide-set off keeps autoHide true until the reveal completes; block hover helpers from replacing it.
   bool autoHideDisablePending = false;
+  // smart_auto_hide: active workspace empty (or overview open) — keep the bar visible.
+  bool smartAutoHidePinnedVisible = false;
   bool pointerInside = false;
   float lastPointerSx = 0.0f;
   float lastPointerSy = 0.0f;

@@ -53,6 +53,8 @@ namespace settings {
     void setOnRebuildNeeded(std::function<void()> cb);
 
     [[nodiscard]] bool isDetailView() const noexcept;
+    [[nodiscard]] std::optional<std::string> detailPageUrl() const;
+    [[nodiscard]] std::optional<std::string> detailSourceUrl() const;
     void openDetail(std::size_t filteredIndex);
     void closeDetail();
 

@@ -39,6 +39,7 @@ public:
     float activePillSize = 2.2f;
     float inactivePillSize = 1.0f;
     bool minimal = false;
+    bool focusedPill = false;
     bool focusedOutputOnly = false;
   };
 

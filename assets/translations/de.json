@@ -354,7 +354,7 @@
         "load": "Lastdurchschnitt über 1 / 5 / 15 Minuten"
       },
       "unknown": "unbekannt",
-      "uptime-prefix": "Läuft seit {uptime} · {osAge}"
+      "uptime-prefix": "Seit {uptime} · {osAge}"
     },
     "tabs": {
       "audio": "Audio",
@@ -993,7 +993,17 @@
             "grouping": "Gruppierung",
             "presentation": "Darstellung",
             "runtime": "Laufzeit",
-            "widget": "Widget"
+            "taskbar": {
+              "grouping": "Gruppierung",
+              "windows": "Fenster",
+              "workspace-labels": "Arbeitsbereichsbeschriftungen"
+            },
+            "widget": "Widget",
+            "workspaces": {
+              "colors": "Farben",
+              "list": "Arbeitsbereiche",
+              "pills": "Pill-Stil"
+            }
           }
         }
       }
@@ -1053,7 +1063,7 @@
         "name-label": "Name",
         "name-placeholder": "idle-behavior",
         "resume-command-label": "Fortsetzen-Befehl",
-        "resume-command-placeholder": "",
+        "resume-command-placeholder": "notify-send 'Zurück aus Inaktivität'",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · Timeout deaktiviert",
         "timeout-label": "Timeout-Sekunden",
@@ -1067,6 +1077,7 @@
     },
     "navigation": {
       "groups": {
+        "accessibility": "Barrierefreiheit",
         "audio": "Audio",
         "authentication": "Authentifizierung",
         "automation": "Automatisierung",
@@ -1083,6 +1094,7 @@
         "control-center": "Kontrollzentrum",
         "dead-zone": "Leerer Bereich",
         "directories": "Verzeichnisse",
+        "display": "Anzeige",
         "effects": "Effekte",
         "filtering": "Filterung",
         "focus-styling": "Fokus-Stil",
@@ -1134,6 +1146,7 @@
         "widgets": "Widgets"
       },
       "sections": {
+        "accessibility": "Barrierefreiheit",
         "appearance": "Erscheinungsbild",
         "backdrop": "Hintergrund",
         "bar": "Leiste",
@@ -1187,6 +1200,13 @@
       }
     },
     "options": {
+      "bar": {
+        "auto-hide": {
+          "off": "Aus",
+          "on": "An",
+          "smart": "Smart"
+        }
+      },
       "clipboard": {
         "auto-paste": {
           "ctrl-shift-v": "Strg+Umschalt+V",
@@ -1246,6 +1266,10 @@
       "orientation": {
         "horizontal": "Horizontal",
         "vertical": "Vertikal"
+      },
+      "panel-bar-alignment": {
+        "centered": "Zentriert",
+        "near-trigger": "Am Trigger"
       },
       "panel-position": {
         "auto": "Leiste folgen"
@@ -1336,7 +1360,7 @@
       "browse-store": "Plugins durchsuchen",
       "panels": {
         "open-near-click": {
-          "description": "Öffne das Panel in der Nähe des Leisten-Widgets, das es ausgelöst hat",
+          "description": "Platziere das Panel in der Nähe des Leisten-Widgets, das es geöffnet hat; ohne Trigger wird es zentriert",
           "label": "In Klicknähe öffnen"
         },
         "placement": {
@@ -1407,6 +1431,12 @@
       }
     },
     "schema": {
+      "accessibility": {
+        "high-contrast": {
+          "description": "Erhöhe den Kontrast, indem Oberflächen- und Hintergrundfarben in Richtung extremer Werte verschoben werden",
+          "label": "Hoher Kontrast"
+        }
+      },
       "appearance": {
         "animation-speed": {
           "description": "Geschwindigkeitsmultiplikator für alle Animationen",
@@ -1427,6 +1457,10 @@
         "builtin-palette": {
           "description": "Wähle eine Palette aus dem mitgelieferten Katalog",
           "label": "Integrierte Palette"
+        },
+        "button-borders": {
+          "description": "Zeichne Umrisse um Buttons in der gesamten Shell",
+          "label": "Button-Rahmen"
         },
         "community-palette": {
           "description": "Wähle ein Farbschema aus dem Community-Katalog",
@@ -1497,7 +1531,7 @@
       },
       "bar": {
         "auto-hide": {
-          "description": "Blende die Leiste automatisch aus, wenn nicht in Benutzung"
+          "description": "„Aus\" lässt die Leiste sichtbar; „An\" blendet sie aus, bis du den Mauszeiger an den Bildschirmrand bewegst; „Smart\" zeigt die Leiste auf einem leeren Arbeitsbereich und blendet sie aus, wenn Fenster geöffnet sind"
         },
         "background-opacity": {
           "description": "Hintergrunddeckkraft der Leiste"
@@ -1735,7 +1769,7 @@
           "label": "Nur aktiver Monitor"
         },
         "auto-hide": {
-          "description": "Blende das Dock automatisch aus, wenn es nicht verwendet wird"
+          "description": "„Aus\" lässt das Dock sichtbar; „An\" blendet es aus, bis du den Mauszeiger an den Bildschirmrand bewegst; „Smart\" zeigt das Dock auf einem leeren Arbeitsbereich und blendet es aus, wenn Fenster geöffnet sind"
         },
         "background-opacity": {
           "description": "Hintergrunddeckkraft des Docks"
@@ -2073,7 +2107,7 @@
       },
       "panels": {
         "borders": {
-          "description": "Zeichne eine Umrandung um Panels und Abschnittskarten innerhalb von Panels",
+          "description": "Zeichne ein Umriss um Panels und Abschnittskarten innerhalb von Panels",
           "label": "Rahmen"
         },
         "control-center-sidebar": {
@@ -2130,24 +2164,24 @@
           "label": "Nach Nutzung sortieren"
         },
         "open-near-click-clipboard": {
-          "description": "Positioniere das Zwischenablage-Panel nahe dem Klick auf die Leiste, statt es entlang der Leiste zu zentrieren",
-          "label": "Neben dem Klick öffnen"
+          "description": "Platziere das Zwischenablage-Panel in der Nähe des Leisten-Widgets, das es geöffnet hat; andernfalls wird es zentriert",
+          "label": "An der Leiste"
         },
         "open-near-click-control-center": {
-          "description": "Positioniere das Kontrollzentrum-Panel nahe dem Klick auf die Leiste, statt es entlang der Leiste zu zentrieren",
-          "label": "Neben dem Klick öffnen"
+          "description": "Platziere das Kontrollzentrum in der Nähe des Leisten-Widgets, das es geöffnet hat; ohne Trigger wird es zentriert",
+          "label": "An der Leiste"
         },
         "open-near-click-launcher": {
-          "description": "Positioniere das Launcher-Panel nahe dem Klick auf die Leiste, statt es entlang der Leiste zu zentrieren",
-          "label": "Neben dem Klick öffnen"
+          "description": "Platziere den Launcher in der Nähe des Leisten-Widgets, das es geöffnet hat; ohne Trigger wird er zentriert",
+          "label": "An der Leiste"
         },
         "open-near-click-session": {
-          "description": "Positioniere das Sitzungsmenü-Panel nahe dem Klick auf die Leiste, statt es entlang der Leiste zu zentrieren",
-          "label": "Neben dem Klick öffnen"
+          "description": "Platziere das Sitzungsmenü-Panel in der Nähe des Leisten-Widgets, das es geöffnet hat; ohne Trigger wird es zentriert",
+          "label": "An der Leiste"
         },
         "open-near-click-wallpaper": {
-          "description": "Positioniere das Hintergrundbild-Auswahl-Panel nahe dem Klick auf die Leiste, statt es entlang der Leiste zu zentrieren",
-          "label": "Neben dem Klick öffnen"
+          "description": "Platziere die Hintergrundbild-Auswahl in der Nähe des Leisten-Widgets, das es geöffnet hat; ohne Trigger wird sie zentriert",
+          "label": "An der Leiste"
         },
         "placement-clipboard": {
           "description": "Wähle, ob die Zwischenablage an der Leiste angedockt wird oder an einer gewählten Bildschirmposition schwebt",
@@ -3166,6 +3200,7 @@
         "minimal": {
           "description": "Zeige nur Beschriftungen mit Arbeitsbereichs-ID oder -Namen, ohne animierte Pills",
           "label": "Minimaler Stil",
+          "taskbar-description": "Nur-Text-Arbeitsbereichsbeschriftungen ohne farbige Disc-Hintergründe",
           "workspaces-description": "Nur-Text-Arbeitsbereichsbeschriftungen ohne Pill-Hintergründe oder Gleitanimation"
         },
         "mirrored": {

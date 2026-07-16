@@ -372,6 +372,8 @@
       "daily": {
         "tooltip": {
           "condition": "Condition",
+          "high": "Haute",
+          "low": "Basse",
           "sunrise": "Lever du Soleil",
           "sunset": "Coucher du Soleil"
         }
@@ -759,6 +761,12 @@
       "body-errors": "{plugin} a rencontré trop d'erreurs et a été désactivé. Veuillez le recharger une fois le problème résolu.",
       "body-timeouts": "{plugin} a cessé de répondre et a été désactivé. Veuillez le recharger une fois le problème résolu.",
       "title": "Plugin désactivé"
+    },
+    "enable-failed": {
+      "body-error": "{plugin}: {error}",
+      "body-incompatible": "{plugin} nécessite Noctalia {version} ou une version plus récente.",
+      "body-timeout": "L'installation de {plugin} a pris trop de temps.",
+      "title": "Plugin désactivé"
     }
   },
   "power": {
@@ -810,6 +818,7 @@
     "badges": {
       "advanced": "Avancé",
       "community": "Communauté",
+      "deprecated": "Obsolète",
       "inherited": "Hérité",
       "monitor": "Écran",
       "official": "Officiel",
@@ -901,14 +910,17 @@
         },
         "group": {
           "action": "Groupe",
-          "border": "Bordures",
+          "border": "Contour",
           "border-description": "Rôle de couleur du contour de capsule ; laissez sur Défaut pour aucun contour",
           "clear": "Effacer",
+          "drawer-glyph-closed": "Icon fermé",
+          "drawer-glyph-opened": "Icon ouvert",
           "edit": "Modifier le style",
           "fill": "Arrière-plan",
           "fill-description": "Rôle de couleur d’arrière-plan de capsule ; les couleurs hex fixes sont également prises en charge",
           "foreground": "Premier plan",
           "foreground-description": "Rôle de couleur des icônes et des libellés pour les widgets de ce groupe",
+          "hide-widget": "Cacher ce widget",
           "hint": "Fait partie d’un groupe de capsules",
           "members": "{count} widgets",
           "opacity": "Opacité",
@@ -963,7 +975,14 @@
             "grouping": "Regrouper",
             "presentation": "Présentation",
             "runtime": "Exécution",
-            "widget": "Widget"
+            "taskbar": {
+              "windows": "Fenêtres"
+            },
+            "widget": "Widget",
+            "workspaces": {
+              "colors": "Cloueurs ",
+              "list": "Workspaces"
+            }
           }
         }
       }
@@ -1037,7 +1056,9 @@
     },
     "navigation": {
       "groups": {
+        "accessibility": "Accessibilité",
         "audio": "Audio",
+        "authentication": "Authentification",
         "automation": "Automatisation",
         "backdrop": "Arrière-plan",
         "background": "Arrière-plan",
@@ -1057,8 +1078,10 @@
         "focus-styling": "Style du focus",
         "formats": "Formats",
         "general": "Général",
+        "greeter": "Greeter",
         "grouping": "Regroupement",
         "home": "Accueil",
+        "hot-corners": "Hot Corners",
         "idle": "Inactivité",
         "interface": "Interface",
         "keybinds": "Raccourcis",
@@ -1082,6 +1105,7 @@
         "pinned-apps": "Applications épinglées",
         "polkit": "Pokit",
         "power": "Alimentation",
+        "privacy": "Confidentialité",
         "profile": "Profil",
         "screen-corners": "Coins d’écran",
         "screen-time": "Temps d’écran",
@@ -1100,6 +1124,7 @@
         "widgets": "Widgets"
       },
       "sections": {
+        "accessibility": "Accessibilité",
         "appearance": "Apparence",
         "backdrop": "Fond d'écran",
         "bar": "Barre",
@@ -1207,6 +1232,9 @@
         "horizontal": "Horizontal",
         "vertical": "Vertical"
       },
+      "panel-bar-alignment": {
+        "centered": "Centré"
+      },
       "panel-position": {
         "auto": "Suivre la Bar"
       },
@@ -1310,6 +1338,7 @@
       },
       "plugins": {
         "configure": "Configurer",
+        "delete-confirm-title": "Supprimer \"{name}\"?",
         "deprecated": "Déprécié",
         "empty": "Aucun plugin trouvé. Ajoutez une source ou vérifiez votre connexion.",
         "loading": "Chargement des plugins…",
@@ -1351,14 +1380,23 @@
       },
       "store": {
         "add": "Ajoute à Noctalia",
+        "categories": "Catégories",
         "category-all": "Tout",
         "empty": "Aucun plugin trouvé",
         "incompatible": "Incompatible",
+        "loading": "Chargement du catalogue...",
+        "no-readme": "Pas de description disponible...",
         "results-count": "{count} plugins",
+        "search-placeholder": "Recherche plugins...",
         "title": "Plugin Store"
       }
     },
     "schema": {
+      "accessibility": {
+        "high-contrast": {
+          "label": "Haut contraste"
+        }
+      },
       "appearance": {
         "animation-speed": {
           "description": "Multiplicateur de vitesse pour toutes les animations",
@@ -1379,6 +1417,10 @@
         "builtin-palette": {
           "description": "Choisir une palette dans la liste pré-intégré",
           "label": "Palette intégrée"
+        },
+        "button-borders": {
+          "description": "Dessinez des contours autour des boutons dans tout le shell",
+          "label": "Contour des boutons"
         },
         "community-palette": {
           "description": "Choisir une palette dans le catalogue communautaire",
@@ -1452,15 +1494,15 @@
         },
         "border": {
           "description": "Rôle de couleur pour le contour de la barre ; les couleurs hex fixes sont également prises en charge",
-          "label": "Bordure"
+          "label": "Contour"
         },
         "border-width": {
           "description": "Largeur du contour interne de la barre",
-          "label": "Largeur de la bordure"
+          "label": "Largeur du contour"
         },
         "capsule-border": {
           "description": "Rôle de couleur par défaut du contour de capsule ; les couleurs hex fixes sont également prises en charge",
-          "label": "Bordure de capsule"
+          "label": "Contour de capsule"
         },
         "capsule-fill": {
           "description": "Rôle de couleur par défaut de l’arrière-plan de capsule ; les couleurs hex fixes sont également prises en charge",
@@ -1607,20 +1649,37 @@
         }
       },
       "desktop": {
+        "hot-corners-bottom-left": {
+          "description": "Action lorsque le pointeur atteint le coin inférieur gauche",
+          "label": "Coin inférieur gauche"
+        },
         "hot-corners-bottom-left-command": {
           "description": "Commande Shell à exécuter en appuyant sur le coin inférieur gauche",
           "label": "Commande"
+        },
+        "hot-corners-bottom-right": {
+          "description": "Action lorsque le pointeur atteint le coin inférieur droit",
+          "label": "Coin inférieur droit"
         },
         "hot-corners-bottom-right-command": {
           "description": "Commande Shell à exécuter en appuyant sur le coin inférieur droit",
           "label": "Commande"
         },
         "hot-corners-enabled": {
-          "description": "Déclenche une action en placent le pointeur de la sourie dans les coins de l'écran "
+          "description": "Déclenche une action en placent le pointeur de la sourie dans les coins de l'écran ",
+          "label": "Hot Corners"
+        },
+        "hot-corners-top-left": {
+          "description": "Action lorsque le pointeur atteint le coin supérieur gauche",
+          "label": "Coin supérieur gauche"
         },
         "hot-corners-top-left-command": {
           "description": "Commande Shell à exécuter en appuyant sur le coin supérieur gauche",
           "label": "Commande"
+        },
+        "hot-corners-top-right": {
+          "description": "Action lorsque le pointeur atteint le coin supérieur droit",
+          "label": "Coin supérieure droit "
         },
         "hot-corners-top-right-command": {
           "description": "Commande Shell à exécuter en appuyant sur le coin supérieur droit",
@@ -1662,6 +1721,9 @@
         },
         "background-opacity": {
           "description": "Opacité de fond du dock"
+        },
+        "concave-edge-corners": {
+          "label": "Coins concaves"
         },
         "corner-bottom-left": {
           "description": "Rayon du coin inférieur gauche du dock"
@@ -1993,7 +2055,7 @@
       "panels": {
         "borders": {
           "description": "Affiche un contour sur les panneaux et les cartes de section",
-          "label": "Bordure"
+          "label": "Contours"
         },
         "control-center-sidebar": {
           "description": "Définit le mode d’affichage de la barre latérale",
@@ -2375,6 +2437,10 @@
         "date-format": {
           "description": "Format de date par défaut pour les éléments de l’interface qui ne disposent pas de leur propre réglage",
           "label": "Format de date"
+        },
+        "greeter-sync-auto": {
+          "description": "Synchronise automatiquement le greeter à chaque fois que le fond d'écran, les couleurs, ou le mode de theme changent",
+          "label": "Auto-Sync Greeter"
         },
         "greeter-sync-privilege-command": {
           "description": "Remplace pkexec/run0 pour « Synchroniser le greeter maintenant ». Le chemin du helper d'application et le dossier de staging sont ajoutés automatiquement. Exemple : ghostty -e pkexec",
@@ -2839,6 +2905,13 @@
         "cycle-command": {
           "label": "Cycle de commande"
         },
+        "display": {
+          "description": "Mode d'affichage pour ce widget",
+          "label": "Affichage"
+        },
+        "display-mode": {
+          "label": "Mode d'affichage"
+        },
         "drawer": {
           "description": "Afficher un bouton tray dans la bar d'état et ouvrir les élément dans un panneau"
         },
@@ -2853,6 +2926,9 @@
         "glyph": {
           "description": "Nom de l'icon glyph",
           "label": "Glyph"
+        },
+        "hide-when-empty": {
+          "label": "Masquer lorsque vide"
         },
         "hide-when-no-unread": {
           "description": "Masquer le widget de notifications lorsqu'il n'y a pas de notifications non lues"
@@ -2882,6 +2958,10 @@
           "description": "Espacement entre les icônes des indicateurs de confidentialité en pixels",
           "label": "Éspacement des icons"
         },
+        "interactive": {
+          "description": "Autoriser le survol du pointeur, les clics, les défilements et les info-bulles pour ce widget",
+          "label": "Interactif"
+        },
         "middle-command": {
           "label": "Commande clique du milieu"
         },
@@ -2890,6 +2970,10 @@
         },
         "right-command": {
           "label": "Commande du clique droit"
+        },
+        "scale": {
+          "description": "Met ce widget à l'échelle par rapport à l'échelle du contenu de la barre",
+          "label": "Échelle"
         },
         "scope": {
           "description": "Exécutez un script d'exécution par emplacement de widget actif, ou partagez un même script d'exécution entre les barres ayant le même identifiant de widget"

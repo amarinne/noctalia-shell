@@ -294,7 +294,7 @@
       "unknown-device": "未知设备"
     },
     "screen-time": {
-      "disabled": "屏幕使用时间追踪已关闭。在设置中启用以记录各应用的使用情况。",
+      "disabled": "屏幕时间追踪已关闭。在设置中启用以记录各应用的使用情况。",
       "empty": "暂无应用使用记录。聚焦窗口以开始追踪。",
       "hour-0": "12 AM",
       "hour-12": "12 PM",
@@ -329,7 +329,7 @@
       },
       "notification": "勿扰模式",
       "power-profile": "电源配置",
-      "screen-time": "屏幕使用时间",
+      "screen-time": "屏幕时间",
       "session": "会话",
       "system": "系统",
       "wallpaper": "壁纸",
@@ -366,7 +366,7 @@
       "network": "网络",
       "notifications": "通知",
       "power": "电源",
-      "screen-time": "屏幕使用时间",
+      "screen-time": "屏幕时间",
       "system": "系统",
       "weather": "天气"
     },
@@ -712,7 +712,7 @@
       "mpris-disabled": "MPRIS 已禁用",
       "polkit-agent": "Polkit 代理",
       "polkit-no-session": "Polkit 代理需要 logind、elogind 或 XDG_SESSION_ID。在仅使用 seatd 的环境中无法注册图形化认证提示。请使用终端 pkexec 完成 greeter 同步，或安装 elogind 以支持会话内身份验证。",
-      "screen-time-reset": "屏幕使用时间",
+      "screen-time-reset": "屏幕时间",
       "screen-time-reset-success": "使用记录已清除。",
       "session-bus-unavailable": "会话总线不可用",
       "wallpaper-palette-export": "自定义配色方案",
@@ -721,28 +721,28 @@
   },
   "osd": {
     "bluetooth": {
-      "off": "蓝牙关闭",
-      "on": "蓝牙开启"
+      "off": "蓝牙已关闭",
+      "on": "蓝牙已开启"
     },
     "caffeine": {
-      "off": "保持唤醒关闭",
-      "on": "保持唤醒开启"
+      "off": "保持唤醒已关闭",
+      "on": "保持唤醒已开启"
     },
     "dnd": {
-      "off": "勿扰模式关闭",
-      "on": "勿扰模式开启"
+      "off": "勿扰模式已关闭",
+      "on": "勿扰模式已开启"
     },
     "effects": {
       "input": "输入效果",
       "output": "输出效果"
     },
     "lock-keys": {
-      "caps-off": "大写锁定关闭",
-      "caps-on": "大写锁定开启",
-      "num-off": "数字锁定关闭",
-      "num-on": "数字锁定开启",
-      "scroll-off": "滚动锁定关闭",
-      "scroll-on": "滚动锁定开启"
+      "caps-off": "大写锁定已关闭",
+      "caps-on": "大写锁定已开启",
+      "num-off": "数字锁定已关闭",
+      "num-on": "数字锁定已开启",
+      "scroll-off": "滚动锁定已关闭",
+      "scroll-on": "滚动锁定已开启"
     },
     "nightlight": {
       "forced": "始终开启",
@@ -759,8 +759,8 @@
       "screen-on": "屏幕共享已开启"
     },
     "wifi": {
-      "off": "Wi-Fi 关闭",
-      "on": "Wi-Fi 开启"
+      "off": "Wi-Fi 已关闭",
+      "on": "Wi-Fi 已开启"
     }
   },
   "plugins": {
@@ -1020,6 +1020,7 @@
         "rename": "无法重命名状态栏。"
       },
       "batch-write": "部分设置无法保存。",
+      "custom-schedule-times": "自定义时间表必须同时设置日出和日落时间，且格式为 HH:MM。",
       "export-config": "配置导出保存失败。",
       "export-wallpaper-palette": "无法将壁纸配色方案保存为自定义配色方案。",
       "monitor-override": {
@@ -1063,7 +1064,7 @@
         "name-label": "名称",
         "name-placeholder": "idle-behavior",
         "resume-command-label": "恢复命令",
-        "resume-command-placeholder": "",
+        "resume-command-placeholder": "notify-send 'Back from idle'",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · 超时已禁用",
         "timeout-label": "超时秒数",
@@ -1130,7 +1131,7 @@
         "privacy": "隐私",
         "profile": "个人资料",
         "screen-corners": "屏幕圆角",
-        "screen-time": "屏幕使用时间",
+        "screen-time": "屏幕时间",
         "screenshot": "截图",
         "security": "安全",
         "session-panel": "会话面板",
@@ -1200,6 +1201,13 @@
       }
     },
     "options": {
+      "bar": {
+        "auto-hide": {
+          "off": "关闭",
+          "on": "开启",
+          "smart": "智能"
+        }
+      },
       "clipboard": {
         "auto-paste": {
           "ctrl-shift-v": "Ctrl+Shift+V",
@@ -1259,6 +1267,10 @@
       "orientation": {
         "horizontal": "水平",
         "vertical": "垂直"
+      },
+      "panel-bar-alignment": {
+        "centered": "居中",
+        "near-trigger": "靠近触发位置"
       },
       "panel-position": {
         "auto": "跟随状态栏"
@@ -1349,8 +1361,8 @@
       "browse-store": "浏览插件",
       "panels": {
         "open-near-click": {
-          "description": "在触发该面板的状态栏小组件附近打开",
-          "label": "在点击位置附近打开"
+          "description": "从状态栏打开面板时，将其显示在小组件附近；其他方式打开时居中显示",
+          "label": "沿状态栏打开"
         },
         "placement": {
           "description": "将面板附着于状态栏，或在状态栏边缘附近浮动",
@@ -1447,6 +1459,10 @@
           "description": "从内置目录中选择配色方案",
           "label": "内置配色方案"
         },
+        "button-borders": {
+          "description": "为 Shell 中的所有按钮绘制轮廓",
+          "label": "按钮边框"
+        },
         "community-palette": {
           "description": "从社区目录中选择配色方案",
           "label": "社区配色方案",
@@ -1516,7 +1532,7 @@
       },
       "bar": {
         "auto-hide": {
-          "description": "闲置时自动隐藏状态栏"
+          "description": "“关闭”时保持状态栏可见；“开启”时隐藏，直到将指针移至屏幕边缘。“智能”模式会在空工作区显示，并在有窗口时隐藏。"
         },
         "background-opacity": {
           "description": "状态栏的背景不透明度"
@@ -1754,7 +1770,7 @@
           "label": "仅当前屏幕应用"
         },
         "auto-hide": {
-          "description": "不使用时自动隐藏 Dock"
+          "description": "“关闭”时保持 Dock 可见；“开启”时隐藏，直到将指针移至屏幕边缘。“智能”模式会在空工作区显示，并在有窗口时隐藏。"
         },
         "background-opacity": {
           "description": "Dock 的背景不透明度"
@@ -2124,7 +2140,7 @@
           "label": "应用网格视图"
         },
         "launcher-categories": {
-          "description": "在启动器中显示类别筛选；按 F6 显示，之后用 F6 和 Shift+F6 切换",
+          "description": "在启动器中显示类别筛选；按 F6 显示和切换，Shift+F6 反向切换",
           "label": "显示类别"
         },
         "launcher-compact": {
@@ -2149,24 +2165,24 @@
           "label": "按使用情况排序"
         },
         "open-near-click-clipboard": {
-          "description": "在状态栏点击位置附近打开剪贴板面板，而非居中显示",
-          "label": "在点击位置附近打开"
+          "description": "从状态栏打开剪贴板面板时，将其显示在小组件附近；其他方式打开时居中显示",
+          "label": "沿状态栏打开"
         },
         "open-near-click-control-center": {
-          "description": "在状态栏点击位置附近打开控制中心面板，而非居中显示",
-          "label": "在点击位置附近打开"
+          "description": "从状态栏打开控制中心时，将其显示在小组件附近；其他方式打开时居中显示",
+          "label": "沿状态栏打开"
         },
         "open-near-click-launcher": {
-          "description": "在状态栏点击位置附近打开启动器面板，而非居中显示",
-          "label": "在点击位置附近打开"
+          "description": "从状态栏打开启动器时，将其显示在小组件附近；其他方式打开时居中显示",
+          "label": "沿状态栏打开"
         },
         "open-near-click-session": {
-          "description": "在状态栏点击位置附近打开会话面板，而非居中显示",
-          "label": "在点击位置附近打开"
+          "description": "从状态栏打开会话面板时，将其显示在小组件附近；其他方式打开时居中显示",
+          "label": "沿状态栏打开"
         },
         "open-near-click-wallpaper": {
-          "description": "在状态栏点击位置附近打开壁纸选择器面板，而非居中显示",
-          "label": "在点击位置附近打开"
+          "description": "从状态栏打开壁纸选择器时，将其显示在小组件附近；其他方式打开时居中显示",
+          "label": "沿状态栏打开"
         },
         "placement-clipboard": {
           "description": "选择剪贴板是附着于状态栏，还是在指定屏幕位置浮动",
@@ -2259,6 +2275,10 @@
         "calendar-refresh-interval": {
           "description": "同步日历事件的频率（分钟）",
           "label": "刷新间隔"
+        },
+        "custom-schedule": {
+          "description": "使用自定义的日出/日落时间，而不是根据位置坐标计算",
+          "label": "自定义时间表"
         },
         "day-temperature": {
           "description": "白天时段的色温（开尔文）",
@@ -2627,12 +2647,12 @@
         },
         "screen-time-enabled": {
           "description": "追踪记录每个应用的使用时长并显示在控制中心",
-          "label": "屏幕使用时间"
+          "label": "屏幕时间"
         },
         "screen-time-reset": {
           "button": "重置",
           "description": "清除已保存的应用前台使用记录",
-          "label": "重置屏幕使用时间数据"
+          "label": "重置屏幕时间数据"
         },
         "screenshot-confirm-region": {
           "description": "绘制区域后，保持 Overlay 开启，直到按下 Enter 或 Space 键确认",

@@ -1571,9 +1571,20 @@ void PanelManager::endAttachedPopup(wl_surface* surface) {
   if (m_attachedPopupCount > 0) {
     --m_attachedPopupCount;
   }
-  if (m_platform != nullptr) {
-    m_pointerInside = (m_platform->lastPointerSurface() == m_wlSurface);
+  if (m_attachedPopupCount > 0) {
+    return;
   }
+  m_pointerInside =
+      m_platform != nullptr && m_platform->hasPointerPosition() && m_platform->lastPointerSurface() == m_wlSurface;
+  if (m_pointerInside) {
+    m_inputDispatcher.pointerEnter(
+        static_cast<float>(m_platform->lastPointerX()), static_cast<float>(m_platform->lastPointerY()),
+        m_platform->lastInputSerial()
+    );
+  } else {
+    m_inputDispatcher.pointerLeave();
+  }
+  requestRedraw();
 }
 
 std::optional<LayerPopupParentContext> PanelManager::popupParentContextForSurface(wl_surface* surface) const noexcept {

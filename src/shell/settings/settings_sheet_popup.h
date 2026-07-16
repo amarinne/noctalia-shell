@@ -10,6 +10,7 @@
 
 class Flex;
 class Label;
+class Node;
 class RenderContext;
 class WaylandConnection;
 struct KeyboardEvent;
@@ -24,6 +25,7 @@ namespace settings {
     XdgPopupParent parent;
     std::string sheetTitle;
     std::function<void()> removeAction;
+    std::function<std::unique_ptr<Node>()> createHeaderAction;
     std::function<void(Flex& sheetBody)> populateSheetBody;
     float scale = 1.0f;
     float minWidth = 640.0f;
@@ -92,6 +94,7 @@ namespace settings {
     Flex* m_statusBanner = nullptr;
     Label* m_statusLabel = nullptr;
     std::function<void()> m_removeAction;
+    std::function<std::unique_ptr<Node>()> m_createHeaderAction;
     std::function<void(Flex&)> m_populateSheetBody;
 
     Flex* m_root = nullptr;

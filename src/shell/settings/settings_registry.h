@@ -81,6 +81,11 @@ namespace settings {
     bool segmented = false;                              // render as Segmented pill group instead of dropdown Select
     SelectValueType valueType = SelectValueType::String; // storage type for option values
     float preferredWidth = 0.0f;                         // 0 = default settings dropdown width
+    std::vector<std::string> linkedPath;                 // companion path for groupedCommit / override reset
+    std::function<std::vector<std::pair<std::vector<std::string>, ConfigOverrideValue>>(
+        std::string_view selectedValue, const std::vector<std::string>& primaryPath
+    )>
+        groupedCommit;
   };
 
   struct SearchPickerSetting {

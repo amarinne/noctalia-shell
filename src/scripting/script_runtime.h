@@ -36,10 +36,18 @@ namespace scripting {
     void unsubscribe(SubscriberId id);
     void stop();
 
+    // Records the process signal delivered during graceful shell shutdown so
+    // entry onExit callbacks can distinguish SIGINT/SIGTERM from ordinary teardown.
+    static void setShutdownSignal(int signal) noexcept;
+
     void start(std::string chunkName, std::string source, ScriptSnapshot snapshot);
     void reload(std::string chunkName, std::string source, ScriptSnapshot snapshot);
     [[nodiscard]] bool enqueueUpdate(ScriptSnapshot snapshot);
     [[nodiscard]] bool enqueueCall(std::string functionName, ScriptSnapshot snapshot);
+    // Calls a global with an arbitrary argument list. Each ScriptArg arrives in
+    // Luau as the value it holds (boolean, number, string), in order.
+    [[nodiscard]] bool
+    enqueueCallArgs(std::string functionName, ScriptArgs args, ScriptSnapshot snapshot, ScriptCallOptions options = {});
     [[nodiscard]] bool enqueueCallBool(std::string functionName, bool value, ScriptSnapshot snapshot);
     [[nodiscard]] bool enqueueCallStrings(
         std::string functionName, std::string first, std::string second, ScriptSnapshot snapshot, bool coalesce = false
@@ -55,6 +63,10 @@ namespace scripting {
     // launcher uses this to decide whether activating a result must wait for the
     // handler (which may rewrite the query) before closing the panel.
     [[nodiscard]] bool hasOnActivate() const;
+    // True once the script has loaded and defines a global onScroll handler. Bar
+    // widgets use this to leave scroll events unconsumed when the plugin has no
+    // handler, so they still reach the bar underneath.
+    [[nodiscard]] bool hasOnScroll() const;
     [[nodiscard]] bool unhealthy() const;
 
   private:

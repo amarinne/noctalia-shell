@@ -13,6 +13,12 @@
 
 namespace settings {
 
+  namespace {
+
+    constexpr float kSourceBadgeMaxWidth = 120.0F;
+
+  } // namespace
+
   PluginStoreTile::PluginStoreTile(float scale) : m_scale(scale) {
     setDirection(FlexDirection::Vertical);
     setAlign(FlexAlign::Stretch);
@@ -28,7 +34,7 @@ namespace settings {
             .fit = ImageFit::Cover,
             .radius = Style::scaledRadiusSm(scale),
             .width = -1.0f,
-            .height = 100.0f * scale,
+            .height = 80.0f * scale,
             .visible = false,
         })
     );
@@ -38,7 +44,7 @@ namespace settings {
             {.out = &m_iconContainer,
              .align = FlexAlign::Center,
              .justify = FlexJustify::Center,
-             .height = 100.0f * scale},
+             .height = 80.0f * scale},
             ui::glyph({
                 .out = &m_icon,
                 .glyph = "apps",
@@ -76,12 +82,16 @@ namespace settings {
              .paddingH = Style::spaceXs * scale,
              .fill = colorSpecFromRole(ColorRole::Primary, 0.15f),
              .radius = Style::scaledRadiusSm(scale),
+             .maxWidth = kSourceBadgeMaxWidth * scale,
              .visible = false},
             ui::label({
                 .out = &m_badgeLabel,
                 .fontSize = Style::fontSizeMini * scale,
                 .fontWeight = FontWeight::Bold,
                 .color = colorSpecFromRole(ColorRole::Primary),
+                .maxWidth = (kSourceBadgeMaxWidth - (Style::spaceXs * 2.0F)) * scale,
+                .maxLines = 1,
+                .ellipsize = TextEllipsize::End,
             })
         )
     );
@@ -153,14 +163,21 @@ namespace settings {
     if (source == "official") {
       m_badge->setVisible(true);
       m_badge->setParticipatesInLayout(true);
+      m_badge->setFill(colorSpecFromRole(ColorRole::Primary, 0.15f));
       m_badgeLabel->setText(i18n::tr("settings.badges.official"));
+      m_badgeLabel->setColor(colorSpecFromRole(ColorRole::Primary));
     } else if (source == "community") {
       m_badge->setVisible(true);
       m_badge->setParticipatesInLayout(true);
+      m_badge->setFill(colorSpecFromRole(ColorRole::Secondary, 0.15f));
       m_badgeLabel->setText(i18n::tr("settings.badges.community"));
+      m_badgeLabel->setColor(colorSpecFromRole(ColorRole::Secondary));
     } else {
-      m_badge->setVisible(false);
-      m_badge->setParticipatesInLayout(false);
+      m_badge->setVisible(true);
+      m_badge->setParticipatesInLayout(true);
+      m_badge->setFill(colorSpecFromRole(ColorRole::Tertiary, 0.15f));
+      m_badgeLabel->setText(source);
+      m_badgeLabel->setColor(colorSpecFromRole(ColorRole::Tertiary));
     }
 
     m_descLabel->setText(entry.description);

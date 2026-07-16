@@ -214,6 +214,7 @@ void MediaWidget::syncState(Renderer& renderer) {
   const auto active = m_mpris != nullptr ? m_mpris->activePlayer() : std::nullopt;
   syncWidgetVisibility(active.has_value());
   if (m_hideWhenNoMedia && !active.has_value()) {
+    applyTitleScrollMode(false);
     return;
   }
 

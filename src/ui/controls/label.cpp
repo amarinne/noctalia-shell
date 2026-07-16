@@ -220,7 +220,6 @@ void Label::setAutoScrollSpeed(float pixelsPerSecond) {
   stopScrollAnimations();
   m_scrollOffset = 0.0f;
   applyScrollPosition();
-  markPaintDirty();
   startMarqueeLoop();
 }
 
@@ -234,7 +233,47 @@ void Label::syncTextNodeConstraints() {
   }
 }
 
-void Label::applyScrollPosition() { m_textNode->setPosition(m_textBaseX - m_scrollOffset, m_baselineOffset); }
+void Label::applyScrollPosition() {
+  const float targetX = m_textBaseX - m_scrollOffset;
+  const float targetY = m_baselineOffset;
+
+  // Text is snapped in the renderer, so keep the raw fractional position but
+  // avoid invalidating the surface while its snapped buffer position is unchanged.
+  if (m_marqueeLoopPeriod > 0.0f) {
+    float originX = 0.0f;
+    float originY = 0.0f;
+    float xAxisX = 0.0f;
+    float xAxisY = 0.0f;
+    float yAxisX = 0.0f;
+    float yAxisY = 0.0f;
+    Node::mapToScene(this, 0.0f, 0.0f, originX, originY);
+    Node::mapToScene(this, 1.0f, 0.0f, xAxisX, xAxisY);
+    Node::mapToScene(this, 0.0f, 1.0f, yAxisX, yAxisY);
+
+    constexpr float kTransformEpsilon = 0.0001f;
+    const bool translationOnly = std::abs((xAxisX - originX) - 1.0f) <= kTransformEpsilon
+        && std::abs(xAxisY - originY) <= kTransformEpsilon
+        && std::abs(yAxisX - originX) <= kTransformEpsilon
+        && std::abs((yAxisY - originY) - 1.0f) <= kTransformEpsilon;
+    if (translationOnly) {
+      float currentSceneX = 0.0f;
+      float currentSceneY = 0.0f;
+      float targetSceneX = 0.0f;
+      float targetSceneY = 0.0f;
+      Node::absolutePosition(m_textNode, currentSceneX, currentSceneY);
+      Node::mapToScene(this, targetX, targetY, targetSceneX, targetSceneY);
+
+      const float scale = std::max(1.0f, m_marqueeRenderScale);
+      const bool sameBufferPosition = std::round(currentSceneX * scale) == std::round(targetSceneX * scale)
+          && std::round(currentSceneY * scale) == std::round(targetSceneY * scale);
+      if (sameBufferPosition) {
+        return;
+      }
+    }
+  }
+
+  m_textNode->setPosition(targetX, targetY);
+}
 
 void Label::stopMarqueeAnimation() {
   if (animationManager() != nullptr && m_marqueeAnimId != 0) {
@@ -260,13 +299,11 @@ void Label::startSnapToZero() {
   if (m_scrollOffset <= 0.5f) {
     m_scrollOffset = 0.0f;
     applyScrollPosition();
-    markPaintDirty();
     return;
   }
   if (animationManager() == nullptr) {
     m_scrollOffset = 0.0f;
     applyScrollPosition();
-    markPaintDirty();
     return;
   }
   if (m_snapAnimId != 0) {
@@ -281,16 +318,15 @@ void Label::startSnapToZero() {
       [this](float v) {
         m_scrollOffset = v;
         applyScrollPosition();
-        markPaintDirty();
       },
       [this]() {
         m_snapAnimId = 0;
         m_scrollOffset = 0.0f;
         applyScrollPosition();
-        markPaintDirty();
       },
       this
   );
+  markPaintDirty();
 }
 
 void Label::startMarqueeLoop() {
@@ -322,13 +358,11 @@ void Label::startMarqueeLoop() {
       [this](float v) {
         m_scrollOffset = v;
         applyScrollPosition();
-        markPaintDirty();
       },
       [this]() {
         m_marqueeAnimId = 0;
         m_scrollOffset = 0.0f;
         applyScrollPosition();
-        markPaintDirty();
         const std::weak_ptr<void> aliveGuard = m_aliveGuard;
         DeferredCall::callLater([this, aliveGuard]() {
           if (aliveGuard.expired()) {
@@ -339,6 +373,7 @@ void Label::startMarqueeLoop() {
       },
       this
   );
+  markPaintDirty();
 }
 
 void Label::restartScrollIfNeeded() {
@@ -382,7 +417,6 @@ void Label::restartScrollIfNeeded() {
     setClipChildren(false);
     m_textNode->setText(m_plainText);
     applyScrollPosition();
-    markPaintDirty();
     return;
   }
 
@@ -394,7 +428,6 @@ void Label::restartScrollIfNeeded() {
     } else {
       m_scrollOffset = 0.0f;
       applyScrollPosition();
-      markPaintDirty();
     }
     return;
   }
@@ -402,7 +435,6 @@ void Label::restartScrollIfNeeded() {
   stopSnapAnimation();
   m_scrollOffset = 0.0f;
   applyScrollPosition();
-  markPaintDirty();
   startMarqueeLoop();
 }
 
@@ -449,6 +481,7 @@ LayoutSize Label::measureWithConstraints(Renderer& renderer, const LayoutConstra
   const TextAlign align = m_textNode->textAlign();
   const FontWeight fontWeight = m_textNode->fontWeight();
   const float renderScale = renderer.renderScale();
+  m_marqueeRenderScale = renderScale;
   const std::uint64_t textMetricsGeneration = renderer.textMetricsGeneration();
   if (m_measureCached
       && m_cachedText == m_plainText

@@ -7,12 +7,14 @@
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <atomic>
 #include <cstring>
 #include <vector>
 
 namespace {
 
   constexpr Logger kLog("texture");
+  std::atomic<std::uint64_t> g_nextTextureGeneration{1};
 
 #ifndef GL_BGRA_EXT
   constexpr GLenum GL_BGRA_EXT = 0x80E1;
@@ -62,6 +64,8 @@ namespace {
   }
 
 } // namespace
+
+GlesTextureManager::GlesTextureManager() : m_generation(g_nextTextureGeneration.fetch_add(1)) {}
 
 TextureHandle GlesTextureManager::decodeEncodedRaster(
     const std::uint8_t* data, std::size_t size, const std::string* debugPath, bool mipmap
@@ -219,9 +223,12 @@ TextureHandle GlesTextureManager::loadFromRaw(
 
 void GlesTextureManager::unload(TextureHandle& handle) {
   if (handle.id != 0) {
-    GLuint texture = toGlesTexture(handle.id);
-    glDeleteTextures(1, &texture);
-    std::erase(m_textures, handle.id);
+    const auto it = std::ranges::find(m_textures, handle.id);
+    if (handle.generation == m_generation && it != m_textures.end()) {
+      GLuint texture = toGlesTexture(handle.id);
+      glDeleteTextures(1, &texture);
+      m_textures.erase(it);
+    }
     handle = {};
   }
 }
@@ -243,6 +250,7 @@ bool GlesTextureManager::updateSubImage(
     TextureHandle& handle, const std::uint8_t* data, int x, int y, int width, int height, TextureDataFormat format
 ) {
   if (handle.id == 0
+      || handle.generation != m_generation
       || data == nullptr
       || x < 0
       || y < 0
@@ -270,6 +278,11 @@ void GlesTextureManager::cleanup() {
     glDeleteTextures(static_cast<GLsizei>(textures.size()), textures.data());
     m_textures.clear();
   }
+}
+
+void GlesTextureManager::abandonGpuResources() noexcept {
+  m_textures.clear();
+  m_generation = g_nextTextureGeneration.fetch_add(1);
 }
 
 void GlesTextureManager::probeExtensions() {
@@ -304,7 +317,7 @@ TextureHandle GlesTextureManager::uploadBgra(const std::uint8_t* data, int width
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   m_textures.emplace_back(tex);
-  return TextureHandle{.id = TextureId{tex}, .width = width, .height = height};
+  return TextureHandle{.id = TextureId{tex}, .width = width, .height = height, .generation = m_generation};
 }
 
 TextureHandle GlesTextureManager::uploadRgba(const std::uint8_t* data, int width, int height, bool mipmap) {
@@ -340,5 +353,5 @@ TextureHandle GlesTextureManager::uploadPixels(
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, toGlesFilter(filter));
 
   m_textures.emplace_back(tex);
-  return TextureHandle{.id = TextureId{tex}, .width = width, .height = height};
+  return TextureHandle{.id = TextureId{tex}, .width = width, .height = height, .generation = m_generation};
 }

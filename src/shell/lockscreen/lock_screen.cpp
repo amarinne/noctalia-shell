@@ -244,6 +244,14 @@ void LockScreen::onGpuResourcesInvalidated() {
   }
 }
 
+void LockScreen::prepareForGraphicsReset() noexcept {
+  for (auto& instance : m_instances) {
+    if (instance.surface != nullptr) {
+      instance.surface->prepareForGraphicsReset();
+    }
+  }
+}
+
 void LockScreen::onConfigChanged() {
   if (m_configService == nullptr) {
     return;

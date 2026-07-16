@@ -59,6 +59,7 @@ struct BarMonitorOverride {
   std::optional<std::string> position;
   std::optional<bool> enabled;
   std::optional<bool> autoHide;
+  std::optional<bool> smartAutoHide;
   std::optional<bool> showOnWorkspaceSwitch;
   std::optional<bool> reserveSpace;
   std::optional<std::string> layer; // top | overlay
@@ -118,6 +119,7 @@ struct BarConfig {
   std::string position = "top";
   bool enabled = true;
   bool autoHide = false;             // slide out when the pointer leaves; reveal on edge approach
+  bool smartAutoHide = false;        // hide while the active workspace has windows; show when it is empty
   bool showOnWorkspaceSwitch = true; // with auto_hide: briefly reveal when the active workspace changes
   bool reserveSpace = true;          // reserve compositor exclusive zone; applies with or without auto_hide
   std::string layer = "top";         // top | overlay — attached panels use the same layer
@@ -560,7 +562,8 @@ struct DockConfig {
   std::int32_t marginEdge = 0;         // distance from the nearest screen edge (floats the dock when > 0)
   bool shadow = true;                  // use the global shell shadow
   bool showRunning = true;             // also show running apps not in pinned list
-  bool autoHide = false;               // fade out when not hovered (overlay mode)
+  bool autoHide = false;               // slide out when not hovered (overlay mode)
+  bool smartAutoHide = false;          // hide while the active workspace has windows; show when it is empty
   bool reserveSpace = true;            // reserve compositor exclusive zone; applies with or without auto_hide
   float activeScale = 1.0f;            // focused app icon scale
   float inactiveScale = 0.85f;         // non-focused app icon scale
@@ -831,7 +834,8 @@ struct DmenuEntryConfig {
   // When set, the activated line is substituted into {selection} and run detached.
   // When unset, the selection is copied to the clipboard.
   std::optional<std::string> exec;
-  // Launcher prefix routing (e.g. "/ssh"). Empty leaves the entry reachable only via
+  // Launcher trigger word (e.g. "ssh"), combined with shell.launcher.provider_prefix like
+  // the built-in providers (-> "/ssh"). Empty leaves the entry reachable only via
   // global = true, otherwise it is unreachable (surfaced as a config warning).
   std::optional<std::string> prefix;
   std::optional<std::string> label; // Provider overview title; defaults to the id.
@@ -840,6 +844,14 @@ struct DmenuEntryConfig {
   bool freeform = false;            // Let typed query text become an activatable result.
 
   bool operator==(const DmenuEntryConfig&) const = default;
+};
+
+struct LauncherProviderConfig {
+  std::string name;
+  std::string prefix;
+  std::optional<bool> global;
+
+  bool operator==(const LauncherProviderConfig&) const = default;
 };
 
 struct ShellConfig {
@@ -893,14 +905,16 @@ struct ShellConfig {
     bool showIcons = true;
     bool compact = false;
     bool appGrid = false;
-    bool sessionSearch = false;
     bool sortByUsage = true;
+    std::string providerPrefix = "/";
 
     struct DmenuConfig {
       std::vector<DmenuEntryConfig> entries;
 
       bool operator==(const DmenuConfig&) const = default;
     } dmenu;
+
+    std::vector<LauncherProviderConfig> providers;
 
     bool operator==(const LauncherConfig&) const = default;
   };
@@ -1105,6 +1119,7 @@ constexpr EnumOption<BrightnessBackendPreference> kBrightnessBackendPreferences[
 struct BrightnessMonitorOverride {
   std::string match;
   std::optional<BrightnessBackendPreference> backend;
+  std::optional<std::string> backlightDevice; // sysfs device name or path, e.g. "intel_backlight"
 
   bool operator==(const BrightnessMonitorOverride&) const = default;
 };
@@ -1286,6 +1301,8 @@ struct ThemeConfig {
   struct TemplateColorConfig {
     std::string name;
     std::string color;
+    std::string color_dark = "";
+    std::string color_light = "";
     bool blend = true;
 
     bool operator==(const TemplateColorConfig&) const = default;

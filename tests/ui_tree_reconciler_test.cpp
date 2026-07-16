@@ -1,6 +1,7 @@
 #include "render/backend/render_backend.h"
 #include "render/core/renderer.h"
 #include "render/core/texture_manager.h"
+#include "render/scene/input_area.h"
 #include "render/scene/rect_node.h"
 #include "ui/controls/box.h"
 #include "ui/controls/button.h"
@@ -452,6 +453,138 @@ int main() {
       ok = expect(sv->content()->children().size() == 2, "scroll children land in content flex") && ok;
       auto* label = dynamic_cast<Label*>(sv->content()->children()[0].get());
       ok = expect(label != nullptr && label->text() == "one", "scroll child label applied") && ok;
+    }
+  }
+
+  // A button tooltip reaches the InputArea, and dropping the prop clears it on
+  // the retained control.
+  {
+    ui::UiTreeReconciler reconciler;
+    Flex host;
+
+    ui::UiTreeNode tree = makeNode("column");
+    ui::UiTreeNode button = makeNode("button");
+    button.props.emplace("text", std::string("Go"));
+    button.props.emplace("tooltip", std::string("Run the thing"));
+    tree.children.push_back(button);
+    (void)reconciler.reconcile(host, tree, renderer);
+
+    auto* column = dynamic_cast<Flex*>(host.children().front().get());
+    auto* control = column != nullptr ? dynamic_cast<Button*>(column->children()[0].get()) : nullptr;
+    ok = expect(control != nullptr && control->inputArea() != nullptr, "tooltip button built") && ok;
+    if (control != nullptr && control->inputArea() != nullptr) {
+      ok = expect(control->inputArea()->hasTooltip(), "button tooltip applied") && ok;
+
+      tree.children[0].props.erase("tooltip");
+      (void)reconciler.reconcile(host, tree, renderer);
+      ok = expect(!control->inputArea()->hasTooltip(), "dropped tooltip prop clears the tooltip") && ok;
+    }
+  }
+
+  // The `size` tier pins the control height, scaled by the content scale.
+  {
+    ui::UiTreeReconciler reconciler;
+    reconciler.setScale(2.0f);
+    Flex host;
+
+    ui::UiTreeNode tree = makeNode("column");
+    ui::UiTreeNode button = makeNode("button");
+    button.props.emplace("text", std::string("Go"));
+    button.props.emplace("controlSize", std::string("sm"));
+    tree.children.push_back(button);
+    (void)reconciler.reconcile(host, tree, renderer);
+
+    auto* column = dynamic_cast<Flex*>(host.children().front().get());
+    auto* control = column != nullptr ? dynamic_cast<Button*>(column->children()[0].get()) : nullptr;
+    const float expected = Style::controlHeightSm * 2.0f;
+    ok = expect(
+             control != nullptr && control->minHeight() == expected && control->maxHeight() == expected,
+             "button controlSize 'sm' pins the scaled small control height"
+         )
+         && ok;
+  }
+
+  // The controlSize tier drives input, select and slider through setControlHeight().
+  {
+    ui::UiTreeReconciler reconciler;
+    Flex host;
+
+    ui::UiTreeNode tree = makeNode("column");
+    for (const char* type : {"input", "select", "slider"}) {
+      ui::UiTreeNode control = makeNode(type);
+      control.props.emplace("controlSize", std::string("sm"));
+      tree.children.push_back(control);
+    }
+    (void)reconciler.reconcile(host, tree, renderer);
+
+    auto* column = dynamic_cast<Flex*>(host.children().front().get());
+    ok = expect(column != nullptr && column->children().size() == 3, "sized controls built") && ok;
+    if (column != nullptr && column->children().size() == 3) {
+      for (const auto& child : column->children()) {
+        const LayoutSize size = child->measure(renderer, LayoutConstraints::unconstrained());
+        ok = expect(size.height == Style::controlHeightSm, "controlSize 'sm' measures at the small control height") && ok;
+      }
+    }
+  }
+
+  // An explicit numeric height wins over the controlSize tier; an unknown tier is a
+  // warn-and-ignore that leaves the default height.
+  {
+    ui::UiTreeReconciler reconciler;
+    Flex host;
+
+    ui::UiTreeNode tree = makeNode("column");
+    ui::UiTreeNode pinned = makeNode("button");
+    pinned.key = "pinned";
+    pinned.props.emplace("text", std::string("Go"));
+    pinned.props.emplace("controlSize", std::string("sm"));
+    pinned.props.emplace("height", 50.0);
+    tree.children.push_back(pinned);
+
+    ui::UiTreeNode bogus = makeNode("button");
+    bogus.key = "bogus";
+    bogus.props.emplace("text", std::string("Go"));
+    bogus.props.emplace("controlSize", std::string("tiny"));
+    tree.children.push_back(bogus);
+
+    // A numeric controlSize is a warn-and-ignore, not a silent no-op: the tier
+    // is a string, and `height` is the prop for exact pixels.
+    ui::UiTreeNode numeric = makeNode("button");
+    numeric.key = "numeric";
+    numeric.props.emplace("text", std::string("Go"));
+    numeric.props.emplace("controlSize", 32.0);
+    tree.children.push_back(numeric);
+
+    ui::UiTreeNode plain = makeNode("button");
+    plain.key = "plain";
+    plain.props.emplace("text", std::string("Go"));
+    tree.children.push_back(plain);
+    (void)reconciler.reconcile(host, tree, renderer);
+
+    auto* column = dynamic_cast<Flex*>(host.children().front().get());
+    ok = expect(column != nullptr && column->children().size() == 4, "height-vs-controlSize buttons built") && ok;
+    if (column != nullptr && column->children().size() == 4) {
+      auto* pinnedButton = dynamic_cast<Button*>(column->children()[0].get());
+      auto* bogusButton = dynamic_cast<Button*>(column->children()[1].get());
+      auto* numericButton = dynamic_cast<Button*>(column->children()[2].get());
+      auto* plainButton = dynamic_cast<Button*>(column->children()[3].get());
+      ok = expect(
+               pinnedButton != nullptr && pinnedButton->minHeight() == 50.0f && pinnedButton->maxHeight() == 50.0f,
+               "explicit height wins over the controlSize tier"
+           )
+           && ok;
+      ok = expect(
+               bogusButton != nullptr && plainButton != nullptr
+                   && bogusButton->minHeight() == plainButton->minHeight(),
+               "unknown controlSize tier leaves the default height"
+           )
+           && ok;
+      ok = expect(
+               numericButton != nullptr && plainButton != nullptr
+                   && numericButton->minHeight() == plainButton->minHeight(),
+               "numeric controlSize is ignored, leaving the default height"
+           )
+           && ok;
     }
   }
 

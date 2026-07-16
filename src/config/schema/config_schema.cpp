@@ -390,6 +390,7 @@ namespace noctalia::config::schema {
         field(&DockConfig::shadow, "shadow"),
         field(&DockConfig::showRunning, "show_running"),
         field(&DockConfig::autoHide, "auto_hide"),
+        field(&DockConfig::smartAutoHide, "smart_auto_hide"),
         field(&DockConfig::reserveSpace, "reserve_space"),
         field(&DockConfig::activeScale, "active_scale", kDockActiveScaleRange),
         field(&DockConfig::inactiveScale, "inactive_scale", kDockInactiveScaleRange),
@@ -458,6 +459,19 @@ namespace noctalia::config::schema {
       static const Schema<BrightnessMonitorOverride> s = {
           field(&BrightnessMonitorOverride::match, "match"),
           optionalEnumField(&BrightnessMonitorOverride::backend, "backend", kBrightnessBackendPreferences),
+          custom<BrightnessMonitorOverride>(
+              "backlight_device",
+              [](const toml::table& tbl, BrightnessMonitorOverride& out, std::string_view, Diagnostics&) {
+                if (auto v = tbl["backlight_device"].value<std::string>()) {
+                  out.backlightDevice = *v;
+                }
+              },
+              [](toml::table& tbl, const BrightnessMonitorOverride& in) {
+                if (in.backlightDevice.has_value()) {
+                  tbl.insert_or_assign("backlight_device", *in.backlightDevice);
+                }
+              }
+          ),
       };
       return s;
     }
@@ -922,8 +936,39 @@ namespace noctalia::config::schema {
     using CompareColor = ThemeConfig::TemplateCompareColorConfig;
 
     // [theme.templates.custom_colors]: a name-keyed map whose value is either a
-    // bare color string or a { color, blend } table. Kept only when name+color
-    // are non-empty; emitted only when the list is non-empty.
+    // bare color string or a { color, color_dark, color_light, blend } table.
+    // Kept only when name+color are non-empty (color falls back to color_dark then
+    // color_light when not provided); emitted only when the list is non-empty.
+    void parseCustomColorsMapImpl(const toml::table& map, std::vector<TemplateColor>& out) {
+      for (const auto& [name, value] : map) {
+        TemplateColor color;
+        color.name = std::string(name.str());
+        if (const auto* str = value.as_string()) {
+          color.color = str->get();
+        } else if (const auto* t = value.as_table()) {
+          if (auto c = t->get_as<std::string>("color_dark")) {
+            color.color_dark = c->get();
+          }
+          if (auto c = t->get_as<std::string>("color_light")) {
+            color.color_light = c->get();
+          }
+          if (auto c = t->get_as<std::string>("color")) {
+            color.color = c->get();
+          } else if (!color.color_dark.empty()) {
+            color.color = color.color_dark;
+          } else {
+            color.color = color.color_light;
+          }
+          if (auto b = t->get_as<bool>("blend")) {
+            color.blend = b->get();
+          }
+        }
+        if (!StringUtils::trim(color.name).empty() && !StringUtils::trim(color.color).empty()) {
+          out.push_back(std::move(color));
+        }
+      }
+    }
+
     Field<ThemeConfig::TemplatesConfig> customColorsField() {
       return custom<ThemeConfig::TemplatesConfig>(
           "custom_colors",
@@ -933,23 +978,7 @@ namespace noctalia::config::schema {
               return;
             }
             out.customColors.clear();
-            for (const auto& [name, value] : *map) {
-              TemplateColor color;
-              color.name = std::string(name.str());
-              if (const auto* str = value.as_string()) {
-                color.color = str->get();
-              } else if (const auto* t = value.as_table()) {
-                if (auto c = t->get_as<std::string>("color")) {
-                  color.color = c->get();
-                }
-                if (auto b = t->get_as<bool>("blend")) {
-                  color.blend = b->get();
-                }
-              }
-              if (!StringUtils::trim(color.name).empty() && !StringUtils::trim(color.color).empty()) {
-                out.customColors.push_back(std::move(color));
-              }
-            }
+            parseCustomColorsMapImpl(*map, out.customColors);
           },
           [](toml::table& tbl, const ThemeConfig::TemplatesConfig& in) {
             if (in.customColors.empty()) {
@@ -960,6 +989,12 @@ namespace noctalia::config::schema {
               toml::table colorTable;
               colorTable.insert_or_assign("color", color.color);
               colorTable.insert_or_assign("blend", color.blend);
+              if (!color.color_dark.empty()) {
+                colorTable.insert_or_assign("color_dark", color.color_dark);
+              }
+              if (!color.color_light.empty()) {
+                colorTable.insert_or_assign("color_light", color.color_light);
+              }
               map.insert_or_assign(color.name, std::move(colorTable));
             }
             tbl.insert_or_assign("custom_colors", std::move(map));
@@ -1082,6 +1117,21 @@ namespace noctalia::config::schema {
     }
   } // namespace
 
+  void parseCustomColorsMap(const toml::table& map, std::vector<ThemeConfig::TemplateColorConfig>& out) {
+    parseCustomColorsMapImpl(map, out);
+  }
+
+  void appendUniqueCustomColors(
+      std::vector<ThemeConfig::TemplateColorConfig>& into, std::vector<ThemeConfig::TemplateColorConfig> additional
+  ) {
+    for (auto& color : additional) {
+      const bool exists = std::ranges::any_of(into, [&](const auto& existing) { return existing.name == color.name; });
+      if (!exists) {
+        into.push_back(std::move(color));
+      }
+    }
+  }
+
   const Schema<ThemeConfig>& themeSchema() {
     static const Schema<ThemeConfig> s = {
         enumField(&ThemeConfig::source, "source", kPaletteSources),
@@ -1198,15 +1248,30 @@ namespace noctalia::config::schema {
       return s;
     }
 
+    const Schema<LauncherProviderConfig>& launcherProviderSchema() {
+      static const Schema<LauncherProviderConfig> s = {
+          field(&LauncherProviderConfig::prefix, "prefix"),
+          optionalBoolField(&LauncherProviderConfig::global, "global"),
+      };
+      return s;
+    }
+
     const Schema<ShellConfig::LauncherConfig>& shellLauncherSchema() {
       static const Schema<ShellConfig::LauncherConfig> s = {
           field(&ShellConfig::LauncherConfig::categories, "categories"),
           field(&ShellConfig::LauncherConfig::showIcons, "show_icons"),
           field(&ShellConfig::LauncherConfig::compact, "compact"),
           field(&ShellConfig::LauncherConfig::appGrid, "app_grid"),
-          field(&ShellConfig::LauncherConfig::sessionSearch, "session_search"),
           field(&ShellConfig::LauncherConfig::sortByUsage, "sort_by_usage"),
+          field(&ShellConfig::LauncherConfig::providerPrefix, "provider_prefix"),
           subTable(&ShellConfig::LauncherConfig::dmenu, "dmenu", shellLauncherDmenuSchema()),
+          namedMap<ShellConfig::LauncherConfig, LauncherProviderConfig>(
+              &ShellConfig::LauncherConfig::providers, "providers", launcherProviderSchema(),
+              [](LauncherProviderConfig& elem, std::string_view name) {
+                elem.name = StringUtils::toLower(std::string(name));
+              },
+              [](const LauncherProviderConfig& elem) { return elem.name; }
+          ),
       };
       return s;
     }
@@ -1915,6 +1980,7 @@ namespace noctalia::config::schema {
     static const Schema<BarConfig> s = {
         field(&BarConfig::enabled, "enabled"),
         field(&BarConfig::autoHide, "auto_hide"),
+        field(&BarConfig::smartAutoHide, "smart_auto_hide"),
         field(&BarConfig::showOnWorkspaceSwitch, "show_on_workspace_switch"),
         field(&BarConfig::reserveSpace, "reserve_space"),
         barLayerField(),
@@ -1968,6 +2034,7 @@ namespace noctalia::config::schema {
         optionalStringField(&BarMonitorOverride::position, "position"),
         optionalBoolField(&BarMonitorOverride::enabled, "enabled"),
         optionalBoolField(&BarMonitorOverride::autoHide, "auto_hide"),
+        optionalBoolField(&BarMonitorOverride::smartAutoHide, "smart_auto_hide"),
         optionalBoolField(&BarMonitorOverride::showOnWorkspaceSwitch, "show_on_workspace_switch"),
         optionalBoolField(&BarMonitorOverride::reserveSpace, "reserve_space"),
         // layer accepts top|overlay; anything else warns and leaves it unset.

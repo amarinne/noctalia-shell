@@ -2,6 +2,7 @@
 
 #include "i18n/i18n.h"
 #include "scripting/plugin_file_cache.h"
+#include "scripting/plugin_id.h"
 #include "shell/settings/plugin_store_tile.h"
 #include "ui/builders.h"
 #include "ui/controls/button.h"
@@ -29,6 +30,9 @@
 namespace settings {
 
   namespace {
+
+    constexpr float kSourceBadgeMaxWidth = 120.0F;
+    constexpr float kTagBadgeMaxWidth = 120.0F;
 
     bool containsIgnoreCase(std::string_view haystack, std::string_view needle) {
       if (needle.empty()) {
@@ -108,6 +112,36 @@ namespace settings {
   void PluginStoreContent::setOnRebuildNeeded(std::function<void()> cb) { m_onRebuildNeeded = std::move(cb); }
 
   bool PluginStoreContent::isDetailView() const noexcept { return m_detailIndex.has_value(); }
+
+  std::optional<std::string> PluginStoreContent::detailPageUrl() const {
+    if (!m_detailIndex.has_value() || *m_detailIndex >= m_filteredIndices.size()) {
+      return std::nullopt;
+    }
+    const auto& storeEntry = m_catalog[m_filteredIndices[*m_detailIndex]];
+    if (storeEntry.source != "official" && storeEntry.source != "community") {
+      return std::nullopt;
+    }
+    return "https://noctalia.dev/plugins/"
+        + storeEntry.source
+        + "/"
+        + scripting::pluginSubdirFromId(storeEntry.entry.id).value();
+  }
+
+  std::optional<std::string> PluginStoreContent::detailSourceUrl() const {
+    if (!m_detailIndex.has_value() || *m_detailIndex >= m_filteredIndices.size()) {
+      return std::nullopt;
+    }
+    const auto& storeEntry = m_catalog[m_filteredIndices[*m_detailIndex]];
+    if (storeEntry.sourceConfig.kind != PluginSourceKind::Git) {
+      return std::nullopt;
+    }
+    if (storeEntry.source == "official" || storeEntry.source == "community") {
+      return storeEntry.sourceConfig.location
+          + "/tree/main/"
+          + scripting::pluginSubdirFromId(storeEntry.entry.id).value();
+    }
+    return storeEntry.sourceConfig.location;
+  }
 
   void PluginStoreContent::collectTags() {
     std::set<std::string> tagSet;
@@ -272,7 +306,7 @@ namespace settings {
 
     auto grid = std::make_unique<VirtualGridView>();
     grid->setMinCellWidth(200.0f * scale);
-    grid->setCellHeight(260.0f * scale);
+    grid->setCellHeight(215.0f * scale);
     grid->setSquareCells(false);
     grid->setColumnGap(Style::spaceSm * scale);
     grid->setRowGap(Style::spaceSm * scale);
@@ -325,19 +359,28 @@ namespace settings {
 
     auto header = ui::row({.align = FlexAlign::Stretch, .gap = Style::spaceMd * scale, .fillWidth = true});
 
-    auto pill = [&](const std::string& text, ColorRole fg, ColorRole bg, float bgAlpha) {
-      return ui::row(
+    auto pill = [&](const std::string& text, ColorRole fg, ColorRole bg, float bgAlpha, float maxWidth = 0.0F) {
+      Label* label = nullptr;
+      auto badge = ui::row(
           {.align = FlexAlign::Center,
            .paddingH = Style::spaceXs * scale,
            .fill = colorSpecFromRole(bg, bgAlpha),
            .radius = Style::scaledRadiusSm(scale)},
           ui::label({
+              .out = &label,
               .text = text,
               .fontSize = Style::fontSizeMini * scale,
               .fontWeight = FontWeight::Bold,
               .color = colorSpecFromRole(fg),
           })
       );
+      if (maxWidth > 0.0F) {
+        badge->setMaxWidth(maxWidth * scale);
+        label->setMaxWidth((maxWidth - (Style::spaceXs * 2.0F)) * scale);
+        label->setMaxLines(1);
+        label->setEllipsize(TextEllipsize::End);
+      }
+      return badge;
     };
 
     // Left side: plugin thumbnail (Contain-fit so it shows uncropped), or glyph fallback.
@@ -368,54 +411,74 @@ namespace settings {
       );
     }
 
-    // Right side: plugin info (name, author, version/license/badges, description, tags, action),
+    // Right side: plugin info (name, author, tags, version/license/badges, description, action),
     // left-aligned and filling the space next to the thumbnail.
     auto info = ui::column(
         {.align = FlexAlign::Start, .gap = Style::spaceXs * scale, .paddingV = Style::spaceSm * scale, .flexGrow = 1.0f}
     );
-    info->addChild(
+    auto title = ui::row({.align = FlexAlign::Center, .wrap = true, .gap = Style::spaceXs * scale, .fillWidth = true});
+    title->addChild(
         ui::label({
             .text = entry.name,
             .fontSize = Style::fontSizeHeader * scale,
             .fontWeight = FontWeight::Bold,
             .color = colorSpecFromRole(ColorRole::OnSurface),
+            .maxLines = 1,
+            .ellipsize = TextEllipsize::End,
         })
     );
-    if (!entry.author.empty()) {
-      info->addChild(
-          ui::label({
-              .text = entry.author,
-              .fontSize = Style::fontSizeCaption * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
-          })
-      );
+    for (const auto& tag : entry.tags) {
+      title->addChild(pill(tag, ColorRole::OnSurfaceVariant, ColorRole::SurfaceVariant, 1.0F, kTagBadgeMaxWidth));
     }
-    auto meta = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
-    if (!entry.version.empty()) {
-      meta->addChild(
+    info->addChild(std::move(title));
+    auto meta = ui::row({.align = FlexAlign::Center, .wrap = true, .gap = Style::spaceXs * scale, .fillWidth = true});
+    bool hasMeta = false;
+    const auto addMetaItem = [&](std::unique_ptr<Node> item) {
+      auto group = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
+      if (hasMeta) {
+        group->addChild(
+            ui::label({
+                .text = "·",
+                .fontSize = Style::fontSizeMini * scale,
+                .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+            })
+        );
+      }
+      group->addChild(std::move(item));
+      meta->addChild(std::move(group));
+      hasMeta = true;
+    };
+    const auto addMetaText = [&](const std::string& text) {
+      addMetaItem(
           ui::label({
-              .text = "v" + entry.version,
+              .text = text,
               .fontSize = Style::fontSizeMini * scale,
               .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
           })
       );
+    };
+    if (!entry.author.empty()) {
+      addMetaText(entry.author);
+    }
+    if (!entry.version.empty()) {
+      addMetaText("v" + entry.version);
     }
     if (!entry.license.empty()) {
-      meta->addChild(
-          ui::label({
-              .text = entry.license,
-              .fontSize = Style::fontSizeMini * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
-          })
-      );
+      addMetaText(entry.license);
     }
     if (storeEntry.source == "official") {
-      meta->addChild(pill(i18n::tr("settings.badges.official"), ColorRole::Primary, ColorRole::Primary, 0.15f));
+      addMetaItem(pill(
+          i18n::tr("settings.badges.official"), ColorRole::Primary, ColorRole::Primary, 0.15f, kSourceBadgeMaxWidth
+      ));
     } else if (storeEntry.source == "community") {
-      meta->addChild(pill(i18n::tr("settings.badges.community"), ColorRole::Secondary, ColorRole::Secondary, 0.15f));
+      addMetaItem(pill(
+          i18n::tr("settings.badges.community"), ColorRole::Secondary, ColorRole::Secondary, 0.15f, kSourceBadgeMaxWidth
+      ));
+    } else {
+      addMetaItem(pill(storeEntry.source, ColorRole::Tertiary, ColorRole::Tertiary, 0.15f, kSourceBadgeMaxWidth));
     }
     if (entry.deprecated) {
-      meta->addChild(pill(i18n::tr("settings.badges.deprecated"), ColorRole::Error, ColorRole::Error, 0.15f));
+      addMetaItem(pill(i18n::tr("settings.badges.deprecated"), ColorRole::Error, ColorRole::Error, 0.15f));
     }
     info->addChild(std::move(meta));
 
@@ -429,14 +492,6 @@ namespace settings {
               .ellipsize = TextEllipsize::End,
           })
       );
-    }
-
-    if (!entry.tags.empty()) {
-      auto tagsRow = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
-      for (const auto& tag : entry.tags) {
-        tagsRow->addChild(pill(tag, ColorRole::OnSurfaceVariant, ColorRole::SurfaceVariant, 1.0f));
-      }
-      info->addChild(std::move(tagsRow));
     }
 
     info->addChild(ui::spacer());

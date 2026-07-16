@@ -64,6 +64,7 @@ public:
   // suspend/resume on drivers that do not preserve VRAM. Requires the render
   // context to be current.
   void invalidateGlyphTextures();
+  void abandonGlyphTextures() noexcept;
 
   [[nodiscard]] TextMetrics measure(
       std::string_view text, float fontSize, FontWeight fontWeight = FontWeight::Normal, float maxWidth = 0.0f,

@@ -7,6 +7,10 @@ mode = "dark"
 [widget.clock]
 enabled = false
 
+[widget.launcher]
+capsule = true
+capsule_radius = "auto"
+
 [plugins]
 enabled = ["noctalia/wallhaven"]
 

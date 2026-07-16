@@ -220,6 +220,9 @@ void Application::run(std::function<void()> startupReadyCallback) {
     // A git-source enable exports on a worker thread; redraw the plugins list so the
     // row swaps between its spinner and toggle as the export starts and finishes.
     m_pluginManager.setOnEnablingChanged([this]() { m_settingsWindow.onPluginsChanged(); });
+    m_pluginManager.setOnSourceUpdated([this](const std::string& sourceName) {
+      m_settingsWindow.invalidatePluginSourceCache(sourceName);
+    });
   });
   runStartupPhase("initIpc", [this]() { initIpc(); });
   runStartupPhase("buildPollSources", [this]() { (void)buildPollSources(); });

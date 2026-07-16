@@ -376,7 +376,7 @@
           "condition": "Körülmények",
           "high": "Magas",
           "low": "Alacsony",
-          "sunrise": "Napfelkelte",
+          "sunrise": "Napkelte",
           "sunset": "Napnyugta"
         }
       },
@@ -388,7 +388,7 @@
         "temp-max": "Maximális hőmérséklet",
         "temp-min": "Minimális hőmérséklet",
         "timezone": "Időzóna",
-        "uv-index": "UV Index",
+        "uv-index": "UV-index",
         "wind": "Szél"
       },
       "disabled": "Engedélyezd a [weather] részt a config.toml fájlban",
@@ -1900,12 +1900,12 @@
             "label": "Színek megváltozásakor"
           },
           "logging-out": {
-            "description": "Parancs, amit futtatni kell a kijelentkezés előtt",
+            "description": "Parancs, ami fut kijelentkezés előtt",
             "label": "Kijelentkezéskor"
           },
           "power-profile-changed": {
             "description": "Parancs, ami lefut, amikor az aktív UPower/PPD energiaprofil megváltozik",
-            "label": "Energiaprofil Megváltozásakor"
+            "label": "Energiaprofil megváltozásakor"
           },
           "rebooting": {
             "description": "Parancs, amit újraindítás előtt futtatni kell",
@@ -2669,7 +2669,7 @@
           "label": "Mentés fájlba"
         },
         "show-location": {
-          "description": "Hely nevének megjelenítése az időjárás widgetekben",
+          "description": "Hely nevének megjelenítése az időjárási widgetekben",
           "label": "Hely megjelenítése"
         },
         "sync-greeter": {

@@ -48,7 +48,7 @@ private:
   void closeWindowAt(std::size_t index);
   void requestSceneUpdate();
   [[nodiscard]] bool matchesTrigger(const KeyboardEvent& event) const noexcept;
-  [[nodiscard]] bool isAltRelease(const KeyboardEvent& event) const noexcept;
+  [[nodiscard]] bool isModifierRelease(const KeyboardEvent& event) const noexcept;
   void ensureSurface();
   void destroySurface();
   void prepareFrame(Instance& instance, bool needsUpdate, bool needsLayout);

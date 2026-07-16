@@ -185,6 +185,7 @@ private:
   void extractWallpaperFromOverrides();
   void extractWallpaperFromTable(const toml::table& table);
   void syncWallpaperFavoritesToOverridesTable();
+  [[nodiscard]] std::string firstRunWallpaperPath() const;
 
   Config m_config;
   ConfigChangeSet m_lastChange;

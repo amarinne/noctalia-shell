@@ -1020,6 +1020,7 @@
         "rename": "Impossibile rinominare la barra."
       },
       "batch-write": "Alcune impostazioni non sono state salvate.",
+      "custom-schedule-times": "Una pianificazione personalizzata richiede sia l'ora dell'alba che quella del tramonto nel formato HH:MM.",
       "export-config": "Salvataggio esportazione configurazione non riuscito.",
       "export-wallpaper-palette": "Impossibile salvare la palette dello sfondo come palette personalizzata.",
       "monitor-override": {
@@ -1062,8 +1063,8 @@
         "kind-section-label": "Azione",
         "name-label": "Nome",
         "name-placeholder": "comportamento-inattività",
-        "resume-command-label": "Comando ripresa",
-        "resume-command-placeholder": "",
+        "resume-command-label": "Comando resume",
+        "resume-command-placeholder": "notify-send 'Ripresa da inattività'",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · timeout disabilitato",
         "timeout-label": "Secondi timeout",
@@ -1200,6 +1201,13 @@
       }
     },
     "options": {
+      "bar": {
+        "auto-hide": {
+          "off": "Off",
+          "on": "On",
+          "smart": "Smart"
+        }
+      },
       "clipboard": {
         "auto-paste": {
           "ctrl-shift-v": "Ctrl+Shift+V",
@@ -1259,6 +1267,10 @@
       "orientation": {
         "horizontal": "Orizzontale",
         "vertical": "Verticale"
+      },
+      "panel-bar-alignment": {
+        "centered": "Centrato",
+        "near-trigger": "Vicino al click"
       },
       "panel-position": {
         "auto": "Segui la barra"
@@ -1446,6 +1458,10 @@
         "builtin-palette": {
           "description": "Scegli una palette dal catalogo incluso",
           "label": "Palette integrata"
+        },
+        "button-borders": {
+          "description": "Disegna i contorni attorno ai pulsanti in tutta la shell",
+          "label": "Bordi dei pulsanti"
         },
         "community-palette": {
           "description": "Scegli una palette dal catalogo community",
@@ -2259,6 +2275,10 @@
         "calendar-refresh-interval": {
           "description": "Frequenza di sincronizzazione degli eventi calendario (minuti)",
           "label": "Intervallo aggiornamento"
+        },
+        "custom-schedule": {
+          "description": "Utilizza gli orari di alba/tramonto manuali invece di calcolare in base alle coordinate",
+          "label": "Programmazione personalizzata"
         },
         "day-temperature": {
           "description": "Temperatura colore durante il giorno (Kelvin)",

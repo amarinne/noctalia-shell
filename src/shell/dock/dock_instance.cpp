@@ -20,6 +20,67 @@
 
 namespace shell::dock {
 
+  namespace {
+
+    [[nodiscard]] bool dockUsesSlideAutoHide(const DockConfig& cfg, const DockInstance& instance) noexcept {
+      if (cfg.smartAutoHide) {
+        return !instance.smartAutoHidePinnedVisible;
+      }
+      return cfg.autoHide;
+    }
+
+    [[nodiscard]] bool dockUsesAnyAutoHide(const DockConfig& cfg) noexcept { return cfg.autoHide || cfg.smartAutoHide; }
+
+    [[nodiscard]] bool workspaceKeyMatchesAssignment(std::string_view assignmentKey, const Workspace& workspace) {
+      if (assignmentKey.empty()) {
+        return false;
+      }
+      if (!workspace.id.empty() && assignmentKey == workspace.id) {
+        return true;
+      }
+      if (!workspace.name.empty() && assignmentKey == workspace.name) {
+        return true;
+      }
+      if (workspace.index > 0 && assignmentKey == std::to_string(workspace.index)) {
+        return true;
+      }
+      return false;
+    }
+
+    [[nodiscard]] bool activeWorkspaceHasWindows(const CompositorPlatform& platform, wl_output* output) {
+      const auto workspaces = platform.workspaces(output);
+      const Workspace* active = nullptr;
+      for (const auto& workspace : workspaces) {
+        if (workspace.active) {
+          active = &workspace;
+          break;
+        }
+      }
+      if (active == nullptr) {
+        return false;
+      }
+
+      const auto assignments = platform.workspaceWindowAssignments(output);
+      for (const auto& assignment : assignments) {
+        if (workspaceKeyMatchesAssignment(assignment.workspaceKey, *active)) {
+          return true;
+        }
+      }
+      if (!assignments.empty()) {
+        return false;
+      }
+      return active->occupied;
+    }
+
+    [[nodiscard]] bool smartAutoHideWantsPinnedVisible(const CompositorPlatform& platform, wl_output* output) {
+      if (platform.hasOverviewState() && platform.isOverviewOpen()) {
+        return true;
+      }
+      return !activeWorkspaceHasWindows(platform, output);
+    }
+
+  } // namespace
+
   void prepareFrame(
       DockInstance& instance, DockInstanceDependencies deps, const DockInstanceCallbacks& callbacks, bool needsUpdate,
       bool needsLayout
@@ -62,7 +123,7 @@ namespace shell::dock {
     if (instance.slideRoot == nullptr) {
       return;
     }
-    if (cfg.autoHide) {
+    if (dockUsesSlideAutoHide(cfg, instance) || instance.hideOpacity < 0.999f) {
       const float t = 1.0f - instance.hideOpacity;
       instance.slideRoot->setPosition(instance.slideHiddenDx * t, instance.slideHiddenDy * t);
     } else {
@@ -77,7 +138,7 @@ namespace shell::dock {
     // Compositor blur is independent of scene opacity — clear it while auto-hide
     // has faded the dock out so a transparent buffer does not leave a blur halo.
     constexpr float kBlurVisibleOpacity = 0.02f;
-    if (cfg.autoHide && instance.hideOpacity < kBlurVisibleOpacity) {
+    if (dockUsesAnyAutoHide(cfg) && instance.hideOpacity < kBlurVisibleOpacity) {
       instance.surface->clearBlurRegion();
       return;
     }
@@ -164,10 +225,12 @@ namespace shell::dock {
         callbacks.rebuildItems(instance);
       }
 
-      if (cfg.autoHide) {
-        // Start off-screen (slide); opacity stays at 1 so the compositor blur matches the panel.
+      if (dockUsesAnyAutoHide(cfg)) {
+        instance.smartAutoHidePinnedVisible =
+            cfg.smartAutoHide && smartAutoHideWantsPinnedVisible(deps.platform, instance.output);
         instance.slideRoot->setOpacity(1.0f);
-        instance.hideOpacity = 0.0f;
+        const bool startHidden = cfg.smartAutoHide ? !instance.smartAutoHidePinnedVisible : cfg.autoHide;
+        instance.hideOpacity = startHidden ? 0.0f : 1.0f;
       } else {
         instance.slideRoot->setOpacity(0.0f);
         instance.hideOpacity = 1.0f;
@@ -230,7 +293,7 @@ namespace shell::dock {
     instance.row->layout(deps.renderContext);
     shell::dock::syncDockItemRestPositions(instance, cfg);
 
-    if (cfg.autoHide) {
+    if (dockUsesAnyAutoHide(cfg)) {
       const auto hiddenDelta = shell::dock::computeHiddenSlideDelta(cfg, shadowConfig, w, h, panelGeometry);
       instance.slideHiddenDx = hiddenDelta.first;
       instance.slideHiddenDy = hiddenDelta.second;
@@ -241,7 +304,7 @@ namespace shell::dock {
     syncDockSlideLayerTransform(instance, cfg);
 
     // Input region: trigger strip when hidden (autoHide), full panel otherwise.
-    const bool hiddenInputRegion = cfg.autoHide && instance.hideOpacity < 0.5f;
+    const bool hiddenInputRegion = dockUsesSlideAutoHide(cfg, instance) && instance.hideOpacity < 0.5f;
     auto inputPanelGeometry = panelGeometry;
     if (!hiddenInputRegion && instance.slideRoot != nullptr) {
       inputPanelGeometry.panelX += instance.slideRoot->x();
@@ -288,6 +351,47 @@ namespace shell::dock {
         || instance.surface->height() != surfaceGeometry.surfaceH) {
       instance.surface->requestSize(surfaceGeometry.surfaceW, surfaceGeometry.surfaceH);
     }
+  }
+
+  void revealAutoHideDock(DockInstance& inst, ConfigService& config) {
+    const auto& cfg = config.config().dock;
+    if (!dockUsesAnyAutoHide(cfg) || inst.surface == nullptr || inst.slideRoot == nullptr) {
+      return;
+    }
+
+    if (inst.hideAnimId != 0) {
+      inst.animations.cancel(inst.hideAnimId);
+      inst.hideAnimId = 0;
+    }
+
+    constexpr float kSettledThreshold = 0.999f;
+    const float current = inst.hideOpacity;
+    if (current >= kSettledThreshold) {
+      const int sw = static_cast<int>(inst.surface->width());
+      const int sh = static_cast<int>(inst.surface->height());
+      if (sw > 0 && sh > 0) {
+        inst.surface->setInputRegion({InputRect{0, 0, sw, sh}});
+      }
+      inst.surface->requestRedraw();
+      return;
+    }
+
+    inst.hideAnimId = inst.animations.animate(
+        current, 1.0f, Style::animNormal, Easing::EaseOutCubic,
+        [&inst, &config](float v) {
+          inst.hideOpacity = v;
+          const auto& dockCfg = config.config().dock;
+          syncDockSlideLayerTransform(inst, dockCfg);
+          applyDockCompositorBlur(inst, dockCfg);
+        },
+        [&inst]() { inst.hideAnimId = 0; }
+    );
+    const int sw = static_cast<int>(inst.surface->width());
+    const int sh = static_cast<int>(inst.surface->height());
+    if (sw > 0 && sh > 0) {
+      inst.surface->setInputRegion({InputRect{0, 0, sw, sh}});
+    }
+    inst.surface->requestRedraw();
   }
 
   void startHideFadeOut(DockInstance& inst, ConfigService& config) {

@@ -687,6 +687,7 @@
       "calendar-google-connect-start-failed": "No se pudo iniciar la autorización de Google. Comprueba tu conexión a internet e inténtalo de nuevo.",
       "calendar-google-connect-start-http": "No se pudo iniciar la autorización de Google. El intermediario de OAuth devolvió HTTP {status}.",
       "calendar-google-connect-timeout": "La autorización de Google expiró. Inicie la conexión nuevamente cuando esté listo para iniciar sesión.",
+      "config-migration-body": "La configuración heredada se está migrando en memoria, incluyendo {path}. Actualice la configuración de origen; Settings y noctalia config validate muestran el reemplazo necesario.",
       "dbus-disabled": "Notificaciones DBus deshabilitada",
       "desktop-widgets-editor": "Editor de Widget",
       "desktop-widgets-editor-enabled": "El editor de widgets del escritorio está activado. Cambia a un espacio de trabajo vacío para ver el panel del editor.",

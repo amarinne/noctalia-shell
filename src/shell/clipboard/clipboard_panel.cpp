@@ -310,8 +310,8 @@ namespace {
     }
 
     void bind(
-        Renderer& renderer, const ClipboardEntry& entry, std::size_t historyIndex, float width, bool selected,
-        bool hovered
+        Renderer& renderer, const ClipboardEntry& entry, std::size_t historyIndex, float width, float height,
+        bool selected, bool hovered
     ) {
       m_historyIndex = historyIndex;
       m_selected = selected;
@@ -320,7 +320,7 @@ namespace {
       m_pinned = entry.pinned;
       setVisible(true);
       setEnabled(true);
-      setSize(width, listRowHeight(renderer, m_scale));
+      setSize(width, height);
 
       const std::string nextThumbPath = m_isImage ? entry.payloadPath : std::string();
       if (m_thumbnailPath != nextThumbPath) {
@@ -532,7 +532,9 @@ public:
       return;
     }
     auto* row = static_cast<ClipboardListRow*>(&tile);
-    row->bind(*m_renderer, history[historyIndex], historyIndex, row->width(), selected, hovered && !selected);
+    row->bind(
+        *m_renderer, history[historyIndex], historyIndex, row->width(), row->height(), selected, hovered && !selected
+    );
   }
 
   void onActivate(std::size_t index) override {

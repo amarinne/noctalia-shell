@@ -11,6 +11,7 @@
 //   - clamp goldens — pin parse-time range behavior.
 
 #include "config/config_export.h"
+#include "config/config_service.h"
 #include "config/config_types.h"
 #include "config/schema/config_schema.h"
 #include "config/schema/config_sections.h"
@@ -173,6 +174,7 @@ location = "https://example.invalid/bad"
     bar.position = "bottom";
     bar.enabled = false;
     bar.autoHide = true;
+    bar.smartAutoHide = false;
     bar.showOnWorkspaceSwitch = true;
     bar.reserveSpace = false;
     bar.layer = "overlay";
@@ -234,6 +236,7 @@ location = "https://example.invalid/bad"
     ovr.position = "top";
     ovr.enabled = true;
     ovr.autoHide = false;
+    ovr.smartAutoHide = false;
     ovr.showOnWorkspaceSwitch = true;
     ovr.reserveSpace = true;
     ovr.layer = "top";
@@ -421,7 +424,6 @@ location = "https://example.invalid/bad"
     c.shell.panel.transparencyMode = PanelTransparencyMode::Glass;
     c.shell.panel.launcherPlacement = PanelPlacement::Floating;
     c.shell.launcher.compact = true;
-    c.shell.launcher.sessionSearch = true;
     c.shell.launcher.sortByUsage = false;
     DmenuEntryConfig notifyDmenu;
     notifyDmenu.id = "notify";
@@ -431,6 +433,11 @@ location = "https://example.invalid/bad"
     notifyDmenu.glyph = std::string("bell");
     notifyDmenu.freeform = true;
     c.shell.launcher.dmenu.entries = {notifyDmenu};
+    c.shell.launcher.providerPrefix = ".";
+    c.shell.launcher.providers = {
+        LauncherProviderConfig{"session", "s", true},
+        LauncherProviderConfig{"wallpaper", "w"}
+    };
     c.shell.screenCorners.enabled = true;
     c.shell.screenCorners.size = 24;
     c.shell.mpris.blacklist = {"firefox"};
@@ -459,7 +466,9 @@ location = "https://example.invalid/bad"
     c.theme.mode = ThemeMode::Light;
     c.theme.templates.enableBuiltinTemplates = false;
     c.theme.templates.builtinIds = {"a", "b"};
-    c.theme.templates.customColors = {{"accent", "#112233", true}, {"bg", "#000000", false}};
+    c.theme.templates.customColors = {
+        {"accent", "#112233", "#112233", "#332211", true}, {"bg", "#000000", "#000000", "#000000", false}
+    };
     c.theme.templates.userTemplates = {
         ThemeConfig::UserTemplateConfig{
             "tmpl1",
@@ -541,6 +550,75 @@ location = "https://example.invalid/bad"
     }
   }
 
+  // color falls back to color_dark then color_light so a single-mode entry survives
+  // the name+color keep-predicate and carries a usable comparison color.
+  void checkCustomColorFallback() {
+    auto root = toml::parse(R"(
+[templates.custom_colors]
+onlydark = { color_dark = "#111111" }
+onlylight = { color_light = "#222222" }
+bare = { color = "#333333" }
+both = { color_dark = "#444444", color_light = "#555555" }
+)");
+    ThemeConfig theme{};
+    Diagnostics d;
+    readInto(root, theme, themeSchema(), "theme", d);
+
+    auto find = [&](std::string_view name) -> const ThemeConfig::TemplateColorConfig* {
+      for (const auto& c : theme.templates.customColors)
+        if (c.name == name)
+          return &c;
+      return nullptr;
+    };
+
+    const auto* onlydark = find("onlydark");
+    if (onlydark == nullptr || onlydark->color != "#111111" || onlydark->color_dark != "#111111") {
+      fail("custom_colors onlydark: color should fall back to color_dark");
+    }
+    const auto* onlylight = find("onlylight");
+    if (onlylight == nullptr || onlylight->color != "#222222" || onlylight->color_light != "#222222") {
+      fail("custom_colors onlylight: color should fall back to color_light");
+    }
+    const auto* bare = find("bare");
+    if (bare == nullptr || bare->color != "#333333" || !bare->color_dark.empty() || !bare->color_light.empty()) {
+      fail("custom_colors bare: color set, no dark/light overrides");
+    }
+    const auto* both = find("both");
+    if (both == nullptr
+        || both->color != "#444444"
+        || both->color_dark != "#444444"
+        || both->color_light != "#555555") {
+      fail("custom_colors both: color prefers color_dark, both overrides retained");
+    }
+  }
+
+  // Template palette files use [config.custom_colors]; export must emit the canonical
+  // [theme.templates.custom_colors] table after parse.
+  void checkTemplateConfigCustomColorsExport() {
+    const auto root = toml::parse(R"(
+[config.custom_colors.red]
+color = "#FF0000"
+blend = true
+
+[config.custom_colors.blue]
+color = "#0000FF"
+blend = false
+)");
+    Config config;
+    ConfigService::parseConfigTable(root, config, false, false);
+    if (config.theme.templates.customColors.size() != 2) {
+      fail("config.custom_colors lift: expected two custom colors in config");
+    }
+
+    const toml::table exported = config_export::serialize(config);
+    const auto* theme = exported["theme"].as_table();
+    const auto* templates = theme != nullptr ? (*theme)["templates"].as_table() : nullptr;
+    const auto* customColors = templates != nullptr ? (*templates)["custom_colors"].as_table() : nullptr;
+    if (customColors == nullptr || !customColors->contains("red") || !customColors->contains("blue")) {
+      fail("config.custom_colors lift: export missing theme.templates.custom_colors entries");
+    }
+  }
+
 } // namespace
 
 int main() {
@@ -591,6 +669,7 @@ reserve_space = false
 scale = 2.0
 shadow = false
 show_on_workspace_switch = true
+smart_auto_hide = false
 start = [ "launcher" ]
 thickness = 44
 widget_spacing = 8
@@ -642,6 +721,7 @@ widget_spacing = 8
     scale = 1.5
     shadow = true
     show_on_workspace_switch = true
+    smart_auto_hide = false
     start = [ "tray" ]
     thickness = 50
     widget_spacing = 7
@@ -760,6 +840,8 @@ widget_spacing = 8
   checkPluginIdValidation();
   checkPluginSourceNameValidation();
   checkClamps();
+  checkCustomColorFallback();
+  checkTemplateConfigCustomColorsExport();
 
   if (g_failures == 0) {
     std::println("config_schema_roundtrip: all checks passed");

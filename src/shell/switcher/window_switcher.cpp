@@ -595,10 +595,15 @@ void WindowSwitcher::show(wl_output* output) {
     return;
   }
 
+  const bool wasActive = m_active;
   refreshWindows();
 
   m_output = output;
-  m_selectedIndex = m_windows.size() > 1 ? 1 : 0;
+  if (wasActive) {
+    cycleSelection(1);
+  } else {
+    m_selectedIndex = m_windows.size() > 1 ? 1 : 0;
+  }
   m_active = true;
 
   ensureSurface();
@@ -779,8 +784,8 @@ bool WindowSwitcher::matchesTrigger(const KeyboardEvent& event) const noexcept {
       || m_config->matchesKeybind(KeybindAction::TabPrevious, event.sym, normalizedModifiers);
 }
 
-bool WindowSwitcher::isAltRelease(const KeyboardEvent& event) const noexcept {
-  return !event.pressed && isAltModifier(event.sym);
+bool WindowSwitcher::isModifierRelease(const KeyboardEvent& event) const noexcept {
+  return !event.pressed && (isAltModifier(event.sym) || event.sym == XKB_KEY_Super_L || event.sym == XKB_KEY_Super_R);
 }
 
 bool WindowSwitcher::onKeyboardEvent(const KeyboardEvent& event) {
@@ -807,7 +812,7 @@ bool WindowSwitcher::onKeyboardEvent(const KeyboardEvent& event) {
     return false;
   }
 
-  if (isAltRelease(event)) {
+  if (isModifierRelease(event)) {
     activateSelected();
     hide();
     return true;
@@ -817,48 +822,48 @@ bool WindowSwitcher::onKeyboardEvent(const KeyboardEvent& event) {
     return true;
   }
 
-  if (KeybindMatcher::matches(KeybindAction::Cancel, event.sym, event.modifiers)) {
+  const std::uint32_t normalizedModifiers = event.modifiers & ~(KeyMod::Alt | KeyMod::Super);
+  auto matchesAction = [&](KeybindAction action) {
+    if (m_config != nullptr) {
+      return m_config->matchesKeybind(action, event.sym, normalizedModifiers);
+    }
+    return KeybindMatcher::matches(action, event.sym, normalizedModifiers);
+  };
+
+  if (matchesAction(KeybindAction::Cancel)) {
     hide();
     return true;
   }
 
-  const std::uint32_t normalizedModifiers = event.modifiers & ~(KeyMod::Alt | KeyMod::Super);
-  const bool tabPrevious = (m_config != nullptr)
-      ? m_config->matchesKeybind(KeybindAction::TabPrevious, event.sym, normalizedModifiers)
-      : KeybindMatcher::matches(KeybindAction::TabPrevious, event.sym, event.modifiers);
-  const bool tabNext = (m_config != nullptr)
-      ? m_config->matchesKeybind(KeybindAction::TabNext, event.sym, normalizedModifiers)
-      : KeybindMatcher::matches(KeybindAction::TabNext, event.sym, event.modifiers);
-
-  if (tabPrevious) {
+  if (matchesAction(KeybindAction::TabPrevious)) {
     cycleSelection(-1);
     return true;
   }
 
-  if (tabNext) {
+  if (matchesAction(KeybindAction::TabNext)) {
     cycleSelection(1);
     return true;
   }
 
-  if (KeybindMatcher::matches(KeybindAction::Validate, event.sym, event.modifiers)) {
+  if (matchesAction(KeybindAction::Validate)) {
     activateSelected();
     hide();
     return true;
   }
 
-  if (KeybindMatcher::matches(KeybindAction::Left, event.sym, event.modifiers)) {
+  if (matchesAction(KeybindAction::Left)) {
     navigateGrid(-1, 0);
     return true;
   }
-  if (KeybindMatcher::matches(KeybindAction::Right, event.sym, event.modifiers)) {
+  if (matchesAction(KeybindAction::Right)) {
     navigateGrid(1, 0);
     return true;
   }
-  if (KeybindMatcher::matches(KeybindAction::Up, event.sym, event.modifiers)) {
+  if (matchesAction(KeybindAction::Up)) {
     navigateGrid(0, -1);
     return true;
   }
-  if (KeybindMatcher::matches(KeybindAction::Down, event.sym, event.modifiers)) {
+  if (matchesAction(KeybindAction::Down)) {
     navigateGrid(0, 1);
     return true;
   }

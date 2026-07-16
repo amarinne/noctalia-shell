@@ -200,6 +200,7 @@ private:
   bool runIdleAction(const IdleActionRequest& action);
   void onIconThemeChanged();
   void onGraphicsReset(RenderGraphicsResetStatus status);
+  void recoverGraphicsAfterReset();
   void requestAllSurfacesRedraw();
   void onUpowerStateChangedForHooks();
   void onNetworkStateChangedForEvents(const NetworkState& state, NetworkChangeOrigin origin);
@@ -350,7 +351,10 @@ private:
   Timer m_greeterAutoSyncTimer;
   Timer m_clipboardAutoPasteTimer;
   Timer m_pluginAutoUpdateTimer;
+  Timer m_graphicsRecoveryTimer;
   std::uint64_t m_greeterSyncGeneration = 0;
+  int m_graphicsRecoveryAttempts = 0;
+  bool m_graphicsRecoveryScheduled = false;
 
   std::unique_ptr<MainLoop> m_mainLoop;
 };

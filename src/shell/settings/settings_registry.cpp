@@ -156,6 +156,35 @@ namespace settings {
       return SelectSetting{std::move(opts), std::string(selected)};
     }
 
+    [[nodiscard]] std::string barAutoHideMode(bool autoHide, bool smartAutoHide) {
+      if (smartAutoHide) {
+        return "smart";
+      }
+      if (autoHide) {
+        return "on";
+      }
+      return "off";
+    }
+
+    [[nodiscard]] SelectSetting autoHideModeSelect(std::string_view mode, std::vector<std::string> smartPath) {
+      auto select = asSegmented(plainSelect(
+          {{"off", "settings.options.bar.auto-hide.off"},
+           {"on", "settings.options.bar.auto-hide.on"},
+           {"smart", "settings.options.bar.auto-hide.smart"}},
+          mode
+      ));
+      select.linkedPath = std::move(smartPath);
+      select.groupedCommit = [](std::string_view value, const std::vector<std::string>& primaryPath) {
+        auto companionPath = primaryPath;
+        companionPath.back() = "smart_auto_hide";
+        return std::vector<std::pair<std::vector<std::string>, ConfigOverrideValue>>{
+            {primaryPath, ConfigOverrideValue{value == "on"}},
+            {std::move(companionPath), ConfigOverrideValue{value == "smart"}},
+        };
+      };
+      return select;
+    }
+
     ColorSwatchPreview palettePreviewFromPalette(const ::Palette& palette) {
       return ColorSwatchPreview{
           .surface = fixedColorSpec(palette.surface),
@@ -818,8 +847,12 @@ namespace settings {
     ));
     entries.push_back(makeEntry(
         SettingsSection::Dock, "behavior", tr("settings.schema.shared.auto-hide.label"),
-        tr("settings.schema.dock.auto-hide.description"), {"dock", "auto_hide"}, ToggleSetting{cfg.dock.autoHide},
-        "autohide"
+        tr("settings.schema.dock.auto-hide.description"), {"dock", "auto_hide"},
+        autoHideModeSelect(
+            barAutoHideMode(cfg.dock.autoHide, cfg.dock.smartAutoHide),
+            std::vector<std::string>{"dock", "smart_auto_hide"}
+        ),
+        "autohide smart workspace"
     ));
     entries.push_back(makeEntry(
         SettingsSection::Dock, "behavior", tr("settings.schema.shared.reserve-space.label"),
@@ -1122,11 +1155,80 @@ namespace settings {
         ToggleSetting{cfg.shell.launcher.sortByUsage}, "launcher sort usage recently used frequency"
     ));
     entries.push_back(makeEntry(
-        SettingsSection::Launcher, "launcher", tr("settings.schema.panels.launcher-session-search.label"),
-        tr("settings.schema.panels.launcher-session-search.description"), {"shell", "launcher", "session_search"},
-        ToggleSetting{cfg.shell.launcher.sessionSearch},
-        "launcher session search power menu lock suspend reboot shutdown logout"
+        SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-prefix-character.label"),
+        tr("settings.schema.panels.launcher-prefix-character.description"), {"shell", "launcher", "provider_prefix"},
+        TextSetting{.value = cfg.shell.launcher.providerPrefix, .placeholder = "/"}, "launcher common prefix character"
     ));
+    {
+      auto storedPrefix = [&](std::string_view name) -> std::string {
+        auto it = std::ranges::find(cfg.shell.launcher.providers, name, &LauncherProviderConfig::name);
+        return it != cfg.shell.launcher.providers.end() ? it->prefix : std::string();
+      };
+      auto storedGlobal = [&](std::string_view name, bool defaultValue) -> bool {
+        auto it = std::ranges::find(cfg.shell.launcher.providers, name, &LauncherProviderConfig::name);
+        return it != cfg.shell.launcher.providers.end() ? it->global.value_or(defaultValue) : defaultValue;
+      };
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-prefix-calculator.label"),
+          tr("settings.schema.panels.launcher-prefix-calculator.description"),
+          {"shell", "launcher", "providers", "calculator", "prefix"},
+          TextSetting{.value = storedPrefix("calculator"), .placeholder = ""}, "launcher calculator prefix trigger"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-global-calculator.label"),
+          tr("settings.schema.panels.launcher-global-calculator.description"),
+          {"shell", "launcher", "providers", "calculator", "global"}, ToggleSetting{storedGlobal("calculator", true)},
+          "launcher calculator global search unprefixed"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-prefix-emoji.label"),
+          tr("settings.schema.panels.launcher-prefix-emoji.description"),
+          {"shell", "launcher", "providers", "emoji", "prefix"},
+          TextSetting{.value = storedPrefix("emoji"), .placeholder = "emo"}, "launcher emoji prefix trigger"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-global-emoji.label"),
+          tr("settings.schema.panels.launcher-global-emoji.description"),
+          {"shell", "launcher", "providers", "emoji", "global"}, ToggleSetting{storedGlobal("emoji", false)},
+          "launcher emoji global search unprefixed"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-prefix-session.label"),
+          tr("settings.schema.panels.launcher-prefix-session.description"),
+          {"shell", "launcher", "providers", "session", "prefix"},
+          TextSetting{.value = storedPrefix("session"), .placeholder = "session"}, "launcher session prefix trigger"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-global-session.label"),
+          tr("settings.schema.panels.launcher-global-session.description"),
+          {"shell", "launcher", "providers", "session", "global"}, ToggleSetting{storedGlobal("session", false)},
+          "launcher session global search unprefixed"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-prefix-wallpaper.label"),
+          tr("settings.schema.panels.launcher-prefix-wallpaper.description"),
+          {"shell", "launcher", "providers", "wallpaper", "prefix"},
+          TextSetting{.value = storedPrefix("wallpaper"), .placeholder = "wall"}, "launcher wallpaper prefix trigger"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-global-wallpaper.label"),
+          tr("settings.schema.panels.launcher-global-wallpaper.description"),
+          {"shell", "launcher", "providers", "wallpaper", "global"}, ToggleSetting{storedGlobal("wallpaper", false)},
+          "launcher wallpaper global search unprefixed"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-prefix-windows.label"),
+          tr("settings.schema.panels.launcher-prefix-windows.description"),
+          {"shell", "launcher", "providers", "windows", "prefix"},
+          TextSetting{.value = storedPrefix("windows"), .placeholder = "win"}, "launcher windows prefix trigger"
+      ));
+      entries.push_back(makeEntry(
+          SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-global-windows.label"),
+          tr("settings.schema.panels.launcher-global-windows.description"),
+          {"shell", "launcher", "providers", "windows", "global"}, ToggleSetting{storedGlobal("windows", false)},
+          "launcher windows global search unprefixed"
+      ));
+    }
     entries.push_back(makeEntry(
         SettingsSection::Panels, "clipboard", tr("settings.schema.panels.placement-clipboard.label"),
         tr("settings.schema.panels.placement-clipboard.description"), {"shell", "panel", "clipboard_placement"},
@@ -2086,7 +2188,7 @@ namespace settings {
       );
       entries.push_back(std::move(e));
     }
-    const SettingVisibility customSchedOn = [](const Config& c) { return c.location.customSchedule; };
+    // Keep both required times editable before activation so the schedule can be valid when enabled.
     {
       auto e = makeEntry(
           SettingsSection::Location, "location", tr("settings.schema.services.sunset.label"),
@@ -2094,7 +2196,6 @@ namespace settings {
           TextSetting{.value = cfg.location.sunset, .placeholder = "20:30", .browseFileExtensions = {}},
           "time schedule sunset"
       );
-      e.visibleWhen = customSchedOn;
       entries.push_back(std::move(e));
     }
     {
@@ -2104,7 +2205,6 @@ namespace settings {
           TextSetting{.value = cfg.location.sunrise, .placeholder = "07:30", .browseFileExtensions = {}},
           "time schedule sunrise"
       );
-      e.visibleWhen = customSchedOn;
       entries.push_back(std::move(e));
     }
 
@@ -2576,9 +2676,14 @@ namespace settings {
       ));
       entries.push_back(makeEntry(
           section, "general", tr("settings.schema.shared.auto-hide.label"),
-          tr("settings.schema.bar.auto-hide.description"), path("auto_hide"), ToggleSetting{bar.autoHide}, "autohide"
+          tr("settings.schema.bar.auto-hide.description"), path("auto_hide"),
+          autoHideModeSelect(barAutoHideMode(bar.autoHide, bar.smartAutoHide), path("smart_auto_hide")),
+          "autohide smart workspace"
       ));
-      const SettingVisibility autoHideOn = [on = bar.autoHide](const Config&) { return on; };
+      const SettingVisibility autoHideOn = [barName = bar.name](const Config& c) {
+        const BarConfig* b = findBar(c, barName);
+        return b != nullptr && b->autoHide && !b->smartAutoHide;
+      };
       {
         auto e = makeEntry(
             section, "general", tr("settings.schema.bar.show-on-workspace-switch.label"),
@@ -2906,10 +3011,21 @@ namespace settings {
         entries.push_back(makeEntry(
             section, "general", tr("settings.schema.shared.auto-hide.label"),
             tr("settings.schema.bar.auto-hide.description"), monitorPath("auto_hide"),
-            ToggleSetting{ovr.autoHide.value_or(bar.autoHide)}, "autohide"
+            autoHideModeSelect(
+                barAutoHideMode(ovr.autoHide.value_or(bar.autoHide), ovr.smartAutoHide.value_or(bar.smartAutoHide)),
+                monitorPath("smart_auto_hide")
+            ),
+            "autohide smart workspace"
         ));
-        const SettingVisibility monitorAutoHideOn = [on = ovr.autoHide.value_or(bar.autoHide)](const Config&) {
-          return on;
+        const SettingVisibility monitorAutoHideOn = [barName = bar.name, match = ovr.match](const Config& c) {
+          const BarConfig* b = findBar(c, barName);
+          if (b == nullptr) {
+            return false;
+          }
+          const BarMonitorOverride* o = findMonitorOverride(*b, match);
+          const bool autoHide = o != nullptr && o->autoHide.has_value() ? *o->autoHide : b->autoHide;
+          const bool smart = o != nullptr && o->smartAutoHide.has_value() ? *o->smartAutoHide : b->smartAutoHide;
+          return autoHide && !smart;
         };
         {
           auto e = makeEntry(

@@ -447,6 +447,7 @@
         "bands": "Bands",
         "bar-width": "Bar Width",
         "bloom-intensity": "Bloom",
+        "center-password-text": "Center Password Text",
         "center-text": "Center Text",
         "centered": "Centered",
         "change-image": "Change…",
@@ -1110,6 +1111,7 @@
         "keybinds": "Keybinds",
         "kinds": "Kinds",
         "launcher": "Launcher",
+        "providers": "Providers",
         "layout": "Layout",
         "lifecycle": "Lifecycle",
         "location": "Location",
@@ -1134,7 +1136,7 @@
         "screen-time": "Screen Time",
         "screenshot": "Screenshot",
         "security": "Security",
-        "session-panel": "Session panel",
+        "session-panel": "Session Panel",
         "shape": "Shape",
         "system": "System",
         "theme": "Theme",
@@ -1201,6 +1203,13 @@
       }
     },
     "options": {
+      "bar": {
+        "auto-hide": {
+          "off": "Off",
+          "on": "On",
+          "smart": "Smart"
+        }
+      },
       "clipboard": {
         "auto-paste": {
           "ctrl-shift-v": "Ctrl+Shift+V",
@@ -1419,6 +1428,8 @@
         "incompatible": "Incompatible",
         "loading": "Loading catalog…",
         "no-readme": "No description available.",
+        "open-page": "Open plugin page on noctalia.dev",
+        "open-source": "Open plugin source repository",
         "results-count": "{count} plugins",
         "search-placeholder": "Search plugins…",
         "title": "Plugin Store"
@@ -1525,7 +1536,7 @@
       },
       "bar": {
         "auto-hide": {
-          "description": "Automatically hide the bar when not in use"
+          "description": "Off keeps the bar visible; On hides it until you move the pointer to the screen edge; Smart shows the bar on an empty workspace and hides it when windows are open"
         },
         "background-opacity": {
           "description": "Background opacity of the bar"
@@ -1763,7 +1774,7 @@
           "label": "Active Monitor Only"
         },
         "auto-hide": {
-          "description": "Automatically hide the dock when not in use"
+          "description": "Off keeps the dock visible; On hides it until you move the pointer to the screen edge; Smart shows the dock on an empty workspace and hides it when windows are open"
         },
         "background-opacity": {
           "description": "Background opacity of the dock"
@@ -2140,14 +2151,54 @@
           "description": "Use smaller icons and tighter result rows",
           "label": "Compact Rows"
         },
+        "launcher-global-calculator": {
+          "description": "Also show calculator results in unprefixed search",
+          "label": "Calculator in Global Search"
+        },
+        "launcher-global-emoji": {
+          "description": "Also show emoji results in unprefixed search",
+          "label": "Emoji in Global Search"
+        },
+        "launcher-global-session": {
+          "description": "Also show session actions in unprefixed search",
+          "label": "Session in Global Search"
+        },
+        "launcher-global-wallpaper": {
+          "description": "Also show wallpapers in unprefixed search",
+          "label": "Wallpaper in Global Search"
+        },
+        "launcher-global-windows": {
+          "description": "Also show open windows in unprefixed search",
+          "label": "Windows in Global Search"
+        },
+        "launcher-prefix-calculator": {
+          "description": "Trigger prefix for calculator calculations",
+          "label": "Calculator Prefix"
+        },
+        "launcher-prefix-character": {
+          "description": "Common prefix character used to trigger all provider prefixes (e.g. /)",
+          "label": "Common Prefix Character"
+        },
+        "launcher-prefix-emoji": {
+          "description": "Trigger prefix for emoji search",
+          "label": "Emoji Prefix"
+        },
+        "launcher-prefix-session": {
+          "description": "Trigger prefix for session power actions",
+          "label": "Session Prefix"
+        },
+        "launcher-prefix-wallpaper": {
+          "description": "Trigger prefix for wallpaper selector",
+          "label": "Wallpaper Prefix"
+        },
+        "launcher-prefix-windows": {
+          "description": "Trigger prefix for window search",
+          "label": "Windows Prefix"
+        },
         "launcher-reset-usage": {
           "button": "Reset",
           "description": "Clear launch counts and recently used history used for launcher sorting",
           "label": "Reset Usage Data"
-        },
-        "launcher-session-search": {
-          "description": "Include session actions (lock, suspend, reboot, shutdown, logout) in general launcher searches, not only behind the /session prefix",
-          "label": "Enable Session Search"
         },
         "launcher-show-icons": {
           "description": "Show application icons in launcher results",
@@ -2334,16 +2385,16 @@
           "label": "Sound Volume"
         },
         "sunrise": {
-          "description": "Time of day for sunrise (HH:MM), used with a custom schedule",
+          "description": "Manual sunrise time in HH:MM, used when no location is set",
           "label": "Sunrise"
         },
         "sunset": {
-          "description": "Time of day for sunset (HH:MM), used with a custom schedule",
+          "description": "Manual sunset time in HH:MM, used when no location is set",
           "label": "Sunset"
         },
         "sync-monitor-brightness": {
           "description": "Sync the brightness of all monitors",
-          "label": "Sync monitor brightness"
+          "label": "Sync Monitor Brightness"
         },
         "system-monitor": {
           "cpu-poll": {
@@ -2866,6 +2917,7 @@
         "instance": "Per Placement",
         "kilobytes": "kB/s",
         "megabytes": "MB/s",
+        "minimal": "Minimal",
         "name": "Name",
         "net-rx": "Network RX",
         "net-tx": "Network TX",
@@ -2874,6 +2926,7 @@
         "output": "Output",
         "ram-percent": "RAM Percent",
         "ram-used": "RAM Used",
+        "regular": "Regular",
         "screenshot-primary-fullscreen": "Fullscreen",
         "screenshot-primary-region": "Region",
         "shared": "Shared",
@@ -2881,6 +2934,7 @@
         "swap-percent": "Swap Percent",
         "text": "Text",
         "text-only": "Text Only",
+        "focus-hint": "Focus Hint",
         "workspace-label-centered": "Centered",
         "workspace-label-corner": "Corner",
         "workspace-label-inside": "Inside pill"
@@ -3198,8 +3252,7 @@
         "minimal": {
           "description": "Show workspace ID or name labels only, without animated pills",
           "label": "Minimal Style",
-          "taskbar-description": "Text-only workspace labels without colored disc backgrounds",
-          "workspaces-description": "Text-only workspace labels without pill backgrounds or slide animation"
+          "taskbar-description": "Text-only workspace labels without colored disc backgrounds"
         },
         "mirrored": {
           "description": "Mirror the visualizer around its center",
@@ -3226,7 +3279,7 @@
           "label": "Occupied Color"
         },
         "only-active-workspace": {
-          "description": "Hide windows on inactive workspaces.",
+          "description": "Hide windows on inactive workspaces",
           "label": "Only Active Workspace"
         },
         "path": {
@@ -3269,6 +3322,11 @@
         "scroll-step": {
           "description": "Percentage change applied on each mouse wheel step",
           "label": "Scroll Step"
+        },
+        "style": {
+          "description": "Workspace switcher appearance",
+          "label": "Style",
+          "workspaces-description": "Regular shows animated pills; Minimal is text-only labels; Focus Hint uses dots for inactive workspaces and an expanded active pill with the focused app icon"
         },
         "scroll-up-command": {
           "description": "Shell command run when scrolling up over this button",

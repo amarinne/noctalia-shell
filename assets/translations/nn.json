@@ -993,7 +993,17 @@
             "grouping": "Gruppering",
             "presentation": "Framsyning",
             "runtime": "Køyretid",
-            "widget": "Nøytel"
+            "taskbar": {
+              "grouping": "Gruppering",
+              "windows": "Ruter",
+              "workspace-labels": "Arbeidsromnamn"
+            },
+            "widget": "Nøytel",
+            "workspaces": {
+              "colors": "Leter",
+              "list": "Arbeidsrom",
+              "pills": "Pillestil"
+            }
           }
         }
       }
@@ -1053,7 +1063,7 @@
         "name-label": "Namn",
         "name-placeholder": "Inaktiv-åtburd",
         "resume-command-label": "Framhaldkommando",
-        "resume-command-placeholder": "",
+        "resume-command-placeholder": "notify-send 'Ute frå dvale'",
         "summary": "{name} · {seconds} s",
         "summary-disabled-timeout": "{name} · timeout avslege",
         "timeout-label": "Timeout sekund",
@@ -1067,6 +1077,7 @@
     },
     "navigation": {
       "groups": {
+        "accessibility": "Tilgjenge",
         "audio": "Ljod",
         "authentication": "Sanning",
         "automation": "Automatisering",
@@ -1083,6 +1094,7 @@
         "control-center": "Styrerom",
         "dead-zone": "Daudsone",
         "directories": "Mapper",
+        "display": "Vising",
         "effects": "Verknader",
         "filtering": "Søkjevilkår",
         "focus-styling": "Åtgaumstil",
@@ -1134,6 +1146,7 @@
         "widgets": "Nøytlar"
       },
       "sections": {
+        "accessibility": "Tilgjenge",
         "appearance": "Utsjånad",
         "backdrop": "Bakgrunn",
         "bar": "Stong",
@@ -1246,6 +1259,10 @@
       "orientation": {
         "horizontal": "Vassrett",
         "vertical": "Loddrett"
+      },
+      "panel-bar-alignment": {
+        "centered": "I midten",
+        "near-trigger": "Nær utløysar"
       },
       "panel-position": {
         "auto": "Fylg stonga"
@@ -1407,6 +1424,12 @@
       }
     },
     "schema": {
+      "accessibility": {
+        "high-contrast": {
+          "description": "Auka ljosskilnaden gjennom å skyva flate- og bakgrunnsleter mot endeverda",
+          "label": "Stor ljosskilnad"
+        }
+      },
       "appearance": {
         "animation-speed": {
           "description": "Multiplikator for animasjonsfart",
@@ -1427,6 +1450,10 @@
         "builtin-palette": {
           "description": "Vel ein palett frå den innebygde katalogen",
           "label": "Innebygd palett"
+        },
+        "button-borders": {
+          "description": "Teikna omrit kring knappar gjennom heile skalet",
+          "label": "Knappeomrit"
         },
         "community-palette": {
           "description": "Vel ein palett frå samfunnskatalogen",
@@ -3166,6 +3193,7 @@
         "minimal": {
           "description": "Vis einast arbeidsrom-id eller namnemerkelappar, utan animerte piller",
           "label": "Måtehalden stil",
+          "taskbar-description": "Einast tekst på arbeidsrommerkelappar, utan leta bakgrunnar",
           "workspaces-description": "Merkelappar for arbeidsrom viser berre tekst utan pillebakgrunn eller animasjonar "
         },
         "mirrored": {

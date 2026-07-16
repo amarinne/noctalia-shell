@@ -198,13 +198,13 @@
       "reject": "Відхилити",
       "rfkill-blocked": "Bluetooth заблоковано системою. Увімкніть його, щоб зняти блокування.",
       "sections": {
-        "available": "Доступно",
+        "available": "Доступні пристрої",
         "connected": "Підключено",
         "paired": "З'єднано"
       },
       "unavailable": "Служба Bluetooth недоступна",
       "unknown-device": "Невідомий пристрій",
-      "visible": "Видно пристроям поблизу"
+      "visible": "Виявлення пристроями поблизу"
     },
     "calendar": {
       "all-day": "Весь день",
@@ -408,6 +408,7 @@
     "editor": {
       "actions": {
         "add": "Додати",
+        "clone": "Дублювати (копіювати/вставити можна за допомого Ctrl+C і Ctrl+V)",
         "done": "Готово",
         "flip-horizontal": "Віддзеркалити по горизонталі",
         "flip-vertical": "Віддзеркалити по вертикалі",
@@ -440,6 +441,8 @@
         "clock-style-analog": "Аналоговий",
         "clock-style-digital": "Цифровий",
         "color": "Колір",
+        "color-1": "Колір 1",
+        "color-2": "Колір 2",
         "color2": "Колір 2",
         "command": "Команда",
         "custom-color": "Власний…",
@@ -451,6 +454,7 @@
         "font-family-default": "За замовчуванням системи",
         "format": "Формат",
         "hide-when-no-media": "Приховувати, коли немає медіа",
+        "highlight-color": "Колір виділення",
         "horizontal": "Горизонтальний",
         "image-path": "Зображення",
         "inner-diameter": "Внутрішній діаметр",
@@ -488,8 +492,8 @@
         "vertical": "Вертикальний",
         "visualization-mode": "Режим",
         "visualization-mode-all": "Усі",
-        "visualization-mode-bars": "Панелі",
-        "visualization-mode-bars-rings": "Панелі + Кільця",
+        "visualization-mode-bars": "Стовпчики",
+        "visualization-mode-bars-rings": "Стовпчики й кільця",
         "visualization-mode-rings": "Кільця",
         "visualization-mode-wave": "Хвиля",
         "visualization-mode-wave-rings": "Хвиля + Кільця",
@@ -518,7 +522,7 @@
     },
     "weather": {
       "error": "Помилка",
-      "loading": "Завантаження",
+      "loading": "Триває завантаження…",
       "no-location": "Немає розташування",
       "off": "Погода вимкнена"
     }
@@ -653,14 +657,14 @@
       "greeter-sync-success": "Оформлення синхронізовано. Зміни будуть застосовані при наступному екрані входу.",
       "keybind-app": "Noctalia",
       "keybind-invalid-modifier": "Це поєднання клавіш приймає одну клавішу без модифікаторів.",
-      "keybind-invalid-printable": "Друковані клавіші (літери, цифри, символи) вимагають модифікатора, як-от Ctrl або Alt.",
+      "keybind-invalid-printable": "Клавіші з друкованими символами (літери, цифри тощо) працюватимуть лише з модифікатором, як-от Ctrl або Alt.",
       "keybind-invalid-super": "Клавіша Super/Windows не може бути використана у прив'язках клавіш оболонки.",
       "keybind-invalid-title": "Прив'язка клавіш не дозволена",
       "lockscreen-widgets-editor": "Редактор віджетів екрана блокування",
       "lockscreen-widgets-editor-blocked-locked": "Розблокуйте сеанс, перш ніж редагувати віджети екрана блокування.",
-      "lockscreen-widgets-editor-enabled": "Редактор віджетів екрана блокування увімкнено. Розташуйте віджети на оверлеї попереднього перегляду, потім заблокуйте сеанс, щоб перевірити розташування.",
+      "lockscreen-widgets-editor-enabled": "Редагування віджетів на екрані блокування розпочато. Розташовуйте віджети на шарі попереднього перегляду, а потім заблокуйте сеанс, щоб перевірити їх розташування.",
       "mpris-disabled": "MPRIS вимкнено",
-      "session-bus-unavailable": "Сесійна шина недоступна",
+      "session-bus-unavailable": "Шина сеансу недоступна",
       "wallpaper-palette-export": "Особлива палітра",
       "wallpaper-palette-export-success": "Палітру «{name}» збережено і встановлено як поточну в режимі особливої палітри."
     }
@@ -686,9 +690,25 @@
       "scroll-off": "Scroll Lock Вимкнено",
       "scroll-on": "Scroll Lock Увімкнено"
     },
+    "privacy": {
+      "camera-off": "Відеокамеру вимкнено",
+      "camera-on": "Мікрофон увімкнено",
+      "mic-off": "Мікрофон вимкнено",
+      "mic-on": "Мікрофон увімкнено",
+      "screen-off": "Демонстрацію екрана зупинено.",
+      "screen-on": "Демонстрація екрана триває."
+    },
     "wifi": {
       "off": "Wi-Fi Вимкнено",
       "on": "Wi-Fi Увімкнено"
+    }
+  },
+  "plugins": {
+    "auto-disabled": {
+      "title": "Додаток вимкнутий."
+    },
+    "enable-failed": {
+      "title": "Додаток не увімкнено."
     }
   },
   "power": {
@@ -729,7 +749,7 @@
       "suspend": "Призупинити"
     },
     "errors": {
-      "lock-body": "Протокол блокування сесії недоступний.",
+      "lock-body": "Протокол блокування сеансу недоступний.",
       "lock-title": "Блокування недоступне"
     }
   },
@@ -739,8 +759,10 @@
     },
     "badges": {
       "advanced": "Додатково",
+      "community": "Спільнота",
       "inherited": "Успадковано",
       "monitor": "Монітор",
+      "official": "Офіційні",
       "override": "Перевизначити"
     },
     "calendar-accounts": {
@@ -891,6 +913,9 @@
             "grouping": "Групування",
             "presentation": "Презентація",
             "runtime": "Час виконання",
+            "taskbar": {
+              "windows": "Вікна"
+            },
             "widget": "Віджет"
           }
         }
@@ -959,6 +984,7 @@
     },
     "navigation": {
       "groups": {
+        "accessibility": "Доступність",
         "audio": "Аудіо",
         "automation": "Автоматизація",
         "backdrop": "Фон",
@@ -978,6 +1004,7 @@
         "focus-styling": "Стиль фокусу",
         "formats": "Формати",
         "general": "Загальні",
+        "greeter": "Вітальний екран",
         "grouping": "Групування",
         "home": "Головна",
         "idle": "Неактивний",
@@ -1020,17 +1047,21 @@
         "widgets": "Віджети"
       },
       "sections": {
+        "accessibility": "Доступність",
         "appearance": "Вигляд",
         "backdrop": "Фон",
         "bar": "Панель",
         "desktop": "Робочий стіл",
         "dock": "Dock",
         "hooks": "Hooks",
+        "keybinds": "Гарячі клавіші",
+        "launcher": "Запускач",
         "location": "Розташування",
         "niri": "Niri",
         "notifications": "Сповіщення",
         "osd": "OSD",
         "panels": "Панелі",
+        "plugins": "Додатки",
         "popups": "Спливаючі вікна",
         "power": "Живлення",
         "security": "Безпека",

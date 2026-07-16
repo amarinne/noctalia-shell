@@ -3,6 +3,7 @@
 #include "config/config_types.h"
 #include "core/deferred_call.h"
 #include "i18n/i18n.h"
+#include "net/url_open.h"
 #include "notification/notification_filter.h"
 #include "render/render_context.h"
 #include "scripting/plugin_catalog.h"
@@ -1535,10 +1536,12 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
         m_pluginManager->removeSource(name);
         markPluginListDirty();
         markSettingsWriteSuccess(false);
-        if (m_editorSheetPopup != nullptr) {
-          m_editorSheetPopup->close();
-        }
-        requestSceneRebuild();
+        DeferredCall::callLater([this]() {
+          if (m_editorSheetPopup != nullptr) {
+            m_editorSheetPopup->close();
+          }
+          requestSceneRebuild();
+        });
       };
     }
 
@@ -1726,10 +1729,12 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                     );
                     markPluginListDirty();
                     markSettingsWriteSuccess(false);
-                    if (m_editorSheetPopup != nullptr) {
-                      m_editorSheetPopup->close();
-                    }
-                    requestSceneRebuild();
+                    DeferredCall::callLater([this]() {
+                      if (m_editorSheetPopup != nullptr) {
+                        m_editorSheetPopup->close();
+                      }
+                      requestSceneRebuild();
+                    });
                   },
               })
           );
@@ -1896,6 +1901,45 @@ void SettingsWindow::openPluginStore() {
             .parent = popupParentFor(*m_surface, output, m_wayland->lastInputSerial()),
             .sheetTitle = i18n::tr("settings.plugins.store.title"),
             .removeAction = nullptr,
+            .createHeaderAction = [storeContent, scale]() -> std::unique_ptr<Node> {
+              const auto pageUrl = storeContent->detailPageUrl();
+              const auto sourceUrl = storeContent->detailSourceUrl();
+              if (!pageUrl.has_value() && !sourceUrl.has_value()) {
+                return nullptr;
+              }
+              auto actions = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
+              if (pageUrl.has_value()) {
+                actions->addChild(
+                    ui::button({
+                        .glyph = "external-link",
+                        .glyphSize = Style::fontSizeBody * scale,
+                        .variant = ButtonVariant::Ghost,
+                        .tooltip = i18n::tr("settings.plugins.store.open-page"),
+                        .minWidth = Style::controlHeightSm * scale,
+                        .minHeight = Style::controlHeightSm * scale,
+                        .padding = Style::spaceXs * scale,
+                        .radius = Style::scaledRadiusMd(scale),
+                        .onClick = [url = *pageUrl]() { (void)net::openInBrowser(url); },
+                    })
+                );
+              }
+              if (sourceUrl.has_value()) {
+                actions->addChild(
+                    ui::button({
+                        .glyph = "brand-git",
+                        .glyphSize = Style::fontSizeBody * scale,
+                        .variant = ButtonVariant::Ghost,
+                        .tooltip = i18n::tr("settings.plugins.store.open-source"),
+                        .minWidth = Style::controlHeightSm * scale,
+                        .minHeight = Style::controlHeightSm * scale,
+                        .padding = Style::spaceXs * scale,
+                        .radius = Style::scaledRadiusMd(scale),
+                        .onClick = [url = *sourceUrl]() { (void)net::openInBrowser(url); },
+                    })
+                );
+              }
+              return actions;
+            },
             .populateSheetBody =
                 [storeContent, this](Flex& body) {
                   if (m_renderContext == nullptr) {

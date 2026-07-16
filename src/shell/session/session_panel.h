@@ -61,8 +61,6 @@ private:
   void armEntry(std::size_t index);
   void executeEntry(std::size_t index);
   void cancelCountdown();
-  void focusButton(std::size_t index);
-  [[nodiscard]] std::optional<std::size_t> focusedButtonIndex() const;
   void updateSelectionVisuals();
   void updateCountdownVisuals();
   void layoutCountdownOverlays(Renderer& renderer);
@@ -83,6 +81,7 @@ private:
   std::vector<Button*> m_visibleButtons;
   std::vector<ActionCountdownOverlay> m_countdownOverlays;
   std::vector<std::optional<std::string>> m_entryShortcutBadges;
+  std::optional<std::size_t> m_selectedIndex;
   std::optional<PendingCountdown> m_pendingCountdown;
   ConfigService* m_config = nullptr;
   SessionActionRunner* m_actionRunner = nullptr;

@@ -207,6 +207,9 @@ namespace {
         out.connected = *v;
         if (out.connected) {
           out.connecting = false;
+        } else {
+          out.hasBattery = false;
+          out.batteryPercent = 0;
         }
       }
     }
@@ -238,6 +241,11 @@ namespace {
   }
 
   void mergeBatteryProps(const InterfaceProps& props, BluetoothDeviceInfo& out) {
+    if (!out.connected) {
+      out.hasBattery = false;
+      out.batteryPercent = 0;
+      return;
+    }
     if (auto it = props.find("Percentage"); it != props.end()) {
       if (auto v = variantGet<std::uint8_t>(it->second)) {
         out.hasBattery = true;

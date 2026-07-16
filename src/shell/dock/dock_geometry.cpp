@@ -14,7 +14,7 @@ namespace shell::dock {
     constexpr float kAutoHideSlideExtraPx = 16.0f;
 
     [[nodiscard]] int dockAutoHideEdgeGutter(const DockConfig& cfg) noexcept {
-      if (!cfg.autoHide || cfg.marginEdge <= 0) {
+      if ((!cfg.autoHide && !cfg.smartAutoHide) || cfg.marginEdge <= 0) {
         return 0;
       }
       return cfg.marginEdge;
