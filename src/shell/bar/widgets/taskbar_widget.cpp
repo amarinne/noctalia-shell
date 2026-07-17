@@ -4,6 +4,7 @@
 #include "compositors/workspace_backend.h"
 #include "config/config_service.h"
 #include "core/deferred_call.h"
+#include "core/process.h"
 #include "i18n/i18n.h"
 #include "render/core/color.h"
 #include "render/core/renderer.h"
@@ -36,6 +37,11 @@
 #include <wayland-client-protocol.h>
 
 namespace {
+
+  std::vector<TaskbarWidget*>& taskbarWidgetInstances() {
+    static std::vector<TaskbarWidget*> instances;
+    return instances;
+  }
 
   // Integer centering; optional odd spare pixel on the end side (right/bottom).
   [[nodiscard]] float centeredOffset(float extent, float content, float inset = 0.0f, bool oddSpareOnEnd = true) {
@@ -165,7 +171,8 @@ TaskbarWidget::TaskbarWidget(
     CompositorPlatform& platform, ConfigService& config, wl_output* output, TaskbarWidgetOptions options
 )
     : m_platform(platform), m_configService(config), m_output(output), m_configOptions(std::move(options)),
-      m_showAllOutputs(m_configOptions.showAllOutputs), m_focusedOutputOnly(m_configOptions.focusedOutputOnly),
+      m_showAllOutputs(m_configOptions.showAllOutputs), m_dragDropCommand(m_configOptions.dragDropCommand),
+      m_focusedOutputOnly(m_configOptions.focusedOutputOnly),
       m_showActiveIndicator(m_configOptions.showActiveIndicator), m_activeOpacity(m_configOptions.activeOpacity),
       m_inactiveOpacity(m_configOptions.inactiveOpacity), m_focusedColor(m_configOptions.focusedColor),
       m_occupiedColor(m_configOptions.occupiedColor), m_emptyColor(m_configOptions.emptyColor),
@@ -173,6 +180,7 @@ TaskbarWidget::TaskbarWidget(
       m_barPosition(std::move(m_configOptions.barPosition)), m_shadowConfig(m_configOptions.shadowConfig) {
   syncWorkspaceGroupingCapability();
   buildDesktopIconIndex();
+  taskbarWidgetInstances().push_back(this);
 }
 
 void TaskbarWidget::syncWorkspaceGroupingCapability() {
@@ -212,7 +220,9 @@ void TaskbarWidget::syncWorkspaceGroupingCapability() {
   }
 }
 
-TaskbarWidget::~TaskbarWidget() = default;
+TaskbarWidget::~TaskbarWidget() {
+  std::erase(taskbarWidgetInstances(), this);
+}
 
 bool TaskbarWidget::taskInWorkspaceGroup(const TaskModel& task, const WorkspaceModel& ws) {
   if (task.workspaceKey.empty()) {
@@ -245,6 +255,130 @@ void TaskbarWidget::activateTaskModel(const TaskModel& task) {
       }
     }
   }
+}
+
+Node* TaskbarWidget::sceneRootFor(Node* node) noexcept {
+  while (node != nullptr && node->parent() != nullptr) {
+    node = node->parent();
+  }
+  return node;
+}
+
+void TaskbarWidget::beginTaskDrag(
+    InputArea* sourceArea, const std::string& sourceWindowId, float localX, float localY
+) {
+  m_suppressedClickWindowId.clear();
+  m_dragState = {};
+  if (sourceArea == nullptr || sourceWindowId.empty() || m_dragDropCommand.empty()) {
+    return;
+  }
+
+  float sourceX = 0.0f;
+  float sourceY = 0.0f;
+  Node::absolutePosition(sourceArea, sourceX, sourceY);
+  m_dragState.sourceArea = sourceArea;
+  m_dragState.sourceWindowId = sourceWindowId;
+  m_dragState.startSceneX = sourceX + localX;
+  m_dragState.startSceneY = sourceY + localY;
+  m_dragState.pressed = true;
+}
+
+void TaskbarWidget::updateTaskDrag(float localX, float localY) {
+  if (!m_dragState.pressed || m_dragState.sourceArea == nullptr || m_dragState.dragging) {
+    return;
+  }
+
+  float sourceX = 0.0f;
+  float sourceY = 0.0f;
+  Node::absolutePosition(m_dragState.sourceArea, sourceX, sourceY);
+  const float dx = sourceX + localX - m_dragState.startSceneX;
+  const float dy = sourceY + localY - m_dragState.startSceneY;
+  const float threshold = std::max(5.0f, 5.0f * m_contentScale);
+  m_dragState.dragging = std::hypot(dx, dy) >= threshold;
+}
+
+void TaskbarWidget::finishTaskDrag(float localX, float localY) {
+  if (!m_dragState.pressed || m_dragState.sourceArea == nullptr) {
+    m_dragState = {};
+    return;
+  }
+
+  updateTaskDrag(localX, localY);
+  const bool wasDragging = m_dragState.dragging;
+  const std::string sourceWindowId = m_dragState.sourceWindowId;
+  Node* const sourceSceneRoot = sceneRootFor(m_dragState.sourceArea);
+
+  float sourceX = 0.0f;
+  float sourceY = 0.0f;
+  Node::absolutePosition(m_dragState.sourceArea, sourceX, sourceY);
+  const float sceneX = sourceX + localX;
+  const float sceneY = sourceY + localY;
+  m_dragState = {};
+
+  if (!wasDragging) {
+    return;
+  }
+  m_suppressedClickWindowId = sourceWindowId;
+
+  const auto findTarget = [&](bool requireWindow) -> const DragDropTarget* {
+    for (TaskbarWidget* widget : taskbarWidgetInstances()) {
+      if (widget == nullptr || sceneRootFor(widget->root()) != sourceSceneRoot) {
+        continue;
+      }
+      for (const auto& target : widget->m_dragDropTargets) {
+        if (target.node == nullptr || target.workspaceId.empty()
+            || target.windowId.empty() != !requireWindow
+            || (requireWindow && target.windowId == sourceWindowId)) {
+          continue;
+        }
+        if (target.node->containsScenePoint(sceneX, sceneY)) {
+          return &target;
+        }
+      }
+    }
+    return nullptr;
+  };
+
+  const DragDropTarget* target = findTarget(true);
+  if (target == nullptr) {
+    target = findTarget(false);
+  }
+  if (target == nullptr) {
+    return;
+  }
+
+  float left = 0.0f;
+  float top = 0.0f;
+  float right = 0.0f;
+  float bottom = 0.0f;
+  Node::transformedBounds(target->node, left, top, right, bottom);
+  const float extent = target->vertical ? bottom - top : right - left;
+  const float offset = target->vertical ? sceneY - top : sceneX - left;
+  const float fraction = extent > 0.0f ? std::clamp(offset / extent, 0.0f, 1.0f) : 0.5f;
+
+  std::vector<std::string> args{
+      m_dragDropCommand,
+      "drop",
+      "--source-window-id",
+      sourceWindowId,
+      "--target-workspace-id",
+      target->workspaceId,
+      "--fraction",
+      std::to_string(fraction),
+  };
+  if (!target->windowId.empty()) {
+    args.push_back("--target-window-id");
+    args.push_back(target->windowId);
+  }
+  (void)process::runAsync(args);
+}
+
+bool TaskbarWidget::consumeSuppressedTaskClick(const std::string& windowId) {
+  if (m_suppressedClickWindowId.empty() || m_suppressedClickWindowId != windowId) {
+    return false;
+  }
+  m_suppressedClickWindowId.clear();
+  return true;
 }
 
 void TaskbarWidget::create() {
@@ -365,6 +499,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
   if (m_taskStrip == nullptr) {
     return;
   }
+  m_dragDropTargets.clear();
   const float iconSize = std::round(Style::baseGlyphSize * m_contentScale);
   const float tilePadding = Style::spaceXs * 0.35f * m_contentScale;
   const float tileSize = std::round(iconSize + tilePadding * 2.0f);
@@ -431,17 +566,35 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
     const std::optional<Workspace> clickWorkspace =
         taskWorkspace != nullptr ? std::optional<Workspace>(taskWorkspace->workspace) : std::nullopt;
     wl_output* const taskWsHost = taskWorkspace != nullptr ? workspaceHostOutput(*taskWorkspace) : effectiveOutput();
+    auto* areaPtr = area.get();
+
+    if (!m_dragDropCommand.empty() && !task.workspaceWindowId.empty()) {
+      const std::string dragWindowId = task.workspaceWindowId;
+      area->setOnPress([this, areaPtr, dragWindowId](const InputArea::PointerData& data) {
+        if (data.button != BTN_LEFT) {
+          return;
+        }
+        if (data.pressed) {
+          beginTaskDrag(areaPtr, dragWindowId, data.localX, data.localY);
+        } else {
+          finishTaskDrag(data.localX, data.localY);
+        }
+      });
+      area->setOnMotion([this](const InputArea::PointerData& data) { updateTaskDrag(data.localX, data.localY); });
+    }
 
     if (task.firstHandle != nullptr
         || !task.workspaceWindowId.empty()
         || (compositors::isKde() && (!task.title.empty() || !task.appId.empty()))
         || clickWorkspace.has_value()
         || !cycleCandidates.empty()) {
-      auto* areaPtr = area.get();
       area->setOnClick([this, task, areaPtr, handle = task.firstHandle, windowId = task.workspaceWindowId,
                         clickWorkspace, taskWsHost, cycleCandidates = std::move(cycleCandidates),
                         cycleKey = std::move(cycleKey)](const InputArea::PointerData& data) {
         if (data.button == BTN_LEFT) {
+          if (consumeSuppressedTaskClick(windowId)) {
+            return;
+          }
           if (!cycleCandidates.empty()) {
             std::size_t& cursor = m_groupedAppCycleCursor[cycleKey];
             if (cursor >= cycleCandidates.size()) {
@@ -887,6 +1040,11 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
         group->setRadius(0.0f);
       }
       auto* groupPtr = static_cast<Box*>(m_taskStrip->addChild(std::move(group)));
+      if (!m_dragDropCommand.empty() && !ws.workspace.id.empty()) {
+        m_dragDropTargets.push_back(
+            {.node = groupPtr, .workspaceId = ws.workspace.id, .windowId = {}, .vertical = m_vertical}
+        );
+      }
 
       Box* contentPtr = groupPtr;
       if (externalInsetCapsule) {
@@ -921,11 +1079,13 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
         for (std::size_t slot = 0; slot < inlineSlotCount; ++slot) {
           const float tileOffset = (tileSize + groupGap) * static_cast<float>(slot);
           std::unique_ptr<Node> tile;
+          const TaskModel* dropTask = nullptr;
           if (m_showWorkspaceLabel && slot == 0) {
             tile = createWorkspaceBadgeTile(ws);
           } else {
             const std::size_t taskIndex = m_showWorkspaceLabel ? slot - 1 : slot;
             const TaskModel* task = renderedTasks[taskIndex];
+            dropTask = task;
             const auto cycleIt = cycleCandidatesByHandle.find(task->handleKey);
             const auto cycleKeyIt = cycleKeyByHandle.find(task->handleKey);
             const std::size_t badgeCount =
@@ -940,7 +1100,17 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
           } else {
             tile->setPosition(std::round(tileMain + tileOffset), tileCross);
           }
+          Node* const tilePtr = tile.get();
           contentPtr->addChild(std::move(tile));
+          if (!m_dragDropCommand.empty() && dropTask != nullptr && !ws.workspace.id.empty()
+              && !dropTask->workspaceWindowId.empty()) {
+            m_dragDropTargets.push_back(
+                {.node = tilePtr,
+                 .workspaceId = ws.workspace.id,
+                 .windowId = dropTask->workspaceWindowId,
+                 .vertical = m_vertical}
+            );
+          }
         }
       } else {
         if (emptyWorkspace) {
@@ -974,7 +1144,16 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
           } else {
             tile->setPosition(std::round(tileMain + tileOffset), tileCross);
           }
+          Node* const tilePtr = tile.get();
           contentPtr->addChild(std::move(tile));
+          if (!m_dragDropCommand.empty() && !ws.workspace.id.empty() && !task->workspaceWindowId.empty()) {
+            m_dragDropTargets.push_back(
+                {.node = tilePtr,
+                 .workspaceId = ws.workspace.id,
+                 .windowId = task->workspaceWindowId,
+                 .vertical = m_vertical}
+            );
+          }
         }
         if (externalBadge) {
           Box* badgeParent = externalInsetCapsule ? groupPtr : contentPtr;
