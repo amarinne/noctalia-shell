@@ -30,6 +30,7 @@ struct TaskbarWidgetOptions {
   bool groupByWorkspace = false;
   bool showAllOutputs = false;
   std::string targetOutput;
+  std::string dragDropCommand;
   bool onlyActiveWorkspace = false;
   bool showWorkspaceLabel = true;
   WorkspaceLabelPlacement workspaceLabelPlacement = WorkspaceLabelPlacement::Corner;
@@ -91,6 +92,22 @@ private:
     std::uint8_t votes = 0;
   };
 
+  struct DragDropTarget {
+    Node* node = nullptr;
+    std::string workspaceId;
+    std::string windowId;
+    bool vertical = false;
+  };
+
+  struct DragState {
+    InputArea* sourceArea = nullptr;
+    std::string sourceWindowId;
+    float startSceneX = 0.0f;
+    float startSceneY = 0.0f;
+    bool pressed = false;
+    bool dragging = false;
+  };
+
   void doLayout(Renderer& renderer, float containerWidth, float containerHeight) override;
   void doUpdate(Renderer& renderer) override;
 
@@ -121,6 +138,11 @@ private:
   [[nodiscard]] static ColorRole onRoleForFill(ColorRole fill);
   [[nodiscard]] static bool taskInWorkspaceGroup(const TaskModel& task, const WorkspaceModel& ws);
   void activateTaskModel(const TaskModel& task);
+  void beginTaskDrag(InputArea* sourceArea, const std::string& sourceWindowId, float localX, float localY);
+  void updateTaskDrag(float localX, float localY);
+  void finishTaskDrag(float localX, float localY);
+  [[nodiscard]] bool consumeSuppressedTaskClick(const std::string& windowId);
+  [[nodiscard]] static Node* sceneRootFor(Node* node) noexcept;
 
   CompositorPlatform& m_platform;
   ConfigService& m_configService;
@@ -128,6 +150,7 @@ private:
   TaskbarWidgetOptions m_configOptions;
   bool m_groupByWorkspace = false;
   bool m_showAllOutputs = false;
+  std::string m_dragDropCommand;
   bool m_onlyActiveWorkspace = false;
   bool m_showWorkspaceLabel = true;
   WorkspaceLabelPlacement m_workspaceLabelPlacement = WorkspaceLabelPlacement::Corner;
@@ -161,6 +184,9 @@ private:
 
   std::vector<TaskModel> m_tasks;
   std::vector<WorkspaceModel> m_workspaces;
+  std::vector<DragDropTarget> m_dragDropTargets;
+  DragState m_dragState;
+  std::string m_suppressedClickWindowId;
   std::unordered_map<std::uintptr_t, PendingWorkspaceTransition> m_pendingWorkspaceTransitions;
   std::unordered_map<std::string, std::size_t> m_groupedAppCycleCursor;
   std::unordered_map<std::string, std::string> m_appIconsByLower;
