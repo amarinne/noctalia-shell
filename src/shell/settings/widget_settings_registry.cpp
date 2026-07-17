@@ -817,6 +817,7 @@ namespace settings {
       }
     } else if (type == "taskbar") {
       add(boolSpec("show_all_outputs", false));
+      add(stringSpec("target_output", ""));
       if (supportsTaskbarWorkspaceGrouping) {
         add(boolSpec("group_by_workspace", false));
         add(boolSpec("only_active_workspace", false));

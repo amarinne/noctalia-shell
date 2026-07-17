@@ -527,6 +527,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
     TaskbarWidgetOptions options{
         .groupByWorkspace = wc != nullptr ? wc->getBool("group_by_workspace", false) : false,
         .showAllOutputs = wc != nullptr ? wc->getBool("show_all_outputs", false) : false,
+        .targetOutput = wc != nullptr ? wc->getString("target_output", "") : std::string{},
         .onlyActiveWorkspace = wc != nullptr ? wc->getBool("only_active_workspace", false) : false,
         .showWorkspaceLabel = wc != nullptr ? wc->getBool("show_workspace_label", true) : true,
         .workspaceLabelPlacement = WorkspaceLabelPlacement::Corner,

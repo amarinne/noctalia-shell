@@ -430,7 +430,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
     }
     const std::optional<Workspace> clickWorkspace =
         taskWorkspace != nullptr ? std::optional<Workspace>(taskWorkspace->workspace) : std::nullopt;
-    wl_output* const taskWsHost = taskWorkspace != nullptr ? workspaceHostOutput(*taskWorkspace) : m_output;
+    wl_output* const taskWsHost = taskWorkspace != nullptr ? workspaceHostOutput(*taskWorkspace) : effectiveOutput();
 
     if (task.firstHandle != nullptr
         || !task.workspaceWindowId.empty()
@@ -1010,6 +1010,7 @@ void TaskbarWidget::updateModels() {
   const auto* activeHandle = active.has_value() ? active->handle : nullptr;
 
   wl_output* const topFilter = toplevelOutputFilter();
+  wl_output* const selectedOutput = effectiveOutput();
   const auto assignmentMode = m_platform.taskbarAssignmentMode();
   std::vector<WorkspaceModel> nextWorkspaces;
   std::unordered_map<std::string, std::vector<std::string>> runningByWorkspace;
@@ -1024,7 +1025,7 @@ void TaskbarWidget::updateModels() {
       if (wo.output == nullptr) {
         continue;
       }
-      if (!m_showAllOutputs && wo.output != m_output) {
+      if (!m_showAllOutputs && wo.output != selectedOutput) {
         continue;
       }
       monitorOrdinal.emplace(wo.output, nextOrdinal++);
@@ -1034,7 +1035,7 @@ void TaskbarWidget::updateModels() {
       if (wo.output == nullptr) {
         continue;
       }
-      if (!m_showAllOutputs && wo.output != m_output) {
+      if (!m_showAllOutputs && wo.output != selectedOutput) {
         continue;
       }
       const auto workspaces = m_platform.workspaces(wo.output);
@@ -1085,8 +1086,8 @@ void TaskbarWidget::updateModels() {
         }
       }
     } else {
-      runningByWorkspace = m_platform.appIdsByWorkspace(m_output);
-      workspaceAssignments = m_platform.workspaceWindowAssignments(m_output);
+      runningByWorkspace = m_platform.appIdsByWorkspace(selectedOutput);
+      workspaceAssignments = m_platform.workspaceWindowAssignments(selectedOutput);
     }
 
     std::unordered_map<std::string, std::size_t> workspaceKeyToOrder;
@@ -1301,7 +1302,7 @@ void TaskbarWidget::updateModels() {
           }
         }
       } else {
-        assignedByHandle = m_platform.assignTaskbarWindows(candidates, m_output);
+        assignedByHandle = m_platform.assignTaskbarWindows(candidates, selectedOutput);
       }
       std::vector<bool> representedAssignments(workspaceAssignments.size(), false);
 
@@ -2236,7 +2237,7 @@ bool TaskbarWidget::activeWorkspaceIndex(std::size_t& index) const {
 
   // Fallback to the active workspace on the current output
   for (std::size_t i = 0; i < m_workspaces.size(); ++i) {
-    if (m_workspaces[i].workspace.active && m_workspaces[i].hostOutput == m_output) {
+    if (m_workspaces[i].workspace.active && m_workspaces[i].hostOutput == effectiveOutput()) {
       index = i;
       return true;
     }
@@ -2300,7 +2301,23 @@ void TaskbarWidget::activateAdjacentTask(int direction) {
   m_platform.activateToplevel(targetTask.firstHandle);
 }
 
-wl_output* TaskbarWidget::toplevelOutputFilter() const noexcept { return m_showAllOutputs ? nullptr : m_output; }
+wl_output* TaskbarWidget::toplevelOutputFilter() const noexcept { return m_showAllOutputs ? nullptr : effectiveOutput(); }
+
+wl_output* TaskbarWidget::effectiveOutput() const noexcept {
+  if (!m_configOptions.targetOutput.empty()) {
+    for (const auto& output : m_platform.outputs()) {
+      if (output.output == nullptr) {
+        continue;
+      }
+      if (output.connectorName == m_configOptions.targetOutput
+          || output.interfaceName == m_configOptions.targetOutput
+          || output.description == m_configOptions.targetOutput) {
+        return output.output;
+      }
+    }
+  }
+  return m_output;
+}
 
 bool TaskbarWidget::useMultiOutputWorkspaceKeys() const noexcept {
   if (!m_showAllOutputs) {
@@ -2330,7 +2347,7 @@ std::string TaskbarWidget::workspaceKeyPrefixForOutput(wl_output* out) const {
 }
 
 wl_output* TaskbarWidget::workspaceHostOutput(const WorkspaceModel& model) const noexcept {
-  return model.hostOutput != nullptr ? model.hostOutput : m_output;
+  return model.hostOutput != nullptr ? model.hostOutput : effectiveOutput();
 }
 
 ColorSpec TaskbarWidget::workspaceFillColor(const Workspace& workspace) const {
@@ -2351,7 +2368,7 @@ ColorSpec TaskbarWidget::workspaceFillColor(const Workspace& workspace) const {
   return color;
 }
 
-bool TaskbarWidget::isFocusedOutput() const { return m_platform.preferredInteractiveOutput() == m_output; }
+bool TaskbarWidget::isFocusedOutput() const { return m_platform.preferredInteractiveOutput() == effectiveOutput(); }
 
 ColorSpec TaskbarWidget::workspaceTextColor(const Workspace& workspace) const {
   if (workspace.urgent) {

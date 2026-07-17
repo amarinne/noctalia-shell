@@ -29,6 +29,7 @@ enum class WorkspaceLabelPlacement {
 struct TaskbarWidgetOptions {
   bool groupByWorkspace = false;
   bool showAllOutputs = false;
+  std::string targetOutput;
   bool onlyActiveWorkspace = false;
   bool showWorkspaceLabel = true;
   WorkspaceLabelPlacement workspaceLabelPlacement = WorkspaceLabelPlacement::Corner;
@@ -106,6 +107,7 @@ private:
   void activateAdjacentTask(int direction);
   [[nodiscard]] bool activeWorkspaceIndex(std::size_t& index) const;
   [[nodiscard]] wl_output* toplevelOutputFilter() const noexcept;
+  [[nodiscard]] wl_output* effectiveOutput() const noexcept;
   [[nodiscard]] bool useMultiOutputWorkspaceKeys() const noexcept;
   [[nodiscard]] std::string workspaceKeyPrefixForOutput(wl_output* out) const;
   [[nodiscard]] wl_output* workspaceHostOutput(const WorkspaceModel& model) const noexcept;
