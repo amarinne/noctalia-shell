@@ -387,6 +387,12 @@ void TaskbarWidget::finishTaskDrag(float localX, float localY) {
     args.push_back("--target-window-id");
     args.push_back(target->windowId);
   }
+  if (const WaylandOutput* hostOutput = m_platform.findOutputByWl(m_output); hostOutput != nullptr) {
+    args.push_back("--cursor-x");
+    args.push_back(std::to_string(static_cast<double>(hostOutput->logicalX) + sceneX));
+    args.push_back("--cursor-y");
+    args.push_back(std::to_string(static_cast<double>(hostOutput->logicalY) + sceneY));
+  }
   (void)process::runAsync(args);
 }
 
