@@ -1,7 +1,11 @@
 #include "shell/settings/plugin_store_content.h"
 
+#include "core/input/key_modifiers.h"
+#include "core/input/key_symbols.h"
+#include "core/input/keybind_matcher.h"
 #include "i18n/i18n.h"
 #include "scripting/plugin_file_cache.h"
+#include "scripting/plugin_id.h"
 #include "shell/settings/plugin_store_tile.h"
 #include "ui/builders.h"
 #include "ui/controls/button.h"
@@ -20,6 +24,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <fstream>
 #include <iterator>
 #include <set>
@@ -28,6 +33,9 @@
 namespace settings {
 
   namespace {
+
+    constexpr float kSourceBadgeMaxWidth = 120.0f;
+    constexpr float kTagBadgeMaxWidth = 120.0f;
 
     bool containsIgnoreCase(std::string_view haystack, std::string_view needle) {
       if (needle.empty()) {
@@ -55,7 +63,7 @@ namespace settings {
 
       [[nodiscard]] std::unique_ptr<Node> createTile() override { return std::make_unique<PluginStoreTile>(m_scale); }
 
-      void bindTile(Node& tile, std::size_t index, bool /*selected*/, bool hovered) override {
+      void bindTile(Node& tile, std::size_t index, bool selected, bool hovered) override {
         if (m_indices == nullptr || m_catalog == nullptr || index >= m_indices->size()) {
           return;
         }
@@ -69,7 +77,7 @@ namespace settings {
             thumbPath = it->second;
           }
         }
-        t->bind(storeEntry.entry, storeEntry.source, onDisk, hovered, thumbPath, m_renderer, m_textureCache);
+        t->bind(storeEntry.entry, storeEntry.source, onDisk, selected, hovered, thumbPath, m_renderer, m_textureCache);
       }
 
       void onActivate(std::size_t index) override {
@@ -108,6 +116,36 @@ namespace settings {
 
   bool PluginStoreContent::isDetailView() const noexcept { return m_detailIndex.has_value(); }
 
+  std::optional<std::string> PluginStoreContent::detailPageUrl() const {
+    if (!m_detailIndex.has_value() || *m_detailIndex >= m_filteredIndices.size()) {
+      return std::nullopt;
+    }
+    const auto& storeEntry = m_catalog[m_filteredIndices[*m_detailIndex]];
+    if (storeEntry.source != "official" && storeEntry.source != "community") {
+      return std::nullopt;
+    }
+    return "https://noctalia.dev/plugins/"
+        + storeEntry.source
+        + "/"
+        + scripting::pluginSubdirFromId(storeEntry.entry.id).value();
+  }
+
+  std::optional<std::string> PluginStoreContent::detailSourceUrl() const {
+    if (!m_detailIndex.has_value() || *m_detailIndex >= m_filteredIndices.size()) {
+      return std::nullopt;
+    }
+    const auto& storeEntry = m_catalog[m_filteredIndices[*m_detailIndex]];
+    if (storeEntry.sourceConfig.kind != PluginSourceKind::Git) {
+      return std::nullopt;
+    }
+    if (storeEntry.source == "official" || storeEntry.source == "community") {
+      return storeEntry.sourceConfig.location
+          + "/tree/main/"
+          + scripting::pluginSubdirFromId(storeEntry.entry.id).value();
+    }
+    return storeEntry.sourceConfig.location;
+  }
+
   void PluginStoreContent::collectTags() {
     std::set<std::string> tagSet;
     for (const auto& entry : m_catalog) {
@@ -144,6 +182,11 @@ namespace settings {
     std::ranges::sort(m_filteredIndices, [this](std::size_t a, std::size_t b) {
       return m_catalog[a].entry.name < m_catalog[b].entry.name;
     });
+    if (m_filteredIndices.empty()) {
+      m_selectedIndex.reset();
+    } else if (m_selectedIndex.has_value() && *m_selectedIndex >= m_filteredIndices.size()) {
+      m_selectedIndex = m_filteredIndices.size() - 1;
+    }
   }
 
   void PluginStoreContent::populateBody(Flex& body, Renderer& renderer, AsyncTextureCache* textureCache) {
@@ -168,6 +211,7 @@ namespace settings {
               applyFilter();
               if (m_grid != nullptr) {
                 m_grid->notifyDataChanged();
+                m_grid->setSelectedIndex(m_selectedIndex);
               }
               if (m_countLabel != nullptr) {
                 m_countLabel->setText(
@@ -179,41 +223,72 @@ namespace settings {
     );
 
     if (!m_tags.empty()) {
-      std::vector<std::string> allTags;
-      allTags.push_back(i18n::tr("settings.plugins.store.category-all"));
-      allTags.insert(allTags.end(), m_tags.begin(), m_tags.end());
-      std::vector<std::unique_ptr<Button>> tagButtons;
-      for (std::size_t i = 0; i < allTags.size(); ++i) {
-        const bool selected = (i == 0 && m_selectedTag.empty()) || (i > 0 && m_tags[i - 1] == m_selectedTag);
-        auto btn = ui::button({
-            .text = allTags[i],
-            .fontSize = Style::fontSizeCaption * scale,
-            .variant = selected ? ButtonVariant::Default : ButtonVariant::Outline,
-            .radius = Style::scaledRadiusMd(scale),
-            .onClick = [this, i]() {
-              m_selectedTag = i == 0 ? std::string{} : m_tags[i - 1];
-              applyFilter();
-              if (m_onRebuildNeeded) {
-                m_onRebuildNeeded();
-              }
-            },
-        });
-        tagButtons.push_back(std::move(btn));
-      }
-      auto rows = wrapButtonsIntoRows(
-          renderer, tagButtons, body.width() > 0 ? body.width() : 700.0f * scale, Style::spaceXs * scale
+      auto tagsHeader = ui::row({.align = FlexAlign::Center, .justify = FlexJustify::SpaceBetween, .fillWidth = true});
+      tagsHeader->addChild(
+          ui::button({
+              .text = i18n::tr("settings.plugins.store.categories"),
+              .glyph = m_tagFiltersCollapsed ? std::string("chevron-right") : std::string("chevron-down"),
+              .fontSize = Style::fontSizeCaption * scale,
+              .glyphSize = Style::fontSizeCaption * scale,
+              .contentAlign = ButtonContentAlign::Start,
+              .variant = ButtonVariant::Ghost,
+              .onClick = [this]() {
+                m_tagFiltersCollapsed = !m_tagFiltersCollapsed;
+                if (m_onRebuildNeeded) {
+                  m_onRebuildNeeded();
+                }
+              },
+          })
       );
-      for (auto& row : rows) {
-        auto rowFlex = ui::row(
-            {.align = FlexAlign::Center,
-             .justify = FlexJustify::Center,
-             .gap = Style::spaceXs * scale,
-             .fillWidth = true}
-        );
-        for (auto& btn : row) {
-          rowFlex->addChild(std::move(btn));
+
+      const std::string selectedTag =
+          m_selectedTag.empty() ? i18n::tr("settings.plugins.store.category-all") : m_selectedTag;
+      tagsHeader->addChild(
+          ui::label({
+              .text = selectedTag,
+              .fontSize = Style::fontSizeCaption * scale,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+          })
+      );
+      body.addChild(std::move(tagsHeader));
+
+      if (!m_tagFiltersCollapsed) {
+        std::vector<std::string> allTags;
+        allTags.push_back(i18n::tr("settings.plugins.store.category-all"));
+        allTags.insert(allTags.end(), m_tags.begin(), m_tags.end());
+        std::vector<std::unique_ptr<Button>> tagButtons;
+        for (std::size_t i = 0; i < allTags.size(); ++i) {
+          const bool selected = (i == 0 && m_selectedTag.empty()) || (i > 0 && m_tags[i - 1] == m_selectedTag);
+          auto btn = ui::button({
+              .text = allTags[i],
+              .fontSize = Style::fontSizeCaption * scale,
+              .variant = selected ? ButtonVariant::Primary : ButtonVariant::Default,
+              .radius = Style::scaledRadiusMd(scale),
+              .onClick = [this, i]() {
+                m_selectedTag = i == 0 ? std::string{} : m_tags[i - 1];
+                applyFilter();
+                if (m_onRebuildNeeded) {
+                  m_onRebuildNeeded();
+                }
+              },
+          });
+          tagButtons.push_back(std::move(btn));
         }
-        body.addChild(std::move(rowFlex));
+        auto rows = wrapButtonsIntoRows(
+            renderer, tagButtons, body.width() > 0 ? body.width() : 700.0f * scale, Style::spaceXs * scale
+        );
+        for (auto& row : rows) {
+          auto rowFlex = ui::row(
+              {.align = FlexAlign::Center,
+               .justify = FlexJustify::Center,
+               .gap = Style::spaceXs * scale,
+               .fillWidth = true}
+          );
+          for (auto& btn : row) {
+            rowFlex->addChild(std::move(btn));
+          }
+          body.addChild(std::move(rowFlex));
+        }
       }
     }
 
@@ -240,7 +315,7 @@ namespace settings {
 
     auto grid = std::make_unique<VirtualGridView>();
     grid->setMinCellWidth(200.0f * scale);
-    grid->setCellHeight(260.0f * scale);
+    grid->setCellHeight(215.0f * scale);
     grid->setSquareCells(false);
     grid->setColumnGap(Style::spaceSm * scale);
     grid->setRowGap(Style::spaceSm * scale);
@@ -251,6 +326,10 @@ namespace settings {
     grid->setFlexGrow(1.0f);
     grid->setAdapter(adapterPtr);
     m_grid = grid.get();
+    m_grid->setOnSelectionChanged([this](std::optional<std::size_t> index) { m_selectedIndex = index; });
+    if (m_selectedIndex.has_value()) {
+      m_grid->setSelectedIndex(m_selectedIndex);
+    }
     body.addChild(std::move(grid));
 
     if (m_filteredIndices.empty()) {
@@ -291,20 +370,46 @@ namespace settings {
     dc->setAlign(FlexAlign::Stretch);
     dc->setGap(Style::spaceMd * scale);
 
-    auto header = ui::row({.align = FlexAlign::Center, .gap = Style::spaceMd * scale, .fillWidth = true});
+    auto header = ui::row({.align = FlexAlign::Stretch, .gap = Style::spaceMd * scale, .fillWidth = true});
 
+    auto pill = [&](const std::string& text, ColorRole fg, ColorRole bg, float bgAlpha, float maxWidth = 0.0f) {
+      Label* label = nullptr;
+      auto badge = ui::row(
+          {.align = FlexAlign::Center,
+           .paddingH = Style::spaceXs * scale,
+           .fill = colorSpecFromRole(bg, bgAlpha),
+           .radius = Style::scaledRadiusSm(scale)},
+          ui::label({
+              .out = &label,
+              .text = text,
+              .fontSize = Style::fontSizeMini * scale,
+              .fontWeight = FontWeight::Bold,
+              .color = colorSpecFromRole(fg),
+          })
+      );
+      if (maxWidth > 0.0f) {
+        badge->setMaxWidth(maxWidth * scale);
+        label->setMaxWidth((maxWidth - (Style::spaceXs * 2.0f)) * scale);
+        label->setMaxLines(1);
+        label->setEllipsize(TextEllipsize::End);
+      }
+      return badge;
+    };
+
+    // Left side: plugin thumbnail (Contain-fit so it shows uncropped), or glyph fallback.
     auto thumbIt = m_thumbnailPaths.find(entry.id);
     if (thumbIt != m_thumbnailPaths.end() && !thumbIt->second.empty()) {
       auto img = ui::image({
-          .fit = ImageFit::Cover,
+          .fit = ImageFit::Contain,
           .radius = Style::scaledRadiusMd(scale),
-          .width = 120.0f * scale,
-          .height = 80.0f * scale,
+          .width = 320.0f * scale,
+          .height = 200.0f * scale,
       });
+      const int thumbTargetSize = static_cast<int>(std::ceil(320.0f * scale));
       if (textureCache != nullptr) {
-        img->setSourceFileAsync(renderer, *textureCache, thumbIt->second);
+        img->setSourceFileAsync(renderer, *textureCache, thumbIt->second, thumbTargetSize, true);
       } else {
-        img->setSourceFile(renderer, thumbIt->second);
+        img->setSourceFile(renderer, thumbIt->second, thumbTargetSize, true);
       }
       header->addChild(std::move(img));
     } else {
@@ -319,62 +424,100 @@ namespace settings {
       );
     }
 
-    auto info = ui::column({.align = FlexAlign::Start, .gap = Style::spaceXs * scale, .flexGrow = 1.0f});
-    info->addChild(
+    // Right side: plugin info (name, author, tags, version/license/badges, description, action),
+    // left-aligned and filling the space next to the thumbnail.
+    auto info = ui::column(
+        {.align = FlexAlign::Start, .gap = Style::spaceXs * scale, .paddingV = Style::spaceSm * scale, .flexGrow = 1.0f}
+    );
+    auto title = ui::row({.align = FlexAlign::Center, .wrap = true, .gap = Style::spaceXs * scale, .fillWidth = true});
+    title->addChild(
         ui::label({
             .text = entry.name,
             .fontSize = Style::fontSizeHeader * scale,
-            .color = colorSpecFromRole(ColorRole::OnSurface),
             .fontWeight = FontWeight::Bold,
+            .color = colorSpecFromRole(ColorRole::OnSurface),
+            .maxLines = 1,
+            .ellipsize = TextEllipsize::End,
         })
     );
-    if (!entry.author.empty()) {
-      info->addChild(
-          ui::label({
-              .text = entry.author,
-              .fontSize = Style::fontSizeCaption * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
-          })
-      );
+    for (const auto& tag : entry.tags) {
+      title->addChild(pill(tag, ColorRole::OnSurfaceVariant, ColorRole::SurfaceVariant, 1.0f, kTagBadgeMaxWidth));
     }
-    auto meta = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
-    if (!entry.version.empty()) {
-      meta->addChild(
+    info->addChild(std::move(title));
+    auto meta = ui::row({.align = FlexAlign::Center, .wrap = true, .gap = Style::spaceXs * scale, .fillWidth = true});
+    bool hasMeta = false;
+    const auto addMetaItem = [&](std::unique_ptr<Node> item) {
+      auto group = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
+      if (hasMeta) {
+        group->addChild(
+            ui::label({
+                .text = "·",
+                .fontSize = Style::fontSizeMini * scale,
+                .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+            })
+        );
+      }
+      group->addChild(std::move(item));
+      meta->addChild(std::move(group));
+      hasMeta = true;
+    };
+    const auto addMetaText = [&](const std::string& text) {
+      addMetaItem(
           ui::label({
-              .text = "v" + entry.version,
+              .text = text,
               .fontSize = Style::fontSizeMini * scale,
               .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
           })
       );
+    };
+    if (!entry.author.empty()) {
+      addMetaText(entry.author);
+    }
+    if (!entry.version.empty()) {
+      addMetaText("v" + entry.version);
+    }
+    if (!entry.license.empty()) {
+      addMetaText(entry.license);
     }
     if (storeEntry.source == "official") {
-      meta->addChild(
-          ui::row(
-              {.align = FlexAlign::Center,
-               .paddingH = Style::spaceXs * scale,
-               .fill = colorSpecFromRole(ColorRole::Primary, 0.15f),
-               .radius = Style::scaledRadiusSm(scale)},
-              ui::label({
-                  .text = i18n::tr("settings.badges.official"),
-                  .fontSize = Style::fontSizeMini * scale,
-                  .color = colorSpecFromRole(ColorRole::Primary),
-                  .fontWeight = FontWeight::Bold,
-              })
-          )
-      );
+      addMetaItem(pill(
+          i18n::tr("settings.badges.official"), ColorRole::Primary, ColorRole::Primary, 0.15f, kSourceBadgeMaxWidth
+      ));
+    } else if (storeEntry.source == "community") {
+      addMetaItem(pill(
+          i18n::tr("settings.badges.community"), ColorRole::Secondary, ColorRole::Secondary, 0.15f, kSourceBadgeMaxWidth
+      ));
+    } else {
+      addMetaItem(pill(storeEntry.source, ColorRole::Tertiary, ColorRole::Tertiary, 0.15f, kSourceBadgeMaxWidth));
+    }
+    if (entry.deprecated) {
+      addMetaItem(pill(i18n::tr("settings.badges.deprecated"), ColorRole::Error, ColorRole::Error, 0.15f));
     }
     info->addChild(std::move(meta));
-    header->addChild(std::move(info));
+
+    if (!entry.description.empty()) {
+      info->addChild(
+          ui::label({
+              .text = entry.description,
+              .fontSize = Style::fontSizeCaption * scale,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+              .maxLines = 4,
+              .ellipsize = TextEllipsize::End,
+          })
+      );
+    }
+
+    info->addChild(ui::spacer());
 
     if (enabling) {
-      header->addChild(
+      info->addChild(
           ui::spinner({
               .spinnerSize = Style::controlHeightSm * scale * 0.7f,
               .spinning = true,
           })
       );
     } else if (!entry.compatible) {
-      header->addChild(
+      info->addChild(
           ui::button({
               .text = i18n::tr("settings.plugins.store.incompatible"),
               .fontSize = Style::fontSizeCaption * scale,
@@ -383,7 +526,7 @@ namespace settings {
           })
       );
     } else if (!onDisk) {
-      header->addChild(
+      info->addChild(
           ui::button({
               .text = i18n::tr("settings.plugins.store.add"),
               .fontSize = Style::fontSizeCaption * scale,
@@ -396,6 +539,8 @@ namespace settings {
           })
       );
     }
+    header->addChild(std::move(info));
+
     dc->addChild(std::move(header));
 
     dc->addChild(ui::separator({.spacing = Style::spaceSm * scale}));
@@ -411,15 +556,6 @@ namespace settings {
       auto md = std::make_unique<MarkdownView>();
       md->setMarkdown(m_detailReadme, scale);
       dc->addChild(std::move(md));
-    } else if (!entry.description.empty()) {
-      dc->addChild(
-          ui::label({
-              .text = entry.description,
-              .fontSize = Style::fontSizeBody * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurface),
-              .maxLines = 0,
-          })
-      );
     } else {
       dc->addChild(
           ui::label({
@@ -435,6 +571,7 @@ namespace settings {
 
   void PluginStoreContent::openDetail(std::size_t filteredIndex) {
     m_detailIndex = filteredIndex;
+    m_selectedIndex = filteredIndex;
     m_detailReadme.clear();
     m_detailReadmeLoading = false;
 
@@ -465,6 +602,121 @@ namespace settings {
     if (m_onRebuildNeeded) {
       m_onRebuildNeeded();
     }
+  }
+
+  void PluginStoreContent::selectIndex(std::size_t index) {
+    if (m_filteredIndices.empty()) {
+      m_selectedIndex.reset();
+      if (m_grid != nullptr) {
+        m_grid->setSelectedIndex(std::nullopt);
+      }
+      return;
+    }
+    m_selectedIndex = std::min(index, m_filteredIndices.size() - 1);
+    if (m_grid != nullptr) {
+      m_grid->setSelectedIndex(m_selectedIndex);
+    }
+  }
+
+  void PluginStoreContent::moveSelection(int delta) {
+    if (m_filteredIndices.empty()) {
+      return;
+    }
+    if (!m_selectedIndex.has_value()) {
+      selectIndex(delta >= 0 ? 0 : m_filteredIndices.size() - 1);
+      return;
+    }
+    const int last = static_cast<int>(m_filteredIndices.size() - 1);
+    const int next = std::clamp(static_cast<int>(*m_selectedIndex) + delta, 0, last);
+    selectIndex(static_cast<std::size_t>(next));
+  }
+
+  bool PluginStoreContent::activateSelection() {
+    if (m_filteredIndices.empty()) {
+      return false;
+    }
+    if (!m_selectedIndex.has_value() || *m_selectedIndex >= m_filteredIndices.size()) {
+      selectIndex(0);
+    }
+    openDetail(*m_selectedIndex);
+    return true;
+  }
+
+  bool PluginStoreContent::installDetailIfAvailable() {
+    if (!m_detailIndex.has_value() || *m_detailIndex >= m_filteredIndices.size()) {
+      return false;
+    }
+    const auto& storeEntry = m_catalog[m_filteredIndices[*m_detailIndex]];
+    const auto& entry = storeEntry.entry;
+    if (!entry.compatible || m_onDiskIds.contains(entry.id)) {
+      return false;
+    }
+    if (m_callbacks.isEnabling && m_callbacks.isEnabling(entry.id)) {
+      return false;
+    }
+    if (!m_callbacks.setEnabled) {
+      return false;
+    }
+    m_callbacks.setEnabled(entry.id, true);
+    return true;
+  }
+
+  bool PluginStoreContent::handleKeyEvent(
+      std::uint32_t sym, std::uint32_t modifiers, bool pressed, bool preedit, InputArea* focused
+  ) {
+    if (!pressed || preedit) {
+      return false;
+    }
+
+    // Search, category chips, and detail actions own Enter/arrows while focused.
+    const InputArea* gridFocus = m_grid != nullptr ? m_grid->focusArea() : nullptr;
+    if (focused != nullptr && focused != gridFocus) {
+      return false;
+    }
+
+    if (isDetailView()) {
+      if (KeybindMatcher::matches(KeybindAction::Validate, sym, modifiers)) {
+        return installDetailIfAvailable();
+      }
+      return false;
+    }
+
+    if (m_filteredIndices.empty()) {
+      return false;
+    }
+
+    const int columns = m_grid != nullptr ? static_cast<int>(std::max<std::size_t>(1, m_grid->layoutColumnCount())) : 1;
+
+    if (KeySymbol::isPageUp(sym)) {
+      const int stride = m_grid != nullptr ? static_cast<int>(m_grid->pageItemStride()) : columns;
+      moveSelection(-stride);
+      return true;
+    }
+    if (KeySymbol::isPageDown(sym)) {
+      const int stride = m_grid != nullptr ? static_cast<int>(m_grid->pageItemStride()) : columns;
+      moveSelection(stride);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Left, sym, modifiers)) {
+      moveSelection(-1);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Right, sym, modifiers)) {
+      moveSelection(1);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Up, sym, modifiers)) {
+      moveSelection(-columns);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Down, sym, modifiers)) {
+      moveSelection(columns);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Validate, sym, modifiers)) {
+      return activateSelection();
+    }
+    return false;
   }
 
   void PluginStoreContent::updateOnDiskIds(std::unordered_set<std::string> ids) {

@@ -33,9 +33,73 @@ namespace settings {
       return ui::label({
           .text = std::string(text),
           .fontSize = fontSize,
-          .color = colorSpecFromRole(role),
           .fontWeight = weight,
+          .color = colorSpecFromRole(role),
       });
+    }
+
+    std::unique_ptr<Button> makeConfirmButton(
+        std::string text, ButtonVariant variant, float scale, std::function<void()> onClick, std::string glyph = {}
+    ) {
+      ui::ButtonProps props;
+      props.text = std::move(text);
+      if (!glyph.empty()) {
+        props.glyph = std::move(glyph);
+        props.glyphSize = Style::fontSizeBody * scale;
+      }
+      props.fontSize = Style::fontSizeCaption * scale;
+      props.variant = variant;
+      props.minHeight = Style::controlHeightSm * scale;
+      props.paddingV = Style::spaceXs * scale;
+      props.paddingH = Style::spaceSm * scale;
+      props.radius = Style::scaledRadiusSm(scale);
+      props.onClick = std::move(onClick);
+      return ui::button(std::move(props));
+    }
+
+    std::unique_ptr<Flex>
+    pluginDeleteConfirmPanel(const scripting::PluginStatus& plugin, const SettingsPluginsContext& ctx, float scale) {
+      auto panel = ui::column({
+          .align = FlexAlign::Stretch,
+          .gap = Style::spaceXs * scale,
+          .padding = Style::spaceSm * scale,
+          .configure = [scale](Flex& p) {
+            p.setRadius(Style::scaledRadiusSm(scale));
+            p.setFill(colorSpecFromRole(ColorRole::Error, 0.10f));
+            p.setBorder(colorSpecFromRole(ColorRole::Error, 0.5f), Style::borderWidth);
+          },
+      });
+      panel->addChild(makeLabel(
+          i18n::tr("settings.plugins.plugins.delete-confirm-title", "name", plugin.name), Style::fontSizeBody * scale,
+          ColorRole::Error, FontWeight::Bold
+      ));
+      panel->addChild(makeLabel(
+          i18n::tr("settings.plugins.plugins.delete-confirm-desc"), Style::fontSizeCaption * scale,
+          ColorRole::OnSurfaceVariant
+      ));
+      panel->addChild(
+          ui::row(
+              {.align = FlexAlign::Center, .gap = Style::spaceSm * scale}, ui::spacer(),
+              makeConfirmButton(
+                  i18n::tr("common.actions.cancel"), ButtonVariant::Ghost, scale,
+                  [cb = ctx.cancelDelete]() {
+                    if (cb) {
+                      cb();
+                    }
+                  }
+              ),
+              makeConfirmButton(
+                  i18n::tr("settings.plugins.plugins.delete"), ButtonVariant::Destructive, scale,
+                  [cb = ctx.onRemove, id = plugin.id]() {
+                    if (cb) {
+                      cb(id);
+                    }
+                  },
+                  "trash"
+              )
+          )
+      );
+      return panel;
     }
 
     bool pluginEnabled(const scripting::PluginStatus& plugin, const SettingsPluginsContext& ctx) {
@@ -80,7 +144,7 @@ namespace settings {
       auto row = ui::row({.align = FlexAlign::Center, .gap = Style::spaceSm * scale, .fillWidth = true});
       Flex* r = row.get();
 
-      auto info = ui::column({.align = FlexAlign::Start, .gap = 2.0F * scale, .flexGrow = 1.0F});
+      auto info = ui::column({.align = FlexAlign::Start, .gap = 2.0f * scale, .flexGrow = 1.0f});
       info->addChild(makeLabel(
           pluginSourceDisplayName(source.name), Style::fontSizeBody * scale,
           source.enabled ? ColorRole::OnSurface : ColorRole::OnSurfaceVariant, FontWeight::Medium
@@ -134,17 +198,17 @@ namespace settings {
       return row;
     }
 
-    std::unique_ptr<Flex> makeSourceBadge(std::string_view label, float scale) {
+    std::unique_ptr<Flex> makeRoleBadge(std::string_view label, ColorRole role, float scale, float fillAlpha = 0.15f) {
       return ui::row(
           {.align = FlexAlign::Center,
            .paddingH = Style::spaceXs * scale,
-           .fill = colorSpecFromRole(ColorRole::Primary, 0.15f),
+           .fill = colorSpecFromRole(role, fillAlpha),
            .radius = Style::scaledRadiusSm(scale)},
           ui::label({
               .text = std::string(label),
               .fontSize = Style::fontSizeCaption * scale,
-              .color = colorSpecFromRole(ColorRole::Primary),
               .fontWeight = FontWeight::Bold,
+              .color = colorSpecFromRole(role),
           })
       );
     }
@@ -165,14 +229,19 @@ namespace settings {
           })
       );
 
-      auto info = ui::column({.align = FlexAlign::Start, .gap = 2.0F * scale, .flexGrow = 1.0F});
+      auto info = ui::column({.align = FlexAlign::Start, .gap = 2.0f * scale, .flexGrow = 1.0f});
       auto title = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
       const std::string version = plugin.version.empty() ? std::string("?") : plugin.version;
       title->addChild(
           makeLabel(pluginDisplayName(plugin), Style::fontSizeBody * scale, ColorRole::OnSurface, FontWeight::Medium)
       );
       if (plugin.source == "official") {
-        title->addChild(makeSourceBadge(i18n::tr("settings.badges.official"), scale));
+        title->addChild(makeRoleBadge(i18n::tr("settings.badges.official"), ColorRole::Primary, scale));
+      } else if (plugin.source == "community") {
+        // Quieter than Official — muted surface tones instead of Primary.
+        title->addChild(
+            makeRoleBadge(i18n::tr("settings.badges.community"), ColorRole::OnSurfaceVariant, scale, 0.12f)
+        );
       } else if (!plugin.source.empty()) {
         title->addChild(makeLabel(
             pluginSourceDisplayName(plugin.source), Style::fontSizeCaption * scale, ColorRole::OnSurfaceVariant
@@ -181,7 +250,7 @@ namespace settings {
       title->addChild(makeLabel("v" + version, Style::fontSizeCaption * scale, ColorRole::OnSurfaceVariant));
       if (!plugin.compatible) {
         title->addChild(makeLabel(
-            i18n::tr("settings.plugins.plugins.requires-newer-noctalia"), Style::fontSizeMini * scale, ColorRole::Error,
+            i18n::tr("settings.plugins.plugins.incompatible-plugin-api"), Style::fontSizeMini * scale, ColorRole::Error,
             FontWeight::Bold
         ));
       }
@@ -190,6 +259,12 @@ namespace settings {
             i18n::tr("settings.plugins.plugins.deprecated"), Style::fontSizeMini * scale, ColorRole::Secondary,
             FontWeight::Bold
         ));
+      }
+      if (plugin.updateAvailable) {
+        const std::string badge = plugin.availableVersion.empty()
+            ? i18n::tr("settings.plugins.plugins.update-available")
+            : i18n::tr("settings.plugins.plugins.update-to", "version", plugin.availableVersion);
+        title->addChild(makeRoleBadge(badge, ColorRole::Tertiary, scale));
       }
       info->addChild(std::move(title));
       if (!plugin.description.empty()) {
@@ -243,7 +318,7 @@ namespace settings {
                 .glyphSize = Style::fontSizeBody * scale,
                 .variant = ButtonVariant::Ghost,
                 .tooltip = i18n::tr("settings.plugins.plugins.remove"),
-                .onClick = [cb = ctx.onRemove, id = plugin.id]() {
+                .onClick = [cb = ctx.requestDeleteConfirm, id = plugin.id]() {
                   if (cb) {
                     cb(id);
                   }
@@ -408,6 +483,9 @@ namespace settings {
         }
         SelectSetting selectSetting{std::move(options), valueAsString(value)};
         selectSetting.segmented = spec.segmented;
+        if (spec.schema.type == noctalia::config::schema::WidgetSettingType::Bool) {
+          selectSetting.valueType = SelectValueType::Boolean;
+        }
         if (const auto* defaultString = std::get_if<std::string>(&spec.schema.defaultValue)) {
           selectSetting.clearOnEmpty = defaultString->empty();
         }
@@ -485,7 +563,6 @@ namespace settings {
           .control = TextSetting{},
           .advanced = spec.advanced,
           .searchText = {},
-          .visibleWhen = std::nullopt,
       };
       if (spec.control == WidgetControlKind::StringList) {
         factory.makeListBlock(body, entry, ListSetting{.items = valueAsStringList(value)});
@@ -544,7 +621,7 @@ namespace settings {
             .glyph = "add",
             .fontSize = Style::fontSizeCaption * scale,
             .glyphSize = Style::fontSizeBody * scale,
-            .variant = ButtonVariant::Outline,
+            .variant = ButtonVariant::Default,
             .onClick = [cb = ctx.addSource]() {
               if (cb) {
                 cb();
@@ -570,6 +647,37 @@ namespace settings {
       section->addChild(sourceRow(source, ctx, scale));
     }
 
+    const bool hasGitSource = std::ranges::any_of(ctx.sources, [](const PluginSourceConfig& s) {
+      return s.kind == PluginSourceKind::Git && s.enabled;
+    });
+    if (hasGitSource && ctx.setAutoUpdate) {
+      // Separate from the source list so the toggle doesn't read as another source.
+      section->addChild(ui::separator({.spacing = Style::spaceSm * scale}));
+      auto autoRow = ui::row({.align = FlexAlign::Center, .gap = Style::spaceSm * scale, .fillWidth = true});
+      auto autoInfo = ui::column({.align = FlexAlign::Start, .gap = 2.0f * scale, .flexGrow = 1.0f});
+      autoInfo->addChild(makeLabel(
+          i18n::tr("settings.plugins.sources.auto-update"), Style::fontSizeBody * scale, ColorRole::OnSurface,
+          FontWeight::Medium
+      ));
+      autoInfo->addChild(makeLabel(
+          i18n::tr("settings.plugins.sources.auto-update-desc"), Style::fontSizeCaption * scale,
+          ColorRole::OnSurfaceVariant
+      ));
+      autoRow->addChild(std::move(autoInfo));
+      autoRow->addChild(
+          ui::toggle({
+              .checked = ctx.autoUpdateEnabled,
+              .scale = scale,
+              .onChange = [cb = ctx.setAutoUpdate](bool on) {
+                if (cb) {
+                  cb(on);
+                }
+              },
+          })
+      );
+      section->addChild(std::move(autoRow));
+    }
+
     section->addChild(ui::separator({.spacing = Style::spaceSm * scale}));
 
     // ── Plugins ──────────────────────────────────────────────────────────
@@ -578,6 +686,25 @@ namespace settings {
         i18n::tr("settings.plugins.plugins.title"), Style::fontSizeBody * scale, ColorRole::Secondary, FontWeight::Bold
     ));
     pluginsHeader->addChild(ui::spacer());
+    const int updatesAvailable = static_cast<int>(
+        std::ranges::count_if(ctx.plugins, [](const scripting::PluginStatus& p) { return p.updateAvailable; })
+    );
+    if (updatesAvailable > 0 && ctx.updateAll) {
+      pluginsHeader->addChild(
+          ui::button({
+              .text = i18n::tr("settings.plugins.plugins.update-all", "count", std::to_string(updatesAvailable)),
+              .glyph = "download",
+              .fontSize = Style::fontSizeCaption * scale,
+              .glyphSize = Style::fontSizeBody * scale,
+              .variant = ButtonVariant::Primary,
+              .onClick = [cb = ctx.updateAll]() {
+                if (cb) {
+                  cb();
+                }
+              },
+          })
+      );
+    }
     if (ctx.openStore) {
       pluginsHeader->addChild(
           ui::button({
@@ -626,6 +753,9 @@ namespace settings {
     });
     for (const auto& plugin : plugins) {
       section->addChild(pluginRow(plugin, ctx, scale));
+      if (!ctx.pendingDeletePluginId.empty() && ctx.pendingDeletePluginId == plugin.id) {
+        section->addChild(pluginDeleteConfirmPanel(plugin, ctx, scale));
+      }
     }
   }
 

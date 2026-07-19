@@ -1,12 +1,12 @@
 #include "shell/bar/widgets/workspaces_widget.h"
 
+#include "config/config_service.h"
 #include "core/ui_phase.h"
 #include "render/animation/animation.h"
 #include "render/animation/animation_manager.h"
 #include "render/core/renderer.h"
 #include "render/scene/input_area.h"
 #include "render/scene/node.h"
-#include "config/config_service.h"
 #include "system/app_identity.h"
 #include "system/desktop_entry.h"
 #include "system/internal_app_metadata.h"
@@ -19,7 +19,9 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <linux/input-event-codes.h>
+#include <optional>
 #include <utility>
 #include <wayland-client-protocol.h>
 
@@ -44,17 +46,41 @@ namespace {
     return !label.empty()
         && std::ranges::all_of(label, [](char c) { return std::isdigit(static_cast<unsigned char>(c)); });
   }
+
+  [[nodiscard]] std::string workspaceIdentityKey(const Workspace& workspace) {
+    if (!workspace.id.empty()) {
+      return "id:" + workspace.id;
+    }
+    if (!workspace.name.empty()) {
+      return "name:" + workspace.name;
+    }
+    if (!workspace.coordinates.empty()) {
+      std::string key = "coords:";
+      for (const auto coord : workspace.coordinates) {
+        key += "/" + std::to_string(coord);
+      }
+      return key;
+    }
+    if (workspace.index > 0) {
+      return "index:" + std::to_string(workspace.index);
+    }
+    return {};
+  }
 } // namespace
 
-WorkspacesWidget::WorkspacesWidget(CompositorPlatform& platform, ConfigService& configService, wl_output* output,
-                                   Options options)
+WorkspacesWidget::WorkspacesWidget(
+    CompositorPlatform& platform, ConfigService& configService, wl_output* output, Options options
+)
     : m_platform(platform), m_configService(configService), m_output(output), m_displayMode(options.displayMode),
       m_maxLabelChars(options.maxLabelChars), m_labelsOnlyWhenOccupied(options.labelsOnlyWhenOccupied),
       m_hideWhenEmpty(options.hideWhenEmpty), m_pillScale(options.pillScale),
       m_activePillSize(std::clamp(options.activePillSize, 0.25f, 8.0f)),
       m_inactivePillSize(std::clamp(options.inactivePillSize, 0.25f, 8.0f)), m_minimal(options.minimal),
-      m_focusedOutputOnly(options.focusedOutputOnly), m_focusedColor(options.focusedColor),
-      m_occupiedColor(options.occupiedColor), m_emptyColor(options.emptyColor) {}
+      m_focusedOutputOnly(options.focusedOutputOnly), m_enableScroll(options.enableScroll),
+      m_focusedColor(options.focusedColor),
+      m_occupiedColor(options.occupiedColor), m_emptyColor(options.emptyColor), m_urgentColor(options.urgentColor) {
+  buildDesktopIconIndex();
+}
 
 WorkspacesWidget::DisplayMode WorkspacesWidget::effectiveDisplayMode() const noexcept {
   if (m_minimal && m_displayMode == DisplayMode::None) {
@@ -80,16 +106,19 @@ bool WorkspacesWidget::isWorkspaceHidden(const Workspace& workspace) const noexc
 void WorkspacesWidget::create() {
   auto container = std::make_unique<InputArea>();
   container->setOnAxis([this](const InputArea::PointerData& data) {
+    if (!m_enableScroll) {
+      return;
+    }
     if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
       return;
     }
-    const float delta = data.scrollDelta(1.0f);
-    if (delta == 0.0f) {
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
       return;
     }
     // Wayland reports positive wheel deltas for "scroll down", so treat that
     // as moving to the next workspace and negative as previous.
-    activateAdjacentWorkspace(delta > 0.0f ? 1 : -1);
+    activateAdjacentWorkspace(steps > 0.0f ? 1 : -1);
   });
   m_container = container.get();
   setRoot(std::move(container));
@@ -100,6 +129,7 @@ void WorkspacesWidget::doLayout(Renderer& renderer, float containerWidth, float 
   m_isVertical = containerHeight > containerWidth;
   if (wasVertical != m_isVertical) {
     m_rebuildPending = true;
+    m_rebuildSnapshot.clear();
   }
   const std::uint64_t textMetricsGeneration = renderer.textMetricsGeneration();
   if (m_textMetricsGeneration != textMetricsGeneration) {
@@ -119,6 +149,44 @@ void WorkspacesWidget::syncWidgetVisibility(bool showWidget) {
   }
 }
 
+void WorkspacesWidget::setWorkspaceClickHandler(InputArea& area, const Workspace& workspace) {
+  area.setOnClick([this, workspace](const InputArea::PointerData& data) {
+    if (data.button == BTN_LEFT) {
+      m_platform.activateWorkspace(m_output, workspace);
+    }
+  });
+}
+
+void WorkspacesWidget::applyItemVisualStyle(Item& item) {
+  if (item.indicator != nullptr) {
+    item.indicator->setFill(workspaceFillColor(item.visualWorkspace));
+    item.indicator->clearBorder();
+  }
+  if (item.text != nullptr && item.showLabel) {
+    item.text->setColor(workspaceTextColor(item.visualWorkspace));
+  }
+}
+
+bool WorkspacesWidget::shouldHoldPreviousVisualWorkspace(
+    const Workspace& previousVisualWorkspace, const Workspace& currentWorkspace
+) const noexcept {
+  return previousVisualWorkspace.active && isWorkspaceHidden(currentWorkspace);
+}
+
+bool WorkspacesWidget::releaseHeldVisualStyles() {
+  bool changed = false;
+  for (auto& item : m_items) {
+    if (!item.releaseVisualAfterAnimation || item.exiting) {
+      continue;
+    }
+    item.visualWorkspace = item.workspace;
+    item.releaseVisualAfterAnimation = false;
+    applyItemVisualStyle(item);
+    changed = true;
+  }
+  return changed;
+}
+
 void WorkspacesWidget::doUpdate(Renderer& renderer) {
   auto current = m_platform.workspaces(m_output);
   auto currentAppsByWorkspace = m_platform.appIdsByWorkspace(m_output);
@@ -133,9 +201,24 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
       && (!m_hideWhenEmpty || std::ranges::any_of(current, [](const Workspace& ws) { return !isEmptyWorkspace(ws); }));
   syncWidgetVisibility(showWidget);
   if (!showWidget) {
+    m_rebuildSnapshot.clear();
+    if (m_animations != nullptr) {
+      m_animations->cancelForOwner(&m_hoverProgress);
+    }
+    m_hoveredArea = nullptr;
+    m_hoverOverlay = nullptr;
+    m_hoverProgress = 0.0f;
     if (!m_cachedState.empty() || !m_items.empty()) {
+      cancelAnimation();
       m_cachedState.clear();
       m_cachedAppsByWorkspace.clear();
+      m_items.clear();
+      if (m_container != nullptr) {
+        m_container->setFrameSize(0.0f, 0.0f);
+        while (!m_container->children().empty()) {
+          m_container->removeChild(m_container->children().back().get());
+        }
+      }
       m_rebuildPending = true;
       if (root() != nullptr) {
         root()->markLayoutDirty();
@@ -150,7 +233,8 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
 
   bool structuralChange = current.size() != m_cachedState.size();
   bool activeChange = false;
-  bool appsChange = currentAppsByWorkspace != m_cachedAppsByWorkspace;
+  const bool appsChange = currentAppsByWorkspace != m_cachedAppsByWorkspace;
+  bool hideWhenEmptyTransition = false;
   if (!structuralChange) {
     for (std::size_t i = 0; i < current.size(); ++i) {
       const auto& a = current[i];
@@ -165,10 +249,16 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
       if (a.occupied != b.occupied) {
         activeChange = true;
       }
+      if (m_hideWhenEmpty && isEmptyWorkspace(a) != isEmptyWorkspace(b)) {
+        hideWhenEmptyTransition = true;
+      }
     }
   }
+  if (!structuralChange && m_rebuildPending && !m_items.empty()) {
+    structuralChange = !std::ranges::equal(m_items, m_cachedState, {}, &Item::key, workspaceIdentityKey);
+  }
 
-  if (!structuralChange && !activeChange && !appsChange) {
+  if (!structuralChange && !activeChange && !hideWhenEmptyTransition && !appsChange) {
     if (m_focusedOutputOnly) {
       const bool isFocused = isFocusedOutput();
       if (isFocused != m_wasFocusedOutput) {
@@ -177,6 +267,10 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
       }
     }
     return;
+  }
+
+  if ((structuralChange || appsChange) && m_rebuildSnapshot.empty()) {
+    snapshotItemsForRebuild();
   }
 
   m_cachedState.clear();
@@ -196,7 +290,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
   }
   m_cachedAppsByWorkspace = std::move(currentAppsByWorkspace);
 
-  if (structuralChange || appsChange) {
+  if (structuralChange || hideWhenEmptyTransition || appsChange) {
     m_rebuildPending = true;
     if (root() != nullptr) {
       root()->markLayoutDirty();
@@ -208,73 +302,158 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
 
 void WorkspacesWidget::rebuild(Renderer& renderer) {
   uiAssertNotRendering("WorkspacesWidget::rebuild");
+  const bool animateFromSnapshot = !m_minimal && !m_rebuildSnapshot.empty();
   m_activeUsesFocusedColor = !m_focusedOutputOnly || isFocusedOutput();
   cancelAnimation();
+  if (m_animations != nullptr) {
+    m_animations->cancelForOwner(&m_hoverProgress);
+  }
+  m_hoveredArea = nullptr;
+  m_hoverOverlay = nullptr;
+  m_hoverProgress = 0.0f;
   while (!m_container->children().empty()) {
     m_container->removeChild(m_container->children().back().get());
   }
   m_items.clear();
+  buildDesktopIconIndex();
+
+  struct RebuildEntry {
+    Workspace workspace;
+    std::string key;
+    std::string label;
+    std::vector<std::string> iconPaths;
+    bool showLabel = false;
+    bool showIcons = false;
+    bool exiting = false;
+    const ItemSnapshot* snapshot = nullptr;
+  };
 
   const auto& workspaces = m_cachedState;
+  auto currentHasKey = [&](const std::string& key) {
+    return std::ranges::any_of(workspaces, [&](const Workspace& ws) { return workspaceIdentityKey(ws) == key; });
+  };
+  auto snapshotIndexForKey = [&](const std::string& key) -> std::optional<std::size_t> {
+    for (std::size_t i = 0; i < m_rebuildSnapshot.size(); ++i) {
+      if (m_rebuildSnapshot[i].key == key) {
+        return i;
+      }
+    }
+    return std::nullopt;
+  };
+
+  std::vector<RebuildEntry> entries;
+  entries.reserve(workspaces.size() + m_rebuildSnapshot.size());
+
+  if (animateFromSnapshot) {
+    std::size_t snapshotCursor = 0;
+    auto appendOldOnlyBefore = [&](std::size_t limit) {
+      while (snapshotCursor < limit && snapshotCursor < m_rebuildSnapshot.size()) {
+        const auto& snapshot = m_rebuildSnapshot[snapshotCursor++];
+        if (snapshot.key.empty() || currentHasKey(snapshot.key)) {
+          continue;
+        }
+        entries.push_back(
+            RebuildEntry{
+                .workspace = snapshot.workspace,
+                .key = snapshot.key,
+                .label = snapshot.label,
+                .iconPaths = snapshot.iconPaths,
+                .showLabel = snapshot.showLabel,
+                .showIcons = snapshot.showIcons,
+                .exiting = true,
+                .snapshot = &snapshot,
+            }
+        );
+      }
+    };
+
+    for (std::size_t i = 0; i < workspaces.size(); ++i) {
+      const auto& workspace = workspaces[i];
+      const std::string key = workspaceIdentityKey(workspace);
+      const auto snapshotIndex = snapshotIndexForKey(key);
+      if (snapshotIndex.has_value()) {
+        appendOldOnlyBefore(*snapshotIndex);
+      }
+
+      const std::string label = workspaceLabel(workspace, i);
+      const auto iconPaths = workspaceAppIcons(workspace, i);
+      entries.push_back(
+          RebuildEntry{
+              .workspace = workspace,
+              .key = key,
+              .label = label,
+              .iconPaths = iconPaths,
+              .showLabel = iconPaths.empty() && shouldShowWorkspaceLabel(workspace, label),
+              .showIcons = !iconPaths.empty(),
+              .exiting = false,
+              .snapshot = snapshotIndex.has_value() ? &m_rebuildSnapshot[*snapshotIndex] : nullptr,
+          }
+      );
+
+      if (snapshotIndex.has_value() && snapshotCursor == *snapshotIndex) {
+        ++snapshotCursor;
+      }
+    }
+    appendOldOnlyBefore(m_rebuildSnapshot.size());
+  } else {
+    for (std::size_t i = 0; i < workspaces.size(); ++i) {
+      const auto& workspace = workspaces[i];
+      const std::string label = workspaceLabel(workspace, i);
+      const auto iconPaths = workspaceAppIcons(workspace, i);
+      entries.push_back(
+          RebuildEntry{
+              .workspace = workspace,
+              .key = workspaceIdentityKey(workspace),
+              .label = label,
+              .iconPaths = iconPaths,
+              .showLabel = iconPaths.empty() && shouldShowWorkspaceLabel(workspace, label),
+              .showIcons = !iconPaths.empty(),
+          }
+      );
+    }
+  }
+
   const float gap = kWorkspaceGap * m_contentScale;
   const float labelFontSize = Style::fontSizeMini * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const FontWeight configuredFontWeight = labelFontWeight();
 
-  buildDesktopIconIndex();
-
-  std::vector<std::vector<std::string>> iconPaths;
-  iconPaths.reserve(workspaces.size());
-  std::vector<std::string> labels;
-  labels.reserve(workspaces.size());
-  for (std::size_t i = 0; i < workspaces.size(); ++i) {
-    iconPaths.push_back(workspaceAppIcons(workspaces[i], i));
-    labels.push_back(workspaceLabel(workspaces[i], i));
-  }
-
   // Measure text and compute per-slot widths along the bar main axis.
   // Width = max(baseSize * pill_size, textWidth + padding); pill_size comes from active/inactive settings.
   struct SlotMetrics {
-    std::string label;
-    std::vector<std::string> iconPaths;
-    bool showLabel = false;
-    bool showIcons = false;
     float textWidth = 0.0f;
     float iconsWidth = 0.0f;
     float inactiveWidth = 0.0f;
     float activeWidth = 0.0f;
   };
-  std::vector<SlotMetrics> slots(workspaces.size());
-
+  std::vector<SlotMetrics> slots(entries.size());
   const float baseSize = std::round(pillHeight);
   const float padding = m_minimal ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
   const float iconSize = std::max(10.0f, std::round(baseSize * 0.70f));
   const float iconGap = std::max(1.0f, std::round(Style::spaceXs * m_contentScale * 0.5f));
 
-  for (std::size_t i = 0; i < workspaces.size(); ++i) {
+  for (std::size_t i = 0; i < entries.size(); ++i) {
     auto& slot = slots[i];
-    slot.label = labels[i];
-    slot.iconPaths = iconPaths[i];
-    slot.showIcons = !slot.iconPaths.empty();
-    slot.showLabel = !slot.showIcons && shouldShowWorkspaceLabel(workspaces[i], labels[i]);
+    const auto& entry = entries[i];
 
-    if (slot.showLabel) {
-      const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, workspaces[i].active);
-      const TextMetrics tm = renderer.measureText(labels[i], labelFontSize, slotFontWeight);
+    if (entry.showLabel) {
+      const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, entry.workspace.active);
+      const TextMetrics tm = renderer.measureText(entry.label, labelFontSize, slotFontWeight);
       slot.textWidth = std::max(tm.right - tm.left, tm.inkRight - tm.inkLeft);
     }
-    if (slot.showIcons) {
-      slot.iconsWidth = static_cast<float>(slot.iconPaths.size()) * iconSize
-          + static_cast<float>(slot.iconPaths.size() - 1) * iconGap;
+    if (entry.showIcons) {
+      slot.iconsWidth = static_cast<float>(entry.iconPaths.size()) * iconSize
+          + static_cast<float>(entry.iconPaths.size() - 1) * iconGap;
     }
   }
 
   float maxLabelHeight = labelFontSize;
 
-  for (std::size_t i = 0; i < workspaces.size(); ++i) {
+  for (std::size_t i = 0; i < entries.size(); ++i) {
     auto& slot = slots[i];
-    if (isWorkspaceHidden(workspaces[i])) {
-      slot.showLabel = false;
+    auto& entry = entries[i];
+    if (!entry.exiting && isWorkspaceHidden(entry.workspace)) {
+      entry.showLabel = false;
       slot.inactiveWidth = 0.0f;
       slot.activeWidth = 0.0f;
       continue;
@@ -282,8 +461,8 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
 
     if (m_minimal) {
       const float minWidth = baseSize;
-      if (!slot.showLabel) {
-        const float iconBasedWidth = slot.showIcons ? slot.iconsWidth + padding * 2.0f : 0.0f;
+      if (!entry.showLabel) {
+        const float iconBasedWidth = entry.showIcons ? slot.iconsWidth + padding * 2.0f : 0.0f;
         slot.inactiveWidth = std::max(minWidth, iconBasedWidth);
         slot.activeWidth = slot.inactiveWidth;
       } else {
@@ -291,9 +470,9 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
         slot.inactiveWidth = std::max(minWidth, textBasedWidth);
         slot.activeWidth = slot.inactiveWidth;
       }
-      if (slot.showLabel) {
-        const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, workspaces[i].active);
-        const TextMetrics tm = renderer.measureText(slot.label, labelFontSize, slotFontWeight);
+      if (entry.showLabel) {
+        const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, entry.workspace.active);
+        const TextMetrics tm = renderer.measureText(entry.label, labelFontSize, slotFontWeight);
         maxLabelHeight = std::max(maxLabelHeight, tm.bottom - tm.top);
       }
       continue;
@@ -302,8 +481,8 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     const float minWidth = workspaceMainAxisMinWidth(baseSize, false);
     const float minActiveWidth = workspaceMainAxisMinWidth(baseSize, true);
 
-    if (!slot.showLabel) {
-      const float iconBasedWidth = slot.showIcons ? slot.iconsWidth + padding : 0.0f;
+    if (!entry.showLabel) {
+      const float iconBasedWidth = entry.showIcons ? slot.iconsWidth + padding : 0.0f;
       slot.inactiveWidth = std::max(minWidth, iconBasedWidth);
       slot.activeWidth = std::max(minActiveWidth, iconBasedWidth);
     } else {
@@ -316,22 +495,37 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   m_gap = gap;
   m_indicatorHeight = m_minimal ? std::round(maxLabelHeight + padding) : pillHeight;
 
-  for (std::size_t i = 0; i < workspaces.size(); ++i) {
-    const auto& ws = workspaces[i];
+  for (std::size_t i = 0; i < entries.size(); ++i) {
+    const auto& entry = entries[i];
+    const auto& ws = entry.workspace;
     const auto& slot = slots[i];
 
     auto area = std::make_unique<InputArea>();
-    const float w = ws.active ? slot.activeWidth : slot.inactiveWidth;
+    area->setClipChildren(true);
+    const float w = entry.exiting && entry.snapshot != nullptr ? entry.snapshot->width
+        : ws.active                                            ? slot.activeWidth
+                                                               : slot.inactiveWidth;
     area->setFrameSize(w, m_indicatorHeight);
 
+    const bool hasSnapshot = entry.snapshot != nullptr;
     Item item{};
+    item.workspace = ws;
+    item.visualWorkspace = ws;
+    item.key = entry.key;
     item.active = ws.active;
-    item.label = slot.label;
-    item.iconPaths = slot.iconPaths;
-    item.showLabel = slot.showLabel;
-    item.showIcons = slot.showIcons;
+    item.exiting = entry.exiting;
+    item.label = entry.label;
+    item.iconPaths = entry.iconPaths;
+    item.showLabel = entry.showLabel;
+    item.showIcons = entry.showIcons;
     item.inactiveWidth = slot.inactiveWidth;
     item.activeWidth = slot.activeWidth;
+    if (hasSnapshot) {
+      item.fromWidth = entry.snapshot->width;
+      item.fromOpacity = entry.snapshot->opacity;
+    } else {
+      item.fromOpacity = 0.0f;
+    }
 
     if (!m_minimal) {
       const float indicatorW = m_isVertical ? m_indicatorHeight : w;
@@ -347,24 +541,24 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       ));
     }
 
-    if (slot.showLabel) {
+    if (entry.showLabel) {
       item.text = static_cast<Label*>(area->addChild(
           ui::label({
-              .text = slot.label,
+              .text = entry.label,
               .fontSize = labelFontSize,
+              .fontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, ws.active),
               .fontFamily = labelFontFamily(),
               .color = workspaceTextColor(ws),
-              .fontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, ws.active),
-              .baselineMode = LabelBaselineMode::StableLogical,
+              .baselineMode = LabelBaselineMode::Text,
           })
       ));
       item.text->measure(renderer);
     }
 
-    if (slot.showIcons) {
+    if (entry.showIcons) {
       const int iconRequestSize = std::max(32, static_cast<int>(std::round(iconSize * 2.0f)));
       const auto appIconTint = effectiveShellAppIconColorizationTint(m_configService.config().shell);
-      for (const auto& iconPath : slot.iconPaths) {
+      for (const auto& iconPath : entry.iconPaths) {
         auto image = ui::image({
             .fit = ImageFit::Contain,
             .width = iconSize,
@@ -379,48 +573,165 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       item.showIcons = !item.icons.empty();
     }
 
-    auto wsCopy = ws;
-    area->setOnClick([this, wsCopy](const InputArea::PointerData& data) {
-      if (data.button == BTN_LEFT) {
-        m_platform.activateWorkspace(m_output, wsCopy);
-      }
-    });
+    InputArea* areaPtr = area.get();
+    if (!entry.exiting) {
+      setWorkspaceClickHandler(*area, ws);
+
+      area->setOnEnter([this, areaPtr](const InputArea::PointerData&) {
+        const auto itemIt = std::ranges::find(m_items, areaPtr, &Item::area);
+        if (itemIt == m_items.end() || itemIt->exiting) {
+          return;
+        }
+
+        m_hoveredArea = areaPtr;
+        updateHoverOverlay();
+
+        const ColorSpec fill = widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface));
+        auto applyHoverProgress = [this, fill](float p) {
+          m_hoverProgress = p;
+          if (m_hoverOverlay != nullptr) {
+            m_hoverOverlay->setVisible(p > 0.001f);
+            ColorSpec color = fill;
+            color.alpha = 0.1f * p;
+            m_hoverOverlay->setFill(color);
+          }
+          updateHoverOverlay();
+          requestRedraw();
+        };
+
+        if (m_animations == nullptr) {
+          applyHoverProgress(1.0f);
+          return;
+        }
+
+        m_animations->cancelForOwner(&m_hoverProgress);
+        m_animations->animate(
+            m_hoverProgress, 1.0f, Style::animFast, Easing::EaseOutCubic, applyHoverProgress, {}, &m_hoverProgress
+        );
+        requestFrameTick();
+      });
+
+      area->setOnLeave([this, areaPtr]() {
+        if (m_hoveredArea != areaPtr) {
+          return;
+        }
+
+        m_hoveredArea = nullptr;
+        updateHoverOverlay();
+
+        const ColorSpec fill = widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface));
+        auto applyHoverProgress = [this, fill](float p) {
+          m_hoverProgress = p;
+          if (m_hoverOverlay != nullptr) {
+            m_hoverOverlay->setVisible(p > 0.001f);
+            ColorSpec color = fill;
+            color.alpha = 0.1f * p;
+            m_hoverOverlay->setFill(color);
+          }
+          requestRedraw();
+        };
+
+        if (m_animations == nullptr) {
+          applyHoverProgress(0.0f);
+          return;
+        }
+
+        m_animations->cancelForOwner(&m_hoverProgress);
+        m_animations->animate(
+            m_hoverProgress, 0.0f, Style::animFast, Easing::EaseOutCubic, applyHoverProgress, {}, &m_hoverProgress
+        );
+        requestFrameTick();
+      });
+    }
     item.area = static_cast<InputArea*>(m_container->addChild(std::move(area)));
     m_items.push_back(item);
   }
 
   // Size the container after targets are known.
   computeTargets();
-  for (std::size_t i = 0; i < m_items.size(); ++i) {
-    auto& it = m_items[i];
-    it.currentX = it.targetX;
-    it.currentWidth = it.targetWidth;
-    applyItemLayout(i);
+  for (auto& it : m_items) {
+    if (!animateFromSnapshot) {
+      it.fromWidth = it.targetWidth;
+      it.fromOpacity = it.targetOpacity;
+    }
+    it.currentWidth = it.fromWidth;
+    it.currentOpacity = it.fromOpacity;
   }
+  updateItemFlowPositions();
+
+  const bool needsAnimation = std::ranges::any_of(m_items, [](const Item& it) {
+    return std::fabs(it.targetX - it.currentX) > 0.5f
+        || std::fabs(it.targetWidth - it.currentWidth) > 0.5f
+        || std::fabs(it.targetOpacity - it.currentOpacity) > 0.01f;
+  });
+  applyItemLayouts();
+  m_rebuildSnapshot.clear();
 
   float total = 0.0f;
   for (const auto& item : m_items) {
-    total = std::max(total, item.currentX + item.currentWidth);
+    if (item.currentWidth > 0.0f) {
+      total = std::max(total, item.currentX + item.currentWidth);
+    }
   }
-  if (m_isVertical) {
+  if (total <= 0.0f) {
+    if (m_isVertical) {
+      m_container->setFrameSize(m_indicatorHeight, 0.0f);
+    } else {
+      m_container->setFrameSize(0.0f, m_indicatorHeight);
+    }
+  } else if (m_isVertical) {
     m_container->setFrameSize(m_indicatorHeight, total);
   } else {
     m_container->setFrameSize(total, m_indicatorHeight);
+  }
+
+  ColorSpec hoverFill = widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface));
+  hoverFill.alpha = 0.0f;
+  m_hoverOverlay = static_cast<Box*>(m_container->addChild(
+      ui::box({
+          .fill = hoverFill,
+          .visible = false,
+          .configure = [](Box& box) {
+            box.setParticipatesInLayout(false);
+            box.setHitTestVisible(false);
+          },
+      })
+  ));
+
+  if (needsAnimation) {
+    startAnimation();
+  } else {
+    finishAnimation();
   }
 }
 
 void WorkspacesWidget::computeTargets() {
   float cursor = 0.0f;
-  for (std::size_t i = 0; i < m_items.size(); ++i) {
-    auto& it = m_items[i];
-    const bool hidden = isWorkspaceHidden(m_cachedState[i]);
-    const float w = hidden ? 0.0f : ((m_cachedState[i].active) ? it.activeWidth : it.inactiveWidth);
+  for (auto& it : m_items) {
+    const bool hidden = isWorkspaceHidden(it.workspace);
+    const float w = (it.exiting || hidden) ? 0.0f : (it.workspace.active ? it.activeWidth : it.inactiveWidth);
     it.targetX = cursor;
     it.targetWidth = w;
-    it.active = m_cachedState[i].active;
+    it.targetOpacity = (it.exiting || hidden) ? 0.0f : 1.0f;
+    it.active = it.workspace.active;
     if (w > 0.0f) {
       cursor += w + m_gap;
     }
+  }
+}
+
+void WorkspacesWidget::updateItemFlowPositions() {
+  // A gap precedes an item only in proportion to how visible both it and the items before it are, so
+  // gaps grow and collapse with the pills they separate. precedingProgress is the accumulated (clamped)
+  // visibility of earlier items: it keeps the first visible pill from getting a leading gap.
+  float cursor = 0.0f;
+  float precedingProgress = 0.0f;
+  for (auto& item : m_items) {
+    const float itemProgress = std::clamp(item.currentOpacity, 0.0f, 1.0f);
+    cursor += m_gap * std::min(precedingProgress, itemProgress);
+    item.currentX = cursor;
+    cursor += item.currentWidth;
+    precedingProgress = std::min(1.0f, precedingProgress + itemProgress);
   }
 }
 
@@ -430,25 +741,34 @@ void WorkspacesWidget::updateContainerSize() {
   }
   float total = 0.0f;
   for (const auto& item : m_items) {
-    total = std::max(total, item.currentX + item.currentWidth);
+    if (item.currentWidth > 0.0f) {
+      total = std::max(total, item.currentX + item.currentWidth);
+    }
   }
-  if (m_isVertical) {
-    m_container->setFrameSize(m_indicatorHeight, total);
-  } else {
-    m_container->setFrameSize(total, m_indicatorHeight);
+
+  if (m_animId != 0) {
+    // The container is not clipped: it must always enclose the pills, so reserve the larger of the
+    // current and target bounds. Taking the max keeps a shrinking transition from clipping pills that
+    // are still wide, and a growing one from snapping the bar wider than the pills have reached.
+    float targetTotal = 0.0f;
+    for (const auto& item : m_items) {
+      if (item.targetWidth > 0.0f) {
+        targetTotal = std::max(targetTotal, item.targetX + item.targetWidth);
+      }
+    }
+    total = std::max(total, targetTotal);
   }
-  if (Node* shell = barCapsuleShell(); shell != nullptr) {
-    shell->markLayoutDirty();
+  const float nextWidth = m_isVertical ? m_indicatorHeight : total;
+  const float nextHeight = m_isVertical ? total : m_indicatorHeight;
+  const bool sizeChanged = m_container->width() != nextWidth || m_container->height() != nextHeight;
+  m_container->setFrameSize(nextWidth, nextHeight);
+  if (Node* bounds = layoutBoundsNode(); sizeChanged && bounds != nullptr) {
+    bounds->markLayoutDirty();
+    requestUpdate();
   }
 }
 
-void WorkspacesWidget::ensureItemLabel(Renderer& renderer, std::size_t index) {
-  if (index >= m_items.size() || index >= m_cachedState.size()) {
-    return;
-  }
-
-  auto& item = m_items[index];
-  const auto& workspace = m_cachedState[index];
+void WorkspacesWidget::ensureItemLabel(Renderer& renderer, Item& item, const Workspace& workspace) {
   if (!item.showLabel || item.area == nullptr) {
     return;
   }
@@ -461,23 +781,19 @@ void WorkspacesWidget::ensureItemLabel(Renderer& renderer, std::size_t index) {
       ui::label({
           .text = item.label,
           .fontSize = labelFontSize,
+          .fontWeight = workspaceFontWeight(labelFontWeight(), m_minimal, workspace.active),
           .fontFamily = labelFontFamily(),
           .color = workspaceTextColor(workspace),
-          .fontWeight = workspaceFontWeight(labelFontWeight(), m_minimal, workspace.active),
-          .baselineMode = LabelBaselineMode::StableLogical,
+          .baselineMode = LabelBaselineMode::Text,
       })
   ));
   item.text->measure(renderer);
 }
 
-void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t index) {
-  if (index >= m_items.size() || index >= m_cachedState.size()) {
-    return;
-  }
-
-  auto& item = m_items[index];
-  const auto& workspace = m_cachedState[index];
-  const std::string label = workspaceLabel(workspace, index);
+void WorkspacesWidget::recalculateItemMetrics(
+    Renderer& renderer, Item& item, const Workspace& workspace, std::size_t displayIndex
+) {
+  const std::string label = workspaceLabel(workspace, displayIndex);
   const float labelFontSize = Style::fontSizeMini * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const float baseSize = std::round(pillHeight);
@@ -541,7 +857,7 @@ void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t in
     }
   }
 
-  ensureItemLabel(renderer, index);
+  ensureItemLabel(renderer, item, workspace);
   if (item.text != nullptr) {
     item.text->setVisible(item.showLabel);
     if (item.showLabel) {
@@ -558,43 +874,61 @@ void WorkspacesWidget::recalculateItemMetrics(Renderer& renderer, std::size_t in
   }
 }
 
-void WorkspacesWidget::updateAllItemMetrics(Renderer& renderer) {
-  for (std::size_t i = 0; i < m_items.size(); ++i) {
-    recalculateItemMetrics(renderer, i);
-  }
-}
-
 void WorkspacesWidget::retarget(Renderer& renderer) {
-  m_activeUsesFocusedColor = !m_focusedOutputOnly || isFocusedOutput();
-  for (std::size_t i = 0; i < m_items.size(); ++i) {
-    auto& it = m_items[i];
-    const auto& ws = m_cachedState[i];
-    if (it.indicator != nullptr) {
-      it.indicator->setFill(workspaceFillColor(ws));
-      it.indicator->clearBorder();
-    }
+  if (std::ranges::any_of(m_items, [](const Item& item) { return item.exiting; })) {
+    scheduleRebuildFromSnapshot();
+    return;
+  }
+  if (m_items.size() != m_cachedState.size()) {
+    scheduleRebuildFromSnapshot();
+    return;
   }
 
-  updateAllItemMetrics(renderer);
+  m_activeUsesFocusedColor = !m_focusedOutputOnly || isFocusedOutput();
+  for (auto& item : m_items) {
+    const auto workspaceIt = std::ranges::find(m_cachedState, item.key, workspaceIdentityKey);
+    if (workspaceIt == m_cachedState.end()) {
+      scheduleRebuildFromSnapshot();
+      return;
+    }
+
+    const auto displayIndex = static_cast<std::size_t>(std::ranges::distance(m_cachedState.begin(), workspaceIt));
+
+    const auto& workspace = *workspaceIt;
+    const Workspace previousVisualWorkspace = item.visualWorkspace;
+    const bool holdPreviousVisualWorkspace = shouldHoldPreviousVisualWorkspace(previousVisualWorkspace, workspace);
+    item.workspace = workspace;
+    item.visualWorkspace = holdPreviousVisualWorkspace ? previousVisualWorkspace : workspace;
+    item.releaseVisualAfterAnimation = holdPreviousVisualWorkspace;
+    item.active = workspace.active;
+    if (item.area != nullptr) {
+      setWorkspaceClickHandler(*item.area, workspace);
+    }
+    recalculateItemMetrics(renderer, item, workspace, displayIndex);
+    applyItemVisualStyle(item);
+  }
 
   if (m_minimal) {
     computeTargets();
-    for (std::size_t i = 0; i < m_items.size(); ++i) {
-      auto& it = m_items[i];
+    for (auto& it : m_items) {
       it.currentX = it.targetX;
       it.currentWidth = it.targetWidth;
-      applyItemLayout(i);
+      it.currentOpacity = it.targetOpacity;
     }
+    applyItemLayouts();
     updateContainerSize();
     if (root() != nullptr) {
       root()->markPaintDirty();
+    }
+    if (releaseHeldVisualStyles()) {
+      requestRedraw();
     }
     return;
   }
 
   for (auto& it : m_items) {
-    it.fromX = it.currentX;
     it.fromWidth = it.currentWidth;
+    it.fromOpacity = it.currentOpacity;
   }
   computeTargets();
   startAnimation();
@@ -603,13 +937,14 @@ void WorkspacesWidget::retarget(Renderer& renderer) {
 void WorkspacesWidget::startAnimation() {
   auto* mgr = m_animations;
   if (mgr == nullptr) {
-    for (std::size_t i = 0; i < m_items.size(); ++i) {
-      auto& it = m_items[i];
-      it.currentX = it.targetX;
-      it.currentWidth = it.targetWidth;
-      applyItemLayout(i);
+    for (auto& item : m_items) {
+      item.currentWidth = item.targetWidth;
+      item.currentOpacity = item.targetOpacity;
     }
+    updateItemFlowPositions();
+    applyItemLayouts();
     updateContainerSize();
+    finishAnimation();
     return;
   }
   cancelAnimation();
@@ -618,19 +953,23 @@ void WorkspacesWidget::startAnimation() {
   m_animId = mgr->animate(
       0.0f, 1.0f, kWorkspaceAnimDurationMs, Easing::EaseOutCubic,
       [this](float t) {
-        for (std::size_t i = 0; i < m_items.size(); ++i) {
-          auto& it = m_items[i];
-          it.currentX = it.fromX + (it.targetX - it.fromX) * t;
-          it.currentWidth = it.fromWidth + (it.targetWidth - it.fromWidth) * t;
-          applyItemLayout(i);
+        for (auto& item : m_items) {
+          item.currentWidth = std::lerp(item.fromWidth, item.targetWidth, t);
+          item.currentOpacity = std::lerp(item.fromOpacity, item.targetOpacity, t);
         }
+        updateItemFlowPositions();
+        applyItemLayouts();
         updateContainerSize();
         if (root() != nullptr) {
           root()->markPaintDirty();
         }
       },
-      [this]() { m_animId = 0; }, this
+      [this]() { finishAnimation(); }, this
   );
+
+  // Reserve final bounds before the first animated frame to avoid one-frame overflow.
+  updateContainerSize();
+
   if (root() != nullptr) {
     root()->markPaintDirty();
   }
@@ -643,64 +982,176 @@ void WorkspacesWidget::cancelAnimation() {
   m_animId = 0;
 }
 
-void WorkspacesWidget::applyItemLayout(std::size_t i) {
-  auto& it = m_items[i];
+void WorkspacesWidget::finishAnimation() {
+  m_animId = 0;
+  const bool hasExitingItems = std::ranges::any_of(m_items, [](const Item& item) { return item.exiting; });
+
+  if (m_container != nullptr && hasExitingItems) {
+    for (const auto& item : m_items) {
+      if (item.exiting && item.area != nullptr) {
+        m_container->removeChild(item.area);
+      }
+    }
+    std::erase_if(m_items, [](const Item& item) { return item.exiting; });
+    updateContainerSize();
+    requestUpdate();
+  }
+
+  if (releaseHeldVisualStyles()) {
+    requestRedraw();
+  }
+}
+
+void WorkspacesWidget::snapshotItemsForRebuild() {
+  m_rebuildSnapshot.clear();
+  if (m_minimal || m_items.empty()) {
+    return;
+  }
+
+  m_rebuildSnapshot.reserve(m_items.size());
+  for (const auto& item : m_items) {
+    if (item.key.empty()) {
+      continue;
+    }
+    m_rebuildSnapshot.push_back(
+        ItemSnapshot{
+            .key = item.key,
+            .workspace = item.visualWorkspace,
+            .label = item.label,
+            .iconPaths = item.iconPaths,
+            .showLabel = item.showLabel,
+            .showIcons = item.showIcons,
+            .width = item.currentWidth,
+            .opacity = item.currentOpacity,
+        }
+    );
+  }
+}
+
+void WorkspacesWidget::scheduleRebuildFromSnapshot() {
+  if (m_rebuildSnapshot.empty()) {
+    snapshotItemsForRebuild();
+  }
+  m_rebuildPending = true;
+  if (root() != nullptr) {
+    root()->markLayoutDirty();
+  }
+}
+
+void WorkspacesWidget::applyItemLayouts() {
+  for (auto& item : m_items) {
+    applyItemLayout(item);
+  }
+}
+
+void WorkspacesWidget::applyItemLayout(Item& it) {
   if (it.area == nullptr) {
     return;
   }
-  const bool hidden = i < m_cachedState.size() && isWorkspaceHidden(m_cachedState[i]);
+  const bool hidden = it.exiting || isWorkspaceHidden(it.workspace);
   const bool visible = !hidden || it.currentWidth > 0.0f;
   it.area->setVisible(visible);
   it.area->setParticipatesInLayout(visible);
-  if (m_isVertical) {
-    it.area->setPosition(0.0f, std::round(it.currentX));
-    it.area->setFrameSize(m_indicatorHeight, it.currentWidth);
-    if (it.indicator != nullptr) {
-      it.indicator->setFrameSize(m_indicatorHeight, it.currentWidth);
-    }
-  } else {
-    it.area->setPosition(std::round(it.currentX), 0.0f);
-    it.area->setFrameSize(it.currentWidth, m_indicatorHeight);
-    if (it.indicator != nullptr) {
-      it.indicator->setFrameSize(it.currentWidth, m_indicatorHeight);
-    }
+  it.area->setOpacity(std::clamp(it.currentOpacity, 0.0f, 1.0f));
+
+  const float position = std::round(it.currentX);
+  const float itemW = m_isVertical ? m_indicatorHeight : it.currentWidth;
+  const float itemH = m_isVertical ? it.currentWidth : m_indicatorHeight;
+
+  it.area->setPosition(m_isVertical ? 0.0f : position, m_isVertical ? position : 0.0f);
+  it.area->setFrameSize(itemW, itemH);
+  if (it.indicator != nullptr) {
+    it.indicator->setFrameSize(itemW, itemH);
+    it.indicator->setRadius(workspacePillRadius(itemW, itemH));
   }
-  if (it.text != nullptr) {
-    it.text->setVisible(it.showLabel);
-    if (it.showLabel) {
-      const float itemW = m_isVertical ? m_indicatorHeight : it.currentWidth;
-      const float itemH = m_isVertical ? it.currentWidth : m_indicatorHeight;
-      // Box-center the (text-only) label, unrounded: the renderer snaps the glyph
-      // quad to the pixel grid, so rounding here would double-round the baseline.
-      const float textX = (itemW - it.text->width()) * 0.5f;
-      const float textY = (itemH - it.text->height()) * 0.5f;
-      it.text->setPosition(std::max(0.0f, textX), textY);
-    }
+
+  if (m_hoveredArea == it.area) {
+    updateHoverOverlay();
   }
+
   if (!it.icons.empty()) {
-    const float itemW = m_isVertical ? m_indicatorHeight : it.currentWidth;
-    const float itemH = m_isVertical ? it.currentWidth : m_indicatorHeight;
     const float baseSize = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
     const float iconSize = std::max(10.0f, std::round(baseSize * 0.70f));
     const float iconGap = std::max(1.0f, std::round(Style::spaceXs * m_contentScale * 0.5f));
-    const float iconsWidth = static_cast<float>(it.icons.size()) * iconSize
-        + static_cast<float>(it.icons.size() - 1) * iconGap;
+    const float iconsWidth =
+        static_cast<float>(it.icons.size()) * iconSize + static_cast<float>(it.icons.size() - 1) * iconGap;
+    const bool showIcons = it.showIcons && it.currentWidth + 0.5f >= it.inactiveWidth;
     float x = std::max(0.0f, (itemW - iconsWidth) * 0.5f);
     const float y = std::max(0.0f, (itemH - iconSize) * 0.5f);
     for (Image* icon : it.icons) {
       if (icon == nullptr) {
         continue;
       }
-      icon->setVisible(it.showIcons);
+      icon->setVisible(showIcons);
       icon->setPosition(x, y);
       x += iconSize + iconGap;
     }
   }
-  if (it.indicator != nullptr) {
-    const float itemW = m_isVertical ? m_indicatorHeight : it.currentWidth;
-    const float itemH = m_isVertical ? it.currentWidth : m_indicatorHeight;
-    it.indicator->setFrameSize(itemW, itemH);
-    it.indicator->setRadius(workspacePillRadius(itemW, itemH));
+
+  if (it.text == nullptr) {
+    return;
+  }
+
+  const bool showText = it.showLabel && it.currentWidth + 0.5f >= it.inactiveWidth;
+  it.text->setVisible(showText);
+  if (!showText) {
+    return;
+  }
+
+  // Box-center the (text-only) label, unrounded: the renderer snaps the glyph
+  // quad to the pixel grid, so rounding here would double-round the baseline.
+  const float textX = (itemW - it.text->width()) * 0.5f;
+  const float textY = (itemH - it.text->height()) * 0.5f;
+  it.text->setPosition(std::max(0.0f, textX), textY);
+}
+
+void WorkspacesWidget::updateHoverOverlay() {
+  const auto hoveredIt =
+      m_hoveredArea != nullptr ? std::ranges::find(m_items, m_hoveredArea, &Item::area) : m_items.end();
+  if (hoveredIt == m_items.end() || hoveredIt->exiting) {
+    m_hoveredArea = nullptr;
+    for (auto& item : m_items) {
+      applyItemVisualStyle(item);
+    }
+    return;
+  }
+
+  Item& hoveredItem = *hoveredIt;
+
+  if (!m_minimal) {
+    if (m_hoverOverlay != nullptr) {
+      m_hoverOverlay->setVisible(false);
+    }
+    for (auto& item : m_items) {
+      if (&item == &hoveredItem) {
+        if (item.indicator != nullptr) {
+          item.indicator->setFill(colorSpecFromRole(ColorRole::Hover));
+        }
+        if (item.text != nullptr) {
+          item.text->setColor(colorSpecFromRole(ColorRole::OnHover));
+        }
+      } else {
+        applyItemVisualStyle(item);
+      }
+    }
+    return;
+  }
+
+  // Minimal mode uses the translucent overlay
+  if (m_hoverOverlay == nullptr) {
+    return;
+  }
+  const float w = hoveredItem.currentWidth;
+  const float indicatorW = m_isVertical ? m_indicatorHeight : w;
+  const float indicatorH = m_isVertical ? w : m_indicatorHeight;
+
+  m_hoverOverlay->setRadius(workspacePillRadius(indicatorW, indicatorH));
+  if (m_isVertical) {
+    m_hoverOverlay->setPosition(0.0f, std::round(hoveredItem.currentX));
+    m_hoverOverlay->setFrameSize(m_indicatorHeight, w);
+  } else {
+    m_hoverOverlay->setPosition(std::round(hoveredItem.currentX), 0.0f);
+    m_hoverOverlay->setFrameSize(w, m_indicatorHeight);
   }
 }
 
@@ -848,11 +1299,7 @@ std::string WorkspacesWidget::resolveAppIconPath(const std::string& appId) {
   };
 
   if (appId.starts_with("steam_app_")) {
-    const app_identity::DesktopEntryLookupOptions steamLookup{
-        .includeHidden = true,
-        .includeNoDisplay = true,
-    };
-    if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries(), steamLookup);
+    if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries());
         entry.has_value() && !entry->icon.empty()) {
       if (const std::string steamIcon = resolveIconName(entry->icon); !steamIcon.empty()) {
         return steamIcon;
@@ -911,7 +1358,7 @@ ColorSpec WorkspacesWidget::workspaceFillColor(const Workspace& workspace) const
     return m_occupiedColor;
   }
   if (workspace.urgent) {
-    return colorSpecFromRole(ColorRole::Error);
+    return m_urgentColor;
   }
   if (workspace.occupied) {
     return m_occupiedColor;
@@ -923,7 +1370,7 @@ ColorSpec WorkspacesWidget::workspaceFillColor(const Workspace& workspace) const
 
 ColorSpec WorkspacesWidget::workspaceTextColor(const Workspace& workspace) const {
   if (workspace.urgent) {
-    return m_minimal ? colorSpecFromRole(ColorRole::Error) : colorSpecFromRole(ColorRole::OnError);
+    return m_minimal ? m_urgentColor : readableColorForFill(m_urgentColor);
   }
   if (!m_minimal) {
     return readableColorForFill(workspaceFillColor(workspace));

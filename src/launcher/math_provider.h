@@ -14,7 +14,8 @@ public:
   MathProvider(ClipboardService* clipboard, ConfigService* config, HttpClient* httpClient);
   ~MathProvider() override;
 
-  [[nodiscard]] std::string_view prefix() const override { return ""; }
+  [[nodiscard]] std::string_view defaultPrefix() const override { return ""; }
+  [[nodiscard]] bool defaultIncludeInGlobalSearch() const override { return true; }
   [[nodiscard]] std::string_view id() const override { return "Calculator"; }
   [[nodiscard]] std::string displayName() const override;
   [[nodiscard]] std::string_view defaultGlyphName() const override { return "calculator"; }
@@ -26,7 +27,8 @@ public:
   bool activate(const LauncherResult& result) override;
 
 private:
-  // Download fresh exchange rates over the async HTTP client, gated on offline mode.
+  // Download fresh exchange rates over the async HTTP client, gated on
+  // shell.launcher.fetch_exchange_rates and shell.offline_mode.
   void refreshExchangeRates();
 
   ClipboardService* m_clipboard = nullptr;

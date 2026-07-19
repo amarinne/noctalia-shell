@@ -813,7 +813,7 @@
         "name-label": "Nazwa",
         "name-placeholder": "idle-behavior",
         "resume-command-label": "Polecenie wznowienia",
-        "resume-command-placeholder": "noctalia:dpms-on",
+        "resume-command-placeholder": "",
         "summary": "{name} · {seconds}s",
         "summary-disabled-timeout": "{name} · timeout wyłączony",
         "timeout-label": "Timeout w sekundach",
@@ -870,7 +870,6 @@
         "overview": "przegląd",
         "pinned-apps": "przypięte aplikacje",
         "power": "zasilanie",
-        "privacy-security": "prywatność i bezpieczeństwo",
         "profile": "profil",
         "screen-corners": "narożniki ekranu",
         "screen-time": "czas ekranu",
@@ -1051,7 +1050,6 @@
         "empty": "Nie znaleziono wtyczek. Dodaj źródło, albo sprawdź swoją sieć.",
         "loading": "Ładowanie wtyczek...",
         "refreshing": "Odświeżanie wtyczek...",
-        "requires-newer-noctalia": "wymaga nowszej Noctalii",
         "title": "Wtyczki"
       },
       "settings": {
@@ -1078,8 +1076,7 @@
         "name-placeholder": "moje-wtyczki",
         "remove": "Usuń źródło",
         "title": "Źródła",
-        "update": "Aktualizacja",
-        "update-on-startup": "Zaaktualizuj przy uruchomieniu"
+        "update": "Aktualizacja"
       }
     },
     "schema": {
@@ -2499,8 +2496,7 @@
         },
         "minimal": {
           "description": "Pokaż tylko etykiety identyfikacyjne lub nazwy obszarów roboczych, bez animowanych pilli",
-          "label": "Minimalny styl",
-          "workspaces-description": "Etykiety tylko tekstowe obszarów roboczych bez tła pilek ani animacji przesuwania"
+          "label": "Minimalny styl"
         },
         "mirrored": {
           "description": "Odbij wizualizer wokół jego środka",

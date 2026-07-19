@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scripting/plugin_i18n.h"
+#include "scripting/script_arg.h"
 
 #include <atomic>
 #include <chrono>
@@ -9,6 +10,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -18,6 +20,7 @@
 struct lua_State;
 class CompositorPlatform;
 class HttpClient;
+struct Color;
 struct HttpRequest;
 
 namespace process {
@@ -41,6 +44,8 @@ public:
   using AsyncProcessMatchResultHandler = std::function<void(std::uint64_t hostId, int callbackRef, bool matched)>;
   using AsyncHttpResultHandler = std::function<
       void(std::uint64_t hostId, int callbackRef, bool ok, int status, std::string body, bool isDownload)>;
+  using ColorPickerResultHandler =
+      std::function<void(std::uint64_t hostId, int callbackRef, std::optional<std::string> color)>;
   // Registers a `noctalia.state.watch` callback with the shared store (the runtime
   // owns the token + delivery, so registration is delegated back to it).
   using StateWatchHandler = std::function<void(std::string key, int callbackRef)>;
@@ -57,14 +62,13 @@ public:
   bool exec(std::string_view chunkName, std::string_view source) { return loadString(chunkName, source) && run(); }
 
   bool callGlobal(const char* name);
-  bool callGlobalWithBool(const char* name, bool value);
-  bool callGlobalWithStrings(const char* name, std::string_view first, std::string_view second);
   bool hasGlobal(const char* name);
   std::optional<std::string> callGlobalReturningString(const char* name);
   bool callGlobalWithBudget(const char* name, std::chrono::milliseconds budget);
-  bool callGlobalWithBoolAndBudget(const char* name, bool value, std::chrono::milliseconds budget);
-  bool callGlobalWithStringsAndBudget(
-      const char* name, std::string_view first, std::string_view second, std::chrono::milliseconds budget
+  // Calls a global with an arbitrary argument list; each ScriptArg is pushed as
+  // the Luau value it holds, in order.
+  bool callGlobalWithArgsAndBudget(
+      const char* name, std::span<const scripting::ScriptArg> args, std::chrono::milliseconds budget
   );
   bool callAsyncCommandCallback(int callbackRef, const process::RunResult& result, std::chrono::milliseconds budget);
   bool callAsyncProcessMatchCallback(int callbackRef, bool matched, std::chrono::milliseconds budget);
@@ -81,6 +85,7 @@ public:
   [[nodiscard]] const std::filesystem::path& pluginDir() const noexcept { return m_pluginDir; }
   // The owning plugin id ("author/plugin"): scopes the shared state store.
   void setPluginId(std::string id) { m_pluginId = std::move(id); }
+  [[nodiscard]] const std::string& pluginId() const noexcept { return m_pluginId; }
   void setStateWatchHandler(StateWatchHandler handler) { m_stateWatchHandler = std::move(handler); }
 
   // noctalia.state.* — host-mediated per-plugin shared data.
@@ -100,6 +105,20 @@ public:
   bool callStreamCallback(int callbackRef, const std::string& line, std::chrono::milliseconds budget);
   [[nodiscard]] bool hasStreamCallback(int callbackRef) const;
 
+  // noctalia.httpStream — long-lived streaming HTTP request through the main-thread
+  // HttpClient. Each received line goes to the line callback; the close callback fires
+  // exactly once when the transfer ends (unless the stream was stopped). Streams are
+  // cancelled on host destruction. `streamKey` identifies the stream (the line ref).
+  using HttpStreamEventHandler =
+      std::function<void(std::uint64_t hostId, int streamKey, bool closed, std::string line, bool ok, int status)>;
+  void setHttpStreamEventHandler(HttpStreamEventHandler handler) { m_httpStreamEventHandler = std::move(handler); }
+  // Returns the stream key (> 0) on success, 0 on failure (caller keeps ref ownership on failure).
+  [[nodiscard]] int startHttpStream(HttpRequest request, int lineRef, int closeRef);
+  void stopHttpStream(int streamKey);
+  bool callHttpStreamLineCallback(int streamKey, const std::string& line, std::chrono::milliseconds budget);
+  bool callHttpStreamCloseCallback(int streamKey, bool ok, int status, std::chrono::milliseconds budget);
+  [[nodiscard]] bool hasHttpStream(int streamKey) const;
+
   // Load the plugin's own translations/<lang>.json (over en.json) into a flat dotted-key
   // catalog. Call after setPluginDir().
   void loadTranslations();
@@ -116,6 +135,9 @@ public:
   }
   void setHttpClient(HttpClient* client) { m_httpClient = client; }
   void setAsyncHttpResultHandler(AsyncHttpResultHandler handler) { m_asyncHttpResultHandler = std::move(handler); }
+  void setColorPickerResultHandler(ColorPickerResultHandler handler) {
+    m_colorPickerResultHandler = std::move(handler);
+  }
   [[nodiscard]] bool startAsyncCommand(std::string command, int callbackRef, std::chrono::milliseconds timeout);
   [[nodiscard]] bool startAsyncProcessMatch(std::vector<std::string> needles, int callbackRef);
   // HTTP/download dispatch to the main-thread HttpClient; the response is delivered back as an
@@ -126,9 +148,13 @@ public:
       int callbackRef, bool ok, int status, const std::string& body, std::chrono::milliseconds budget
   );
   bool callAsyncDownloadCallback(int callbackRef, bool ok, std::chrono::milliseconds budget);
+  [[nodiscard]] bool startColorPicker(const Color& initialColor, int callbackRef);
+  bool
+  callColorPickerCallback(int callbackRef, const std::optional<std::string>& color, std::chrono::milliseconds budget);
   [[nodiscard]] bool hasAsyncCommandCallback(int callbackRef) const;
   [[nodiscard]] bool hasAsyncProcessMatchCallback(int callbackRef) const;
   [[nodiscard]] bool hasAsyncHttpCallback(int callbackRef) const;
+  [[nodiscard]] bool hasColorPickerCallback(int callbackRef) const;
   void interruptIfBudgetExceeded(lua_State* L);
   void scriptLog(std::string message);
   // Request the runtime tick rate (how often update() fires). A runtime concern, so
@@ -157,7 +183,20 @@ private:
   // offending call instead of OOM-killing the whole process. `ud` is the owning host.
   static void* allocate(void* ud, void* ptr, std::size_t osize, std::size_t nsize);
 
+  // Shared with the main-loop stream lambdas: the HttpClient stream id once known,
+  // and a cancelled flag so a stop that races stream startup still cancels.
+  struct HttpStreamControl {
+    std::atomic<std::uint64_t> clientStreamId{0};
+    std::atomic<bool> cancelled{false};
+  };
+  struct HttpStreamRecord {
+    int lineRef = 0;
+    int closeRef = 0;
+    std::shared_ptr<HttpStreamControl> control;
+  };
+
   void stopAllStreams() noexcept;
+  void stopAllHttpStreams() noexcept;
   bool callGlobalInternal(const char* name, int args, std::chrono::milliseconds budget);
   bool callWithBudget(const char* name, int args, int results, std::chrono::milliseconds budget);
   void beginBudget(std::string_view name, std::chrono::milliseconds budget);
@@ -175,16 +214,20 @@ private:
   std::unordered_set<int> m_streamCallbackRefs;
   std::vector<std::shared_ptr<std::atomic<bool>>> m_streamCancels;
   StreamLineHandler m_streamLineHandler;
+  std::unordered_map<int, HttpStreamRecord> m_httpStreams; // keyed by stream key (line ref)
+  HttpStreamEventHandler m_httpStreamEventHandler;
   lua_State* m_L = nullptr; // main state, frozen by luaL_sandbox
   lua_State* m_T = nullptr; // sandboxed thread; user code runs here
   int m_threadRef = -1;     // registry ref pinning m_T against the GC
   std::unordered_set<int> m_asyncCommandCallbackRefs;
   std::unordered_set<int> m_asyncProcessMatchCallbackRefs;
   std::unordered_set<int> m_asyncHttpCallbackRefs;
+  std::unordered_set<int> m_colorPickerCallbackRefs;
   HttpClient* m_httpClient = nullptr;
   AsyncCommandResultHandler m_asyncCommandResultHandler;
   AsyncProcessMatchResultHandler m_asyncProcessMatchResultHandler;
   AsyncHttpResultHandler m_asyncHttpResultHandler;
+  ColorPickerResultHandler m_colorPickerResultHandler;
   std::size_t m_memUsed = 0; // bytes tracked by allocate(); guarded by the worker-thread serialization
   std::chrono::steady_clock::time_point m_callDeadline;
   std::string m_currentCallName;

@@ -4,7 +4,7 @@
 #include "theme/tokens.h"
 
 #include <cstdio>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 namespace noctalia::theme {
 
@@ -12,7 +12,7 @@ namespace noctalia::theme {
 
     std::string hexString(uint32_t argb) {
       char buf[8];
-      std::snprintf(buf, sizeof(buf), "#%06x", argb & 0x00ffffffu);
+      std::snprintf(buf, sizeof(buf), "#%06x", argb & 0x00ffffffU);
       return std::string(buf);
     }
 

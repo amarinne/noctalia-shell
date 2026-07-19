@@ -1,5 +1,6 @@
 #pragma once
 
+#include "i18n/i18n.h"
 #include "util/file_utils.h"
 
 #include <string>
@@ -59,7 +60,7 @@ namespace noctalia::theme {
       if (!tip.empty()) {
         tip += '\n';
       }
-      tip += "(output resolved at apply time)";
+      tip += i18n::tr("settings.schema.templates.dynamic-output");
     }
     return tip;
   }

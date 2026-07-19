@@ -1,10 +1,13 @@
+#include "calendar/calendar_discovery_state.h"
 #include "config/atomic_file.h"
 #include "config/config_service.h"
 #include "config/config_types.h"
 #include "core/deferred_call.h"
 #include "i18n/i18n.h"
+#include "net/url_open.h"
 #include "notification/notification_filter.h"
 #include "render/render_context.h"
+#include "render/scene/input_area.h"
 #include "scripting/plugin_catalog.h"
 #include "scripting/plugin_registry.h"
 #include "shell/settings/bar_widget_editor.h"
@@ -21,11 +24,13 @@
 #include "ui/controls/context_menu.h"
 #include "ui/controls/context_menu_popup.h"
 #include "ui/controls/flex.h"
+#include "ui/controls/segmented.h"
 #include "ui/dialogs/file_dialog.h"
 #include "ui/popup_parent.h"
 #include "util/string_utils.h"
 #include "wayland/toplevel_surface.h"
 #include "wayland/wayland_connection.h"
+#include "wayland/wayland_seat.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -35,6 +40,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -43,6 +49,7 @@ namespace {
   constexpr std::int32_t kActionSupportReport = 1;
   constexpr std::int32_t kActionExportConfig = 2;
   constexpr std::string_view kCalendarCredentialOwner = "calendar_credentials";
+  constexpr std::string_view kCalendarDiscoveryOwner = "calendar_discovery";
 
   XdgPopupParent popupParentFor(ToplevelSurface& surface, wl_output* output, std::uint32_t serial) {
     return XdgPopupParent{
@@ -59,7 +66,6 @@ namespace {
     PluginSourceKind kind = PluginSourceKind::Git;
     std::string name;
     std::string location;
-    bool autoUpdate = false;
     bool enabled = true;
     bool editing = false;
     bool nameInvalid = false;
@@ -82,6 +88,8 @@ namespace {
     std::string password;
     std::string serverUrl;
     std::string color;
+    std::vector<std::string> calendars;
+    std::vector<CalendarSource> discoveredCalendars;
     bool idInvalid = false;
     bool usernameInvalid = false;
     bool passwordInvalid = false;
@@ -105,7 +113,7 @@ namespace {
     return std::ranges::contains(cfg.plugins.sources, name, &PluginSourceConfig::name);
   }
 
-  std::size_t pluginSourceKindIndex(PluginSourceKind kind) { return kind == PluginSourceKind::Path ? 1u : 0u; }
+  std::size_t pluginSourceKindIndex(PluginSourceKind kind) { return kind == PluginSourceKind::Path ? 1U : 0U; }
 
   const CalendarConfig::Account* findCalendarAccount(const Config& cfg, std::string_view id) {
     const auto it = std::ranges::find(cfg.calendar.accounts, id, &CalendarConfig::Account::id);
@@ -134,6 +142,10 @@ namespace {
       return i18n::tr("settings.calendar-accounts.provider.google");
     }
     return i18n::tr("settings.calendar-accounts.provider.icloud");
+  }
+
+  bool calendarSourceChecked(const CalendarAccountDraft& draft, const CalendarSource& source) {
+    return draft.calendars.empty() || std::ranges::contains(draft.calendars, source.id);
   }
 
   std::string trimInput(Input* input) { return input != nullptr ? StringUtils::trim(input->value()) : std::string{}; }
@@ -310,7 +322,8 @@ void SettingsWindow::openActionsMenu() {
   m_actionsMenuPopup->open(
       ContextMenuPopupRequest{
           .entries = std::move(entries),
-          .menuWidth = 220.0f * scale,
+          .minMenuWidth = 220.0f * scale,
+          .maxMenuWidth = Style::menuAutoMaxWidth * scale,
           .maxVisible = 8,
           .anchor =
               PopupAnchorRect{
@@ -1020,11 +1033,15 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
     draft->username = account->username;
     draft->serverUrl = account->serverUrl;
     draft->color = account->color;
+    draft->calendars = account->calendars;
     if (account->type == "google") {
       draft->provider = CalendarAccountProvider::Google;
     } else {
       draft->provider =
           account->provider == "custom" ? CalendarAccountProvider::CustomCalDav : CalendarAccountProvider::ICloud;
+      const std::string rawDiscovery =
+          m_config->stateString(kCalendarDiscoveryOwner, account->id + "_calendars").value_or(std::string{});
+      draft->discoveredCalendars = calendar::parseCalendarSources(rawDiscovery);
     }
   }
 
@@ -1056,6 +1073,7 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
       (void)m_config->setStateString(kCalendarCredentialOwner, accountId + "_refresh_token", "");
       (void)m_config->setStateString(kCalendarCredentialOwner, accountId + "_access_token", "");
       (void)m_config->setStateString(kCalendarCredentialOwner, accountId + "_access_expiry", "");
+      (void)m_config->setStateString(kCalendarDiscoveryOwner, accountId + "_calendars", "");
       markSettingsWriteSuccess(true);
       if (m_editorSheetPopup != nullptr) {
         m_editorSheetPopup->close();
@@ -1073,8 +1091,8 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
           ui::label({
               .text = label,
               .fontSize = Style::fontSizeCaption * scale,
-              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
               .fontWeight = FontWeight::Medium,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
           })
       );
       field->addChild(std::move(control));
@@ -1224,6 +1242,80 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
         )
     );
 
+    if (!draft->creating && draft->provider != CalendarAccountProvider::Google && !draft->discoveredCalendars.empty()) {
+      auto calendars = ui::column({
+          .align = FlexAlign::Stretch,
+          .gap = Style::spaceXs * scale,
+      });
+      calendars->addChild(
+          ui::label({
+              .text = i18n::tr("settings.calendar-accounts.calendars-label"),
+              .fontSize = Style::fontSizeCaption * scale,
+              .fontWeight = FontWeight::Medium,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+          })
+      );
+
+      auto list = ui::column({
+          .align = FlexAlign::Stretch,
+          .gap = Style::spaceXs * scale,
+          .padding = Style::spaceSm * scale,
+          .fill = colorSpecFromRole(ColorRole::SurfaceVariant, 0.35f),
+          .radius = Style::scaledRadiusMd(scale),
+      });
+      for (const CalendarSource& source : draft->discoveredCalendars) {
+        const bool checked = calendarSourceChecked(*draft, source);
+        auto row = ui::row({
+            .align = FlexAlign::Center,
+            .gap = Style::spaceSm * scale,
+            .fillWidth = true,
+        });
+        auto info = ui::column({
+            .align = FlexAlign::Start,
+            .gap = 2.0f * scale,
+            .flexGrow = 1.0f,
+        });
+        info->addChild(
+            ui::label({
+                .text = source.name.empty() ? source.id : source.name,
+                .fontSize = Style::fontSizeBody * scale,
+                .fontWeight = FontWeight::Medium,
+                .color = colorSpecFromRole(ColorRole::OnSurface),
+                .maxLines = 1,
+                .ellipsize = TextEllipsize::End,
+            })
+        );
+        if (!source.name.empty()) {
+          info->addChild(
+              ui::label({
+                  .text = source.id,
+                  .fontSize = Style::fontSizeCaption * scale,
+                  .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+                  .maxLines = 1,
+                  .ellipsize = TextEllipsize::End,
+              })
+          );
+        }
+        row->addChild(std::move(info));
+        row->addChild(
+            ui::toggle({
+                .checked = checked,
+                .scale = scale,
+                .onChange = [this, draft, sourceId = source.id](bool on) {
+                  draft->calendars =
+                      calendar::setCalendarSourceChecked(draft->discoveredCalendars, draft->calendars, sourceId, on);
+                  if (m_editorSheetPopup != nullptr) {
+                    m_editorSheetPopup->rebuildBody();
+                  }
+                },
+            })
+        );
+        list->addChild(std::move(row));
+      }
+      calendars->addChild(std::move(list));
+      body.addChild(std::move(calendars));
+    }
+
     const auto persistAccount = [this, draft, idInput, nameInput, usernameInput, passwordInput,
                                  serverInput](bool closeAfter, bool connectAfter) {
       if (m_config == nullptr) {
@@ -1278,6 +1370,8 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
       );
       overrides.push_back({{base[0], base[1], base[2], "name"}, draft->name});
       overrides.push_back({{base[0], base[1], base[2], "color"}, draft->color});
+      // Manual calendar selection is currently populated by CalDAV discovery; Google uses CalendarList selected.
+      overrides.push_back({{base[0], base[1], base[2], "calendars"}, draft->calendars});
       if (caldav) {
         overrides.push_back({{base[0], base[1], base[2], "provider"}, calendarProviderKey(draft->provider)});
         overrides.push_back({{base[0], base[1], base[2], "username"}, draft->username});
@@ -1450,7 +1544,7 @@ void SettingsWindow::openBarWidgetEditorSheet(
     output = m_output;
   }
 
-  const std::uint32_t grabSerial = m_pendingEditorSheetNoGrab ? 0u : m_wayland->lastInputSerial();
+  const std::uint32_t grabSerial = m_pendingEditorSheetNoGrab ? 0U : m_wayland->lastInputSerial();
   m_pendingEditorSheetNoGrab = false;
   m_editorSheetPopup->open(
       settings::SettingsSheetPopupRequest{
@@ -1517,7 +1611,6 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
       draft->kind = existing->kind;
       draft->name = existing->name;
       draft->location = existing->location;
-      draft->autoUpdate = existing->autoUpdate;
       draft->enabled = existing->enabled;
       draft->editing = true;
     }
@@ -1535,10 +1628,12 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
         m_pluginManager->removeSource(name);
         markPluginListDirty();
         markSettingsWriteSuccess(false);
-        if (m_editorSheetPopup != nullptr) {
-          m_editorSheetPopup->close();
-        }
-        requestSceneRebuild();
+        DeferredCall::callLater([this]() {
+          if (m_editorSheetPopup != nullptr) {
+            m_editorSheetPopup->close();
+          }
+          requestSceneRebuild();
+        });
       };
     }
 
@@ -1555,8 +1650,8 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                 ui::label({
                     .text = label,
                     .fontSize = Style::fontSizeCaption * scale,
-                    .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                     .fontWeight = FontWeight::Medium,
+                    .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
                 })
             );
             field->addChild(std::move(control));
@@ -1568,8 +1663,8 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                 ui::label({
                     .text = draft->error,
                     .fontSize = Style::fontSizeCaption * scale,
-                    .color = colorSpecFromRole(ColorRole::Error),
                     .fontWeight = FontWeight::Medium,
+                    .color = colorSpecFromRole(ColorRole::Error),
                 })
             );
           }
@@ -1586,16 +1681,21 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                   .scale = scale,
                   .enabled = !fieldsLocked,
                   .equalSegmentWidths = true,
-                  .onChange = [this, draft](std::size_t index) {
-                    draft->kind = index == 1 ? PluginSourceKind::Path : PluginSourceKind::Git;
-                    if (draft->kind == PluginSourceKind::Path) {
-                      draft->autoUpdate = false;
-                    }
-                    draft->error.clear();
-                    if (m_editorSheetPopup != nullptr) {
-                      m_editorSheetPopup->rebuildBody();
-                    }
-                  },
+                  .onChange =
+                      [this, draft](std::size_t index) {
+                        draft->kind = index == 1 ? PluginSourceKind::Path : PluginSourceKind::Git;
+                        draft->error.clear();
+                        if (m_editorSheetPopup != nullptr) {
+                          m_editorSheetPopup->rebuildBody();
+                        }
+                      },
+                  .configure =
+                      [](Segmented& seg) {
+                        if (seg.focusArea() != nullptr) {
+                          // Stable key so rebuildBody can restore Left/Right focus after kind changes.
+                          seg.focusArea()->setTabFocusKey("plugin-source-kind");
+                        }
+                      },
               })
           );
 
@@ -1634,31 +1734,6 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                   },
               })
           );
-
-          if (draft->kind == PluginSourceKind::Git) {
-            auto autoUpdate = ui::row({
-                .align = FlexAlign::Center,
-                .gap = Style::spaceSm * scale,
-                .fillWidth = true,
-            });
-            autoUpdate->addChild(
-                ui::label({
-                    .text = i18n::tr("settings.plugins.sources.update-on-startup"),
-                    .fontSize = Style::fontSizeCaption * scale,
-                    .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
-                    .fontWeight = FontWeight::Medium,
-                })
-            );
-            autoUpdate->addChild(ui::spacer());
-            autoUpdate->addChild(
-                ui::toggle({
-                    .checked = draft->autoUpdate,
-                    .scale = scale,
-                    .onChange = [draft](bool value) { draft->autoUpdate = value; },
-                })
-            );
-            body.addChild(std::move(autoUpdate));
-          }
 
           auto actions = ui::row({
               .align = FlexAlign::Center,
@@ -1720,16 +1795,17 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                             .kind = draft->kind,
                             .name = draft->name,
                             .location = draft->location,
-                            .autoUpdate = draft->kind == PluginSourceKind::Git && draft->autoUpdate,
                             .enabled = draft->enabled,
                         }
                     );
                     markPluginListDirty();
                     markSettingsWriteSuccess(false);
-                    if (m_editorSheetPopup != nullptr) {
-                      m_editorSheetPopup->close();
-                    }
-                    requestSceneRebuild();
+                    DeferredCall::callLater([this]() {
+                      if (m_editorSheetPopup != nullptr) {
+                        m_editorSheetPopup->close();
+                      }
+                      requestSceneRebuild();
+                    });
                   },
               })
           );
@@ -1781,29 +1857,23 @@ void SettingsWindow::openPluginSettingsEditor(std::string pluginId) {
 }
 
 void SettingsWindow::openPluginStore() {
-  DeferredCall::callLater([this]() {
-    if (m_wayland == nullptr
-        || m_renderContext == nullptr
-        || m_surface == nullptr
-        || m_surface->xdgSurface() == nullptr
-        || m_config == nullptr
-        || m_pluginManager == nullptr) {
-      return;
-    }
-
-    if (m_editorSheetPopup != nullptr && m_editorSheetPopup->isOpen()) {
-      m_editorSheetPopup->close();
-    }
-
-    const Config& cfg = m_config->config();
-    const float scale = uiScale();
+  if (m_config == nullptr || m_pluginManager == nullptr) {
+    return;
+  }
+  // Refresh the browsable catalog off the UI thread (throttled) and read it there too:
+  // discoverCatalog clones on first browse and lazy-fetches catalog blobs from the
+  // blobless clone, both network-bound. Only the sheet build runs on the main thread.
+  auto* manager = m_pluginManager;
+  PluginsConfig pluginsSnapshot = m_config->config().plugins;
+  std::thread([this, manager, pluginsSnapshot = std::move(pluginsSnapshot)]() mutable {
+    manager->fetchStaleCatalogs(pluginsSnapshot);
 
     std::vector<settings::StoreCatalogEntry> catalog;
-    for (const auto& source : cfg.plugins.sources) {
+    for (const auto& source : pluginsSnapshot.sources) {
       if (!source.enabled) {
         continue;
       }
-      auto result = scripting::discoverCatalog(source);
+      auto result = scripting::discoverCatalog(source, scripting::CatalogAccess::Network);
       if (!result.ok) {
         continue;
       }
@@ -1818,107 +1888,171 @@ void SettingsWindow::openPluginStore() {
       }
     }
 
-    std::unordered_set<std::string> onDiskIds;
-    for (const auto& p : m_pluginList) {
-      if (p.materialized) {
-        onDiskIds.insert(p.id);
+    DeferredCall::callLater([this, catalog = std::move(catalog)]() mutable {
+      if (m_wayland == nullptr
+          || m_renderContext == nullptr
+          || m_surface == nullptr
+          || m_surface->xdgSurface() == nullptr
+          || m_config == nullptr
+          || m_pluginManager == nullptr) {
+        return;
       }
-    }
 
-    auto catalogLookup = std::make_shared<std::unordered_map<std::string, scripting::CatalogEntry>>();
-    for (const auto& entry : catalog) {
-      catalogLookup->emplace(entry.entry.id, entry.entry);
-    }
-
-    auto storeContent = std::make_shared<settings::PluginStoreContent>(
-        std::move(catalog), std::move(onDiskIds),
-        settings::PluginStoreCallbacks{
-            .setEnabled =
-                [this, catalogLookup](const std::string& id, bool enable) {
-                  if (m_pluginManager == nullptr) {
-                    return;
-                  }
-                  if (enable) {
-                    (void)m_pluginManager->enable(id);
-                    if (m_editorSheetPopup != nullptr) {
-                      m_editorSheetPopup->close();
-                    }
-                    ++m_pluginListRefreshGeneration;
-                    m_pluginListDirty = false;
-                    auto existing = std::ranges::find_if(m_pluginList, [&](const auto& p) { return p.id == id; });
-                    if (existing != m_pluginList.end()) {
-                      existing->enabled = true;
-                    } else {
-                      scripting::PluginStatus placeholder{.id = id, .name = id, .enabled = true};
-                      if (auto it = catalogLookup->find(id); it != catalogLookup->end()) {
-                        placeholder.name = it->second.name;
-                        placeholder.version = it->second.version;
-                        placeholder.icon = it->second.icon;
-                        placeholder.description = it->second.description;
-                      }
-                      m_pluginList.push_back(std::move(placeholder));
-                    }
-                  } else {
-                    m_pluginManager->disable(id);
-                    m_pluginListDirty = true;
-                  }
-                  requestContentRebuild();
-                },
-            .isEnabling =
-                [this](const std::string& id) { return m_pluginManager != nullptr && m_pluginManager->isEnabling(id); },
-            .scale = scale,
-        },
-        &m_pluginFileCache
-    );
-
-    m_pluginFileCache.setOnReady([storeContent](
-                                     const std::string& pluginId, const std::string& filename, const std::string& path
-                                 ) { storeContent->onFileReady(pluginId, filename, path); });
-
-    if (m_editorSheetPopup == nullptr) {
-      m_editorSheetPopup = std::make_unique<settings::SettingsSheetPopup>();
-      m_editorSheetPopup->initialize(*m_wayland, *m_config, *m_renderContext);
-    }
-
-    storeContent->setOnRebuildNeeded([this]() {
-      if (m_editorSheetPopup != nullptr) {
-        m_editorSheetPopup->rebuildBody();
+      if (m_editorSheetPopup != nullptr && m_editorSheetPopup->isOpen()) {
+        m_editorSheetPopup->close();
       }
-    });
 
-    wl_output* output = m_wayland->lastPointerOutput();
-    if (output == nullptr) {
-      output = m_output;
-    }
+      const float scale = uiScale();
 
-    m_editorSheetPopup->open(
-        settings::SettingsSheetPopupRequest{
-            .parent = popupParentFor(*m_surface, output, m_wayland->lastInputSerial()),
-            .sheetTitle = i18n::tr("settings.plugins.store.title"),
-            .removeAction = nullptr,
-            .populateSheetBody =
-                [storeContent, this](Flex& body) {
-                  if (m_renderContext == nullptr) {
-                    return;
-                  }
-                  storeContent->populateBody(body, *m_renderContext, nullptr);
-                },
-            .scale = scale,
-            .minWidth = 800.0f,
-            .maxWidth = 1100.0f,
-            .parentFraction = 0.85f,
-            .fillParentHeight = true,
-            .scrollableBody = false,
-            .onCloseRequested = [storeContent]() -> bool {
-              if (storeContent->isDetailView()) {
-                storeContent->closeDetail();
-                return true;
-              }
-              return false;
-            },
+      std::unordered_set<std::string> onDiskIds;
+      for (const auto& p : m_pluginList) {
+        if (p.materialized) {
+          onDiskIds.insert(p.id);
         }
-    );
-  });
+      }
+
+      auto catalogLookup = std::make_shared<std::unordered_map<std::string, scripting::CatalogEntry>>();
+      for (const auto& entry : catalog) {
+        catalogLookup->emplace(entry.entry.id, entry.entry);
+      }
+
+      auto storeContent = std::make_shared<settings::PluginStoreContent>(
+          std::move(catalog), std::move(onDiskIds),
+          settings::PluginStoreCallbacks{
+              .setEnabled =
+                  [this, catalogLookup](std::string id, bool enable) {
+                    if (m_pluginManager == nullptr) {
+                      return;
+                    }
+                    if (enable) {
+                      (void)m_pluginManager->enable(id);
+                      if (m_editorSheetPopup != nullptr) {
+                        m_editorSheetPopup->close();
+                      }
+                      ++m_pluginListRefreshGeneration;
+                      m_pluginListDirty = false;
+                      auto existing = std::ranges::find_if(m_pluginList, [&](const auto& p) { return p.id == id; });
+                      if (existing != m_pluginList.end()) {
+                        existing->enabled = true;
+                      } else {
+                        scripting::PluginStatus placeholder{.id = id, .name = id, .enabled = true};
+                        if (auto it = catalogLookup->find(id); it != catalogLookup->end()) {
+                          placeholder.name = it->second.name;
+                          placeholder.version = it->second.version;
+                          placeholder.icon = it->second.icon;
+                          placeholder.description = it->second.description;
+                        }
+                        m_pluginList.push_back(std::move(placeholder));
+                      }
+                    } else {
+                      m_pluginManager->disable(id);
+                      m_pluginListDirty = true;
+                    }
+                    requestContentRebuild();
+                  },
+              .isEnabling = [this](
+                                const std::string& id
+                            ) { return m_pluginManager != nullptr && m_pluginManager->isEnabling(id); },
+              .scale = scale,
+          },
+          &m_pluginFileCache
+      );
+
+      m_pluginFileCache.setOnReady([storeContent](
+                                       const std::string& pluginId, const std::string& filename, const std::string& path
+                                   ) { storeContent->onFileReady(pluginId, filename, path); });
+
+      if (m_editorSheetPopup == nullptr) {
+        m_editorSheetPopup = std::make_unique<settings::SettingsSheetPopup>();
+        m_editorSheetPopup->initialize(*m_wayland, *m_config, *m_renderContext);
+      }
+
+      storeContent->setOnRebuildNeeded([this]() {
+        if (m_editorSheetPopup != nullptr) {
+          m_editorSheetPopup->rebuildBody();
+        }
+      });
+
+      wl_output* output = m_wayland->lastPointerOutput();
+      if (output == nullptr) {
+        output = m_output;
+      }
+
+      m_editorSheetPopup->open(
+          settings::SettingsSheetPopupRequest{
+              .parent = popupParentFor(*m_surface, output, m_wayland->lastInputSerial()),
+              .sheetTitle = i18n::tr("settings.plugins.store.title"),
+              .removeAction = nullptr,
+              .createHeaderAction = [storeContent, scale]() -> std::unique_ptr<Node> {
+                const auto pageUrl = storeContent->detailPageUrl();
+                const auto sourceUrl = storeContent->detailSourceUrl();
+                if (!pageUrl.has_value() && !sourceUrl.has_value()) {
+                  return nullptr;
+                }
+                auto actions = ui::row({.align = FlexAlign::Center, .gap = Style::spaceXs * scale});
+                if (pageUrl.has_value()) {
+                  actions->addChild(
+                      ui::button({
+                          .glyph = "external-link",
+                          .glyphSize = Style::fontSizeBody * scale,
+                          .variant = ButtonVariant::Ghost,
+                          .tooltip = i18n::tr("settings.plugins.store.open-page"),
+                          .minWidth = Style::controlHeightSm * scale,
+                          .minHeight = Style::controlHeightSm * scale,
+                          .padding = Style::spaceXs * scale,
+                          .radius = Style::scaledRadiusMd(scale),
+                          .onClick = [url = *pageUrl]() { (void)net::openInBrowser(url); },
+                      })
+                  );
+                }
+                if (sourceUrl.has_value()) {
+                  actions->addChild(
+                      ui::button({
+                          .glyph = "brand-git",
+                          .glyphSize = Style::fontSizeBody * scale,
+                          .variant = ButtonVariant::Ghost,
+                          .tooltip = i18n::tr("settings.plugins.store.open-source"),
+                          .minWidth = Style::controlHeightSm * scale,
+                          .minHeight = Style::controlHeightSm * scale,
+                          .padding = Style::spaceXs * scale,
+                          .radius = Style::scaledRadiusMd(scale),
+                          .onClick = [url = *sourceUrl]() { (void)net::openInBrowser(url); },
+                      })
+                  );
+                }
+                return actions;
+              },
+              .populateSheetBody =
+                  [storeContent, this](Flex& body) {
+                    if (m_renderContext == nullptr) {
+                      return;
+                    }
+                    storeContent->populateBody(body, *m_renderContext, nullptr);
+                  },
+              .scale = scale,
+              .minWidth = 800.0f,
+              .maxWidth = 1100.0f,
+              .parentFraction = 0.85f,
+              .fillParentHeight = true,
+              .scrollableBody = false,
+              .onCloseRequested = [storeContent]() -> bool {
+                if (storeContent->isDetailView()) {
+                  storeContent->closeDetail();
+                  return true;
+                }
+                return false;
+              },
+              .preDispatchKeyboard =
+                  [storeContent, this](const KeyboardEvent& event) {
+                    InputArea* focused = m_editorSheetPopup != nullptr ? m_editorSheetPopup->focusedArea() : nullptr;
+                    return storeContent->handleKeyEvent(
+                        event.sym, event.modifiers, event.pressed, event.preedit, focused
+                    );
+                  },
+          }
+      );
+    });
+  }).detach();
 }
 
 void SettingsWindow::closeWidgetInspectorPopup() {

@@ -106,8 +106,8 @@ bool PopupSurface::initialize(zwlr_layer_surface_v1* parentLayerSurface, wl_outp
   m_config = config;
   m_config.anchorWidth = std::max(m_config.anchorWidth, 1);
   m_config.anchorHeight = std::max(m_config.anchorHeight, 1);
-  m_config.width = std::max(m_config.width, 1u);
-  m_config.height = std::max(m_config.height, 1u);
+  m_config.width = std::max(m_config.width, 1U);
+  m_config.height = std::max(m_config.height, 1U);
 
   m_pendingWidth = m_config.width;
   m_pendingHeight = m_config.height;
@@ -157,13 +157,13 @@ bool PopupSurface::initialize(zwlr_layer_surface_v1* parentLayerSurface, wl_outp
 
 void PopupSurface::setDismissedCallback(std::function<void()> callback) { m_dismissedCallback = std::move(callback); }
 
-bool PopupSurface::resize(std::uint32_t width, std::uint32_t height) {
+bool PopupSurface::resize(std::uint32_t width, std::uint32_t height, bool commit) {
   if (m_surface == nullptr || m_popup == nullptr) {
     return false;
   }
 
-  width = std::max(width, 1u);
-  height = std::max(height, 1u);
+  width = std::max(width, 1U);
+  height = std::max(height, 1U);
   if (m_config.width == width
       && m_config.height == height
       && Surface::width() == width
@@ -189,12 +189,14 @@ bool PopupSurface::resize(std::uint32_t width, std::uint32_t height) {
     }
   }
 
-  wl_surface_commit(m_surface);
-  wl_display_flush(m_connection.display());
+  if (commit) {
+    wl_surface_commit(m_surface);
+    wl_display_flush(m_connection.display());
+  }
   return true;
 }
 
-bool PopupSurface::repositionAnchor(const PopupSurfaceConfig& anchorConfig) {
+bool PopupSurface::repositionAnchor(const PopupSurfaceConfig& anchorConfig, bool commit) {
   if (m_popup == nullptr) {
     return false;
   }
@@ -217,8 +219,10 @@ bool PopupSurface::repositionAnchor(const PopupSurfaceConfig& anchorConfig) {
     }
   }
 
-  wl_surface_commit(m_surface);
-  wl_display_flush(m_connection.display());
+  if (commit) {
+    wl_surface_commit(m_surface);
+    wl_display_flush(m_connection.display());
+  }
   return true;
 }
 
@@ -228,7 +232,7 @@ void PopupSurface::handleXdgSurfaceConfigure(void* data, xdg_surface* surface, s
 
   const std::uint32_t width = self->m_pendingWidth == 0 ? self->m_config.width : self->m_pendingWidth;
   const std::uint32_t height = self->m_pendingHeight == 0 ? self->m_config.height : self->m_pendingHeight;
-  self->Surface::onConfigure(std::max(1u, width), std::max(1u, height));
+  self->Surface::onConfigure(std::max(1U, width), std::max(1U, height));
 }
 
 void PopupSurface::handlePopupConfigure(
@@ -279,8 +283,8 @@ bool PopupSurface::initializeAsChild(xdg_surface* parentXdgSurface, wl_output* o
   m_config = config;
   m_config.anchorWidth = std::max(m_config.anchorWidth, 1);
   m_config.anchorHeight = std::max(m_config.anchorHeight, 1);
-  m_config.width = std::max(m_config.width, 1u);
-  m_config.height = std::max(m_config.height, 1u);
+  m_config.width = std::max(m_config.width, 1U);
+  m_config.height = std::max(m_config.height, 1U);
 
   m_pendingWidth = m_config.width;
   m_pendingHeight = m_config.height;

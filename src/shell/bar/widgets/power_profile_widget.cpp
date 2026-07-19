@@ -10,7 +10,8 @@
 #include <memory>
 #include <wayland-client-protocol.h>
 
-PowerProfileWidget::PowerProfileWidget(PowerProfilesService* powerProfiles) : m_powerProfiles(powerProfiles) {}
+PowerProfileWidget::PowerProfileWidget(PowerProfilesService* powerProfiles, bool enableScroll)
+    : m_powerProfiles(powerProfiles), m_enableScroll(enableScroll) {}
 
 void PowerProfileWidget::create() {
   auto area = std::make_unique<InputArea>();
@@ -18,11 +19,15 @@ void PowerProfileWidget::create() {
   // Left moves forward (toward performance), right moves backward (toward power-saver).
   area->setOnClick([this](const InputArea::PointerData& data) { cycleProfile(data.button == BTN_RIGHT ? -1 : 1); });
   area->setOnAxis([this](const InputArea::PointerData& data) {
-    if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
+    if (!m_enableScroll || data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL) {
+      return;
+    }
+    const float steps = data.scrollSteps();
+    if (steps == 0.0f) {
       return;
     }
     // Scroll up moves forward; Wayland reports up as a negative delta.
-    cycleProfile(data.scrollDelta(1.0f) > 0 ? -1 : 1);
+    cycleProfile(steps > 0.0f ? -1 : 1);
   });
   m_area = area.get();
 

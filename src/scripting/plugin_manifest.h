@@ -27,9 +27,9 @@ namespace scripting {
     Color,
   };
 
+  // `labelKey` is a plugin translation key. When empty the raw `value` is shown.
   struct ManifestSelectOption {
     std::string value;
-    std::string label;
     std::string labelKey;
   };
 
@@ -38,11 +38,11 @@ namespace scripting {
     std::vector<std::string> values;
   };
 
+  // Labels and descriptions are always plugin translation keys, resolved against the
+  // plugin's translations/<lang>.json. `labelKey` is mandatory; `descriptionKey` is optional.
   struct ManifestField {
     std::string key;
-    std::string label;
     std::string labelKey;
-    std::string description;
     std::string descriptionKey;
     ManifestFieldType type = ManifestFieldType::String;
 
@@ -101,8 +101,13 @@ namespace scripting {
     // Panel size in logical pixels (parsed only for Panel entries). Geometry is
     // host-owned and declared once here so the surface is sized correctly on the
     // very first open (panel.render lands async). 0 = use the host default.
+    // A "fill" axis spans the output's available extent (the compositor assigns
+    // the size via the layer-shell dual-anchor + size-0 mechanism); the numeric
+    // value is ignored on that axis.
     double panelWidth = 0.0;
     double panelHeight = 0.0;
+    bool panelWidthFill = false;
+    bool panelHeightFill = false;
     // Host-standard shell placement settings (see plugin_panel_shell.*). Parsed from
     // optional [[panel]] keys; injected settings use "{id}_placement" etc.
     std::string panelPlacementDefault = "floating";
@@ -114,7 +119,7 @@ namespace scripting {
     std::string id;   // "author/plugin"
     std::string name; // mandatory display name
     std::string version;
-    std::string minNoctalia; // mandatory
+    std::uint32_t pluginApiVersion = 0; // mandatory
     std::string author;
     std::string license = "MIT";
     bool deprecated = false;
@@ -157,7 +162,7 @@ namespace scripting {
   );
 
   // Parse a plugin.toml. Returns nullopt and sets `error` on a hard failure:
-  // unreadable file, TOML parse error, or a missing mandatory `id` / `name` / `min_noctalia`.
+  // unreadable file, TOML parse error, or a missing mandatory `id` / `name` / `plugin_api`.
   // Entry ids are validated for uniqueness within the plugin.
   [[nodiscard]] std::optional<PluginManifest>
   parsePluginManifest(const std::filesystem::path& manifestPath, std::string* error);

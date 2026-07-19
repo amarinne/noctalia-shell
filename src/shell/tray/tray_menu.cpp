@@ -2,6 +2,7 @@
 
 #include "config/config_service.h"
 #include "core/deferred_call.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
 #include "core/ui_phase.h"
 #include "dbus/tray/tray_service.h"
@@ -13,8 +14,10 @@
 #include "ui/controls/scroll_view.h"
 #include "ui/popup_chrome.h"
 #include "ui/style.h"
+#include "wayland/layer_surface.h"
 #include "wayland/wayland_connection.h"
 #include "wayland/wayland_seat.h"
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
 #include <algorithm>
@@ -342,6 +345,17 @@ void TrayMenu::requestLayout() {
   }
 }
 
+bool TrayMenu::onKeyboardEvent(const KeyboardEvent& event) {
+  if (!m_visible) {
+    return false;
+  }
+  if (event.pressed && !event.preedit && KeybindMatcher::matches(KeybindAction::Cancel, event.sym, event.modifiers)) {
+    DeferredCall::callLater([this]() { close(); });
+  }
+  // The menu holds a modal grab while open — swallow keys so they don't leak.
+  return true;
+}
+
 bool TrayMenu::onPointerEvent(const PointerEvent& event) {
   if (!m_visible || m_instance == nullptr) {
     return false;
@@ -382,7 +396,7 @@ bool TrayMenu::onPointerEvent(const PointerEvent& event) {
       if (onSub || sub->pointerInside) {
         if (onSub)
           sub->pointerInside = true;
-        const bool pressed = (event.state == 1);
+        const bool pressed = event.pressed;
         sub->inputDispatcher.pointerButton(
             static_cast<float>(event.sx), static_cast<float>(event.sy), event.button, pressed
         );
@@ -447,7 +461,7 @@ bool TrayMenu::onPointerEvent(const PointerEvent& event) {
       if (onThisSurface) {
         inst->pointerInside = true;
       }
-      const bool pressed = (event.state == 1);
+      const bool pressed = event.pressed;
       inst->inputDispatcher.pointerButton(
           static_cast<float>(event.sx), static_cast<float>(event.sy), event.button, pressed
       );
@@ -480,7 +494,7 @@ bool TrayMenu::onPointerEvent(const PointerEvent& event) {
     }
   }
 
-  if (event.type == PointerEvent::Type::Button && event.state == 1 && !consumed) {
+  if (event.type == PointerEvent::Type::Button && event.pressed && !consumed) {
     close();
   }
   return consumed;
@@ -679,8 +693,9 @@ void TrayMenu::ensureSurface() {
   });
   inst->surface->setDismissedCallback([this]() { close(); });
 
-  const auto chrome =
-      popup_chrome::computeGeometry(menuWidth(), static_cast<float>(surfaceHeightPx()), popupShadowConfig(m_config));
+  const auto chrome = popup_chrome::computeGeometry(
+      menuWidth(), static_cast<float>(surfaceHeightPx()), popupShadowConfig(m_config), Style::popupShadowsEnabled()
+  );
   PopupPlacement placement{};
   if (const auto bar = resolveTrayBarConfig(m_config, m_wayland, output); bar.has_value()) {
     placement = popupPlacementForBar(*bar, anchorX, anchorY, contentScale());
@@ -713,8 +728,22 @@ void TrayMenu::ensureSurface() {
   };
   popup_chrome::applyToConfig(popupConfig, chrome, placement.chromeAttachment);
 
+  // Layer-shell popups inherit their parent's keyboard interactivity. The bar is
+  // None, so without this the grabbing popup would get no keyboard focus and ESC
+  // could not reach it. Flip the bar to OnDemand before the popup maps; the
+  // focus-grab path carries keyboard itself, so only the plain grab path needs it.
+  if (!useFocusGrab) {
+    m_keyboardBarLayerSurface = parentLayerSurface;
+    m_keyboardBarWlSurface = parentWlSurface;
+    zwlr_layer_surface_v1_set_keyboard_interactivity(
+        parentLayerSurface, static_cast<std::uint32_t>(LayerShellKeyboard::OnDemand)
+    );
+    wl_surface_commit(parentWlSurface);
+  }
+
   if (!inst->surface->initialize(parentLayerSurface, output, popupConfig)) {
     kLog.debug("tray menu: failed to create popup surface");
+    restoreBarKeyboardInteractivity();
     return;
   }
 
@@ -767,8 +796,9 @@ void TrayMenu::resizeMainSurfaceToEntries() {
     return;
   }
 
-  const auto chrome =
-      popup_chrome::computeGeometry(menuWidth(), static_cast<float>(surfaceHeightPx()), popupShadowConfig(m_config));
+  const auto chrome = popup_chrome::computeGeometry(
+      menuWidth(), static_cast<float>(surfaceHeightPx()), popupShadowConfig(m_config), Style::popupShadowsEnabled()
+  );
   const auto desiredWidth = chrome.surfaceWidth;
   const auto desiredHeight = chrome.surfaceHeight;
   if (m_instance->surface->width() == desiredWidth && m_instance->surface->height() == desiredHeight) {
@@ -789,6 +819,21 @@ void TrayMenu::destroySurface() {
   }
   m_instance.reset();
   m_focusGrab.reset();
+  restoreBarKeyboardInteractivity();
+}
+
+void TrayMenu::restoreBarKeyboardInteractivity() {
+  if (m_keyboardBarLayerSurface == nullptr) {
+    return;
+  }
+  zwlr_layer_surface_v1_set_keyboard_interactivity(
+      m_keyboardBarLayerSurface, static_cast<std::uint32_t>(LayerShellKeyboard::None)
+  );
+  if (m_keyboardBarWlSurface != nullptr) {
+    wl_surface_commit(m_keyboardBarWlSurface);
+  }
+  m_keyboardBarLayerSurface = nullptr;
+  m_keyboardBarWlSurface = nullptr;
 }
 
 void TrayMenu::rebuildScenes() {
@@ -835,9 +880,12 @@ void TrayMenu::buildScene(MenuInstance& inst, uint32_t width, uint32_t height) {
 
   inst.sceneRoot = std::make_unique<Node>();
   inst.sceneRoot->setSize(w, h);
-  (void)popup_chrome::addShadow(
-      *inst.sceneRoot, inst.chrome, popupShadowConfig(m_config), Style::scaledRadiusLg(contentScale())
-  );
+  if (Style::popupShadowsEnabled()) {
+    (void)popup_chrome::addShadow(
+        *inst.sceneRoot, inst.chrome, popupShadowConfig(m_config), Style::scaledRadiusLg(contentScale())
+    );
+  }
+  (void)popup_chrome::addCardBackground(*inst.sceneRoot, inst.chrome, contentScale());
 
   std::vector<ContextMenuControlEntry> entries;
   entries.reserve(m_entries.size());
@@ -868,6 +916,7 @@ void TrayMenu::buildScene(MenuInstance& inst, uint32_t width, uint32_t height) {
   scrollView->setRadius(0.0f);
   scrollView->bindState(&inst.scrollState);
   scrollView->setScrollbarVisible(true);
+  scrollView->setScrollbarInsetV(Style::scaledRadiusLg(contentScale()));
 
   auto menu = std::make_unique<ContextMenuControl>();
   menu->setContentScale(contentScale());
@@ -1073,7 +1122,8 @@ void TrayMenu::openSubmenuAtLevel(std::size_t levelIndex, std::int32_t parentEnt
   const auto subGap = std::max(1, static_cast<std::int32_t>(std::lround(4.0f * scale)));
 
   const auto chrome = popup_chrome::computeGeometry(
-      menuWidth(), static_cast<float>(submenuHeightPx(level.entries)), popupShadowConfig(m_config)
+      menuWidth(), static_cast<float>(submenuHeightPx(level.entries)), popupShadowConfig(m_config),
+      Style::popupShadowsEnabled()
   );
 
   const auto* wlOutput = m_wayland->findOutputByWl(parentMenu->output);
@@ -1187,9 +1237,12 @@ void TrayMenu::buildSubmenuScene(std::size_t levelIndex, MenuInstance& inst, uin
 
   inst.sceneRoot = std::make_unique<Node>();
   inst.sceneRoot->setSize(w, h);
-  (void)popup_chrome::addShadow(
-      *inst.sceneRoot, inst.chrome, popupShadowConfig(m_config), Style::scaledRadiusLg(contentScale())
-  );
+  if (Style::popupShadowsEnabled()) {
+    (void)popup_chrome::addShadow(
+        *inst.sceneRoot, inst.chrome, popupShadowConfig(m_config), Style::scaledRadiusLg(contentScale())
+    );
+  }
+  (void)popup_chrome::addCardBackground(*inst.sceneRoot, inst.chrome, contentScale());
 
   if (levelIndex >= m_submenuLevels.size()) {
     return;
@@ -1224,6 +1277,7 @@ void TrayMenu::buildSubmenuScene(std::size_t levelIndex, MenuInstance& inst, uin
   scrollView->setRadius(0.0f);
   scrollView->bindState(&inst.scrollState);
   scrollView->setScrollbarVisible(true);
+  scrollView->setScrollbarInsetV(Style::scaledRadiusLg(contentScale()));
 
   auto menu = std::make_unique<ContextMenuControl>();
   menu->setContentScale(contentScale());

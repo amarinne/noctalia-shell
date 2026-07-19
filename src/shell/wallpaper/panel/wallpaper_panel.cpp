@@ -1,7 +1,7 @@
 #include "shell/wallpaper/panel/wallpaper_panel.h"
 
 #include "config/config_service.h"
-#include "core/keybind_matcher.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
 #include "core/ui_phase.h"
 #include "i18n/i18n.h"
@@ -186,17 +186,7 @@ namespace {
   }
 
   [[nodiscard]] int caseInsensitiveNameOrder(std::string_view a, std::string_view b) {
-    for (std::size_t i = 0; i < a.size() && i < b.size(); ++i) {
-      const auto ac = static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(a[i])));
-      const auto bc = static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(b[i])));
-      if (ac != bc) {
-        return ac < bc ? -1 : 1;
-      }
-    }
-    if (a.size() == b.size()) {
-      return 0;
-    }
-    return a.size() < b.size() ? -1 : 1;
+    return StringUtils::naturalCaseInsensitiveCompare(a, b);
   }
 
   [[nodiscard]] std::optional<std::filesystem::file_time_type> entryModifiedTime(const WallpaperEntry& entry) {
@@ -266,7 +256,7 @@ public:
     }
   }
 
-  [[nodiscard]] std::size_t itemCount() const override { return m_entries == nullptr ? 0u : m_entries->size(); }
+  [[nodiscard]] std::size_t itemCount() const override { return m_entries == nullptr ? 0U : m_entries->size(); }
 
   [[nodiscard]] std::unique_ptr<Node> createTile() override {
     auto tile = std::make_unique<WallpaperTile>(0.0f, 0.0f, m_scale);
@@ -405,8 +395,8 @@ void WallpaperPanel::create() {
           .out = &m_title,
           .text = i18n::tr("wallpaper.panel.title"),
           .fontSize = Style::fontSizeTitle * scale,
-          .color = colorSpecFromRole(ColorRole::Primary),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::Primary),
       })
   );
 
@@ -418,7 +408,7 @@ void WallpaperPanel::create() {
           .controlHeight = Style::controlHeightSm * scale,
           .horizontalPadding = Style::spaceMd * scale,
           .surfaceOpacity = panelCardOpacity(),
-          .width = 360.0f * scale,
+          .width = 210.0f * scale,
           .height = 0.0f,
           .onChange =
               [this](const std::string& text) {

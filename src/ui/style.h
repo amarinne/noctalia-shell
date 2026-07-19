@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ui/signal.h"
+
 namespace Style {
 
   inline constexpr int barThicknessDefault = 34;
@@ -45,6 +47,9 @@ namespace Style {
   inline constexpr float scrollbarGap = spaceSm;
   inline constexpr float scrollbarMinThumbHeight = 24.0f;
 
+  // Growth cap (logical px, before content scale) for menus/dropdowns that size to their content.
+  inline constexpr float menuAutoMaxWidth = 420.0f;
+
   // Toggle preset geometry. Track height = thumb + 2 * inset; track width = thumb + 2 * inset + travel.
   inline constexpr float toggleThumbSizeSm = 14.0f;
   inline constexpr float toggleInsetSm = 2.0f;
@@ -64,6 +69,20 @@ namespace Style {
 
   [[nodiscard]] float cornerRadiusScale() noexcept;
   void setCornerRadiusScale(float scale) noexcept;
+
+  [[nodiscard]] bool buttonBordersEnabled() noexcept;
+  void setButtonBordersEnabled(bool enabled);
+  Signal<>& buttonBordersChanged();
+
+  [[nodiscard]] bool inputBordersEnabled() noexcept;
+  void setInputBordersEnabled(bool enabled);
+  Signal<>& inputBordersChanged();
+
+  [[nodiscard]] bool popupBordersEnabled() noexcept;
+  void setPopupBordersEnabled(bool enabled);
+
+  [[nodiscard]] bool popupShadowsEnabled() noexcept;
+  void setPopupShadowsEnabled(bool enabled);
 
   [[nodiscard]] float scaledRadius(float radius, float localScale = 1.0f) noexcept;
   [[nodiscard]] float scaledRadiusSm(float localScale = 1.0f) noexcept;

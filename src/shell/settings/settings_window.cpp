@@ -3,10 +3,11 @@
 #include "config/config_service.h"
 #include "config/config_types.h"
 #include "core/deferred_call.h"
-#include "core/key_modifiers.h"
-#include "core/key_symbols.h"
-#include "core/keybind_matcher.h"
+#include "core/input/key_modifiers.h"
+#include "core/input/key_symbols.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
+#include "core/scoped_timer.h"
 #include "core/ui_phase.h"
 #include "i18n/i18n.h"
 #include "idle/idle_manager.h"
@@ -22,6 +23,7 @@
 #include "ui/palette.h"
 #include "ui/split_pane_focus.h"
 #include "ui/style.h"
+#include "util/clamp.h"
 #include "wayland/toplevel_surface.h"
 #include "wayland/wayland_connection.h"
 
@@ -29,8 +31,10 @@
 #include <cmath>
 #include <cstdint>
 #include <linux/input-event-codes.h>
+#include <numbers>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <xkbcommon/xkbcommon-keysyms.h>
@@ -39,9 +43,13 @@ namespace {
 
   constexpr Logger kLog("settings");
 
+  // Golden rectangle oriented like the output: the constrained dimension takes the fraction,
+  // the other follows phi. The fixed size is only used when output geometry is unknown.
+  constexpr float kWindowOutputFraction = 0.66f;
+  constexpr float kGoldenRatio = std::numbers::phi_v<float>;
   constexpr float kWindowWidth = 1280.0f;
   constexpr float kWindowHeight = 600.0f;
-  constexpr float kWindowMinWidth = 900.0f;
+  constexpr float kWindowMinWidth = 1020.0f;
   constexpr float kWindowMinHeight = 500.0f;
 
   // How many frames to wait for the settings window to gain keyboard focus before opening a pending
@@ -71,7 +79,7 @@ namespace {
   }
 
   void focusExistingSettingsWindow(WaylandConnection& wayland, wl_surface* surface) {
-    static constexpr std::string_view kSettingsAppId = "dev.noctalia.Noctalia.Settings";
+    static constexpr std::string_view kSettingsAppId = "dev.noctalia.Noctalia";
     wayland.activateSurface(surface);
     wayland.activateToplevelForAppId(kSettingsAppId);
   }
@@ -110,6 +118,33 @@ namespace {
     }
   }
 
+  class SettingsProfileWatch {
+  public:
+    SettingsProfileWatch() {
+      if (noctalia::profiling::enabled()) {
+        m_watch.emplace();
+      }
+    }
+
+    void reset() {
+      if (m_watch.has_value()) {
+        m_watch->reset();
+      }
+    }
+
+    [[nodiscard]] bool active() const noexcept { return m_watch.has_value(); }
+    [[nodiscard]] double elapsedMs() const { return m_watch.has_value() ? m_watch->elapsedMs() : 0.0; }
+
+  private:
+    std::optional<noctalia::profiling::StopWatch> m_watch;
+  };
+
+  void logSettingsProfile(std::string_view label, const SettingsProfileWatch& watch) {
+    if (watch.active()) {
+      kLog.info("profile {}: {:.1f}ms", label, watch.elapsedMs());
+    }
+  }
+
 } // namespace
 
 SettingsWindow::~SettingsWindow() { destroyWindow(); }
@@ -133,7 +168,7 @@ float SettingsWindow::uiScale() const {
   if (m_config == nullptr) {
     return 1.0f;
   }
-  return std::max(0.1f, m_config->config().shell.uiScale);
+  return std::max(0.1f, m_config->config().accessibility.uiScale);
 }
 
 bool SettingsWindow::headerDragRegionContains(float sceneX, float sceneY) const {
@@ -369,10 +404,25 @@ void SettingsWindow::open(std::string context) {
   m_surface->setUpdateCallback([]() {});
 
   const float scale = uiScale();
-  const auto width = static_cast<std::uint32_t>(std::round(kWindowWidth * scale));
-  const auto height = static_cast<std::uint32_t>(std::round(kWindowHeight * scale));
-  const auto minWidth = static_cast<std::uint32_t>(std::round(kWindowMinWidth * scale));
-  const auto minHeight = static_cast<std::uint32_t>(std::round(kWindowMinHeight * scale));
+  const float minWidthF = kWindowMinWidth * scale;
+  const float minHeightF = kWindowMinHeight * scale;
+  float desiredWidth = kWindowWidth * scale;
+  float desiredHeight = kWindowHeight * scale;
+  if (const WaylandOutput* info = m_wayland->findOutputByWl(output); info != nullptr && info->hasUsableGeometry()) {
+    const auto outputW = static_cast<float>(info->effectiveLogicalWidth());
+    const auto outputH = static_cast<float>(info->effectiveLogicalHeight());
+    if (outputW >= outputH) {
+      desiredHeight = util::clampOrdered(outputH * kWindowOutputFraction, std::min(minHeightF, outputH), outputH);
+      desiredWidth = util::clampOrdered(desiredHeight * kGoldenRatio, std::min(minWidthF, outputW), outputW);
+    } else {
+      desiredWidth = util::clampOrdered(outputW * kWindowOutputFraction, std::min(minWidthF, outputW), outputW);
+      desiredHeight = util::clampOrdered(desiredWidth * kGoldenRatio, std::min(minHeightF, outputH), outputH);
+    }
+  }
+  const auto width = static_cast<std::uint32_t>(std::round(desiredWidth));
+  const auto height = static_cast<std::uint32_t>(std::round(desiredHeight));
+  const auto minWidth = static_cast<std::uint32_t>(std::round(minWidthF));
+  const auto minHeight = static_cast<std::uint32_t>(std::round(minHeightF));
 
   ToplevelSurfaceConfig cfg{
       .width = std::max<std::uint32_t>(1, width),
@@ -380,7 +430,7 @@ void SettingsWindow::open(std::string context) {
       .minWidth = minWidth,
       .minHeight = minHeight,
       .title = i18n::tr("settings.window.native-title"),
-      .appId = "dev.noctalia.Noctalia.Settings",
+      .appId = "dev.noctalia.Noctalia",
   };
 
   if (!m_surface->initialize(output, cfg)) {
@@ -433,6 +483,7 @@ void SettingsWindow::destroyWindow() {
   m_idleLiveStatusLabel = nullptr;
   m_mainContainer = nullptr;
   m_headerRow = nullptr;
+  m_filterRow = nullptr;
   m_contentContainer = nullptr;
   m_contentScrollView = nullptr;
   m_sidebarScrollView = nullptr;
@@ -470,6 +521,8 @@ void SettingsWindow::destroyWindow() {
   m_settingsRegistry.clear();
   m_rebuildRequested = false;
   m_contentRebuildRequested = false;
+  m_settingsRegistryRefreshRequested = false;
+  m_filterRowRefreshRequested = false;
   m_focusSearchOnRebuild = false;
   m_scrollToPendingContentTarget = false;
   m_pendingContentScrollTarget = nullptr;
@@ -505,6 +558,7 @@ void SettingsWindow::prepareFrame(bool /*needsUpdate*/, bool needsLayout) {
   if (m_renderContext == nullptr || m_surface == nullptr) {
     return;
   }
+  SettingsProfileWatch totalProfileWatch;
 
   const auto width = m_surface->width();
   const auto height = m_surface->height();
@@ -512,7 +566,9 @@ void SettingsWindow::prepareFrame(bool /*needsUpdate*/, bool needsLayout) {
     return;
   }
 
+  SettingsProfileWatch phaseProfileWatch;
   m_renderContext->makeCurrent(m_surface->renderTarget());
+  logSettingsProfile("prepareFrame makeCurrent", phaseProfileWatch);
 
   // Rebuild the entire scene only on first build or when something explicitly
   // requested it (config change, nav click, etc.). Pure size changes — which
@@ -525,20 +581,33 @@ void SettingsWindow::prepareFrame(bool /*needsUpdate*/, bool needsLayout) {
   const bool needRebuild = firstBuild || m_rebuildRequested;
 
   if (needRebuild) {
+    phaseProfileWatch.reset();
     UiPhaseScope layoutPhase(UiPhase::Layout);
     m_inputDispatcher.stashTabFocus();
     buildScene(width, height);
     m_inputDispatcher.restoreStashedTabFocus();
+    if (m_focusSearchOnRebuild) {
+      if (m_settingsSearchInput != nullptr && m_settingsSearchInput->inputArea() != nullptr) {
+        m_inputDispatcher.setFocus(m_settingsSearchInput->inputArea());
+      }
+      m_focusSearchOnRebuild = false;
+    }
+    logSettingsProfile("prepareFrame buildScene", phaseProfileWatch);
     m_lastSceneWidth = width;
     m_lastSceneHeight = height;
     m_rebuildRequested = false;
     m_contentRebuildRequested = false;
+    m_settingsRegistryRefreshRequested = false;
+    m_filterRowRefreshRequested = false;
+    phaseProfileWatch.reset();
     const float scale = uiScale();
     const auto newMinW = static_cast<std::uint32_t>(std::round(kWindowMinWidth * scale));
     const auto newMinH = static_cast<std::uint32_t>(std::round(kWindowMinHeight * scale));
     m_surface->setMinSize(newMinW, newMinH);
     m_surface->clampToMinSize(newMinW, newMinH);
+    logSettingsProfile("prepareFrame updateMinSize", phaseProfileWatch);
   } else if ((m_contentRebuildRequested || sizeChanged || needsLayout) && m_sceneRoot != nullptr) {
+    phaseProfileWatch.reset();
     UiPhaseScope layoutPhase(UiPhase::Layout);
     const auto w = static_cast<float>(width);
     const auto h = static_cast<float>(height);
@@ -551,17 +620,35 @@ void SettingsWindow::prepareFrame(bool /*needsUpdate*/, bool needsLayout) {
     }
     if (m_contentRebuildRequested) {
       m_inputDispatcher.stashTabFocus();
+      if (m_settingsRegistryRefreshRequested) {
+        const Config fallbackCfg{};
+        const Config& cfg = m_config != nullptr ? m_config->config() : fallbackCfg;
+        refreshSettingsRegistry(cfg);
+        m_settingsRegistryRefreshRequested = false;
+      }
+      if (m_filterRowRefreshRequested) {
+        rebuildFilterRow(uiScale());
+        m_filterRowRefreshRequested = false;
+      }
       rebuildSettingsContent();
+      m_deferFocusScrollToLayout = true;
       m_inputDispatcher.restoreStashedTabFocus();
+      m_deferFocusScrollToLayout = false;
       m_contentRebuildRequested = false;
     }
+    logSettingsProfile("prepareFrame rebuildContent", phaseProfileWatch);
+    phaseProfileWatch.reset();
     m_sceneRoot->layout(*m_renderContext);
+    logSettingsProfile("prepareFrame layout", phaseProfileWatch);
+    phaseProfileWatch.reset();
     applyPendingContentScrollTarget(Style::spaceMd * uiScale());
+    logSettingsProfile("prepareFrame scrollTarget", phaseProfileWatch);
     m_lastSceneWidth = width;
     m_lastSceneHeight = height;
   }
 
   maybeOpenPendingWidgetInspector();
+  logSettingsProfile("prepareFrame total", totalProfileWatch);
 }
 
 void SettingsWindow::maybeOpenPendingWidgetInspector() {
@@ -597,6 +684,8 @@ void SettingsWindow::requestSceneRebuild() {
     }
     m_rebuildRequested = true;
     m_contentRebuildRequested = false;
+    m_settingsRegistryRefreshRequested = false;
+    m_filterRowRefreshRequested = false;
     m_surface->requestLayout();
     // The editor sheet edits the same config: rebuild its body so override/reset controls track
     // value changes in place, the way the inline inspector did when the whole scene rebuilt.
@@ -606,17 +695,28 @@ void SettingsWindow::requestSceneRebuild() {
   });
 }
 
-void SettingsWindow::requestContentRebuild() {
-  DeferredCall::callLater([this]() {
+void SettingsWindow::requestContentRebuild(bool refreshRegistry, bool refreshFilterRow, bool rebuildEditorSheet) {
+  DeferredCall::callLater([this, refreshRegistry, refreshFilterRow, rebuildEditorSheet]() {
     if (m_surface == nullptr) {
       return;
     }
+    if (refreshRegistry) {
+      m_settingsRegistryRefreshRequested = true;
+    }
+    if (refreshFilterRow) {
+      m_filterRowRefreshRequested = true;
+    }
     if (m_sceneRoot == nullptr || m_contentContainer == nullptr) {
       m_rebuildRequested = true;
+      m_settingsRegistryRefreshRequested = false;
+      m_filterRowRefreshRequested = false;
     } else if (!m_rebuildRequested) {
       m_contentRebuildRequested = true;
     }
     m_surface->requestLayout();
+    if (rebuildEditorSheet && m_editorSheetPopup != nullptr && m_editorSheetPopup->isOpen()) {
+      m_editorSheetPopup->rebuildBody();
+    }
   });
 }
 
@@ -635,7 +735,10 @@ void SettingsWindow::refreshPluginListIfNeeded() {
   auto* manager = m_pluginManager;
   PluginsConfig pluginsSnapshot = m_config->config().plugins;
   std::thread([this, manager, generation, pluginsSnapshot = std::move(pluginsSnapshot)]() {
-    auto plugins = manager->list(pluginsSnapshot);
+    // Refresh the browsable catalog (throttled) so newly published plugins and update
+    // badges appear on open, then list against the fetched revision.
+    manager->fetchStaleCatalogs(pluginsSnapshot);
+    auto plugins = manager->list(pluginsSnapshot, scripting::CatalogAccess::Network);
     DeferredCall::callLater([this, generation, plugins = std::move(plugins)]() mutable {
       m_pluginListRefreshInFlight = false;
       if (generation != m_pluginListRefreshGeneration) {
@@ -697,7 +800,7 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
       && m_widgetAddPopup->isOpen()
       && !m_widgetAddPopup->isInitializing()
       && event.type == PointerEvent::Type::Button
-      && event.state == 1) {
+      && event.pressed) {
     m_widgetAddPopup->close();
     return true;
   }
@@ -708,7 +811,7 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
       && m_configExportDialogPopup->isOpen()
       && !m_configExportDialogPopup->isInitializing()
       && event.type == PointerEvent::Type::Button
-      && event.state == 1) {
+      && event.pressed) {
     m_configExportDialogPopup->close();
     return true;
   }
@@ -719,7 +822,7 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
       && m_searchPickerPopup->isOpen()
       && !m_searchPickerPopup->isInitializing()
       && event.type == PointerEvent::Type::Button
-      && event.state == 1) {
+      && event.pressed) {
     m_searchPickerPopup->close();
     return true;
   }
@@ -730,7 +833,7 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
       && m_editorSheetPopup->isOpen()
       && !m_editorSheetPopup->isInitializing()
       && event.type == PointerEvent::Type::Button
-      && event.state == 1) {
+      && event.pressed) {
     m_editorSheetPopup->close();
     return true;
   }
@@ -739,7 +842,7 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
     if (m_selectPopup->onPointerEvent(event)) {
       return true;
     }
-    if (event.type == PointerEvent::Type::Button && event.state == 1) {
+    if (event.type == PointerEvent::Type::Button && event.pressed) {
       m_selectPopup->closeSelectDropdown();
       return true;
     }
@@ -751,7 +854,7 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
   if (m_actionsMenuPopup != nullptr
       && m_actionsMenuPopup->isOpen()
       && event.type == PointerEvent::Type::Button
-      && event.state == 1) {
+      && event.pressed) {
     m_actionsMenuPopup->close();
     return true;
   }
@@ -784,7 +887,7 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
     }
     break;
   case PointerEvent::Type::Button: {
-    const bool pressed = (event.state == 1);
+    const bool pressed = event.pressed;
     if (onThis || m_pointerInside) {
       if (onThis) {
         m_pointerInside = true;
@@ -1022,6 +1125,10 @@ void SettingsWindow::onPluginsChanged() {
   if (isOpen() && m_selectedSection == "plugins") {
     requestContentRebuild();
   }
+}
+
+void SettingsWindow::invalidatePluginSourceCache(const std::string& sourceName) {
+  m_pluginFileCache.invalidateSource(sourceName);
 }
 
 void SettingsWindow::refreshIdleLiveStatusText() {

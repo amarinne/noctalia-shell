@@ -145,9 +145,9 @@ namespace settings {
             ui::label({
                 .text = title,
                 .fontSize = Style::fontSizeBody * m_scale,
+                .fontWeight = FontWeight::Bold,
                 .color = colorSpecFromRole(ColorRole::OnSurface),
                 .maxLines = 1,
-                .fontWeight = FontWeight::Bold,
             }),
             ui::label({
                 .text = description,
@@ -187,8 +187,8 @@ namespace settings {
             ui::label({
                 .text = i18n::tr("settings.export-config.title"),
                 .fontSize = Style::fontSizeTitle * m_scale,
-                .color = colorSpecFromRole(ColorRole::OnSurface),
                 .fontWeight = FontWeight::Bold,
+                .color = colorSpecFromRole(ColorRole::OnSurface),
                 .flexGrow = 1.0f,
             }),
             ui::button({
@@ -298,7 +298,7 @@ namespace settings {
     const float panelH = std::ceil(pref.height + pad * 2.0f);
     const ShellConfig::ShadowConfig shadow =
         config() != nullptr ? config()->config().shell.shadow : ShellConfig::ShadowConfig{};
-    const auto geo = popup_chrome::computeGeometry(panelW, panelH, shadow);
+    const auto geo = popup_chrome::computeGeometry(panelW, panelH, shadow, Style::popupShadowsEnabled());
     const float maxOuterHeight =
         m_parentHeight > 0 ? std::max(1.0f, static_cast<float>(m_parentHeight) - (kParentMargin * m_scale)) : 1.0e6f;
     const std::uint32_t nextHeight =

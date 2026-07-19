@@ -37,18 +37,21 @@ struct TaskbarWidgetOptions {
   bool hideEmptyWorkspaces = false;
   bool workspaceGroupCapsule = true;
   bool focusedOutputOnly = false;
+  bool minimal = false;
   bool groupSingleIconPerApp = false;
+  bool enableScroll = true;
   bool showActiveIndicator = true;
   float activeOpacity = 1.0f;
   float inactiveOpacity = 1.0f;
   ColorSpec focusedColor = colorSpecFromRole(ColorRole::Primary);
   ColorSpec occupiedColor = colorSpecFromRole(ColorRole::Secondary);
   ColorSpec emptyColor = colorSpecFromRole(ColorRole::Secondary);
+  ColorSpec urgentColor = colorSpecFromRole(ColorRole::Error);
   bool showWindowTitle = false;
   float windowTitleMaxWidth = 100.0f;
   float taskbarMaxWidth = 8192.0f;
   std::string barPosition;
-  ShellConfig::ShadowConfig shadowConfig;
+  std::string barName;
 };
 
 class TaskbarWidget : public Widget {
@@ -58,6 +61,7 @@ public:
 
   void create() override;
   [[nodiscard]] bool onPointerEvent(const PointerEvent& event) override;
+  [[nodiscard]] bool wantsBarHoverHighlight() const noexcept override { return false; }
 
 private:
   struct TaskModel {
@@ -156,20 +160,25 @@ private:
   bool m_focusedOutputOnly = false;
   bool m_wasFocusedOutput = true;
   bool m_activeUsesFocusedColor = true;
+  bool m_minimal = false;
   bool m_groupSingleIconPerApp = false;
+  bool m_enableScroll = true;
   bool m_showActiveIndicator = true;
   float m_activeOpacity = 1.0f;
   float m_inactiveOpacity = 1.0f;
   ColorSpec m_focusedColor = colorSpecFromRole(ColorRole::Primary);
   ColorSpec m_occupiedColor = colorSpecFromRole(ColorRole::Secondary);
   ColorSpec m_emptyColor = colorSpecFromRole(ColorRole::Secondary);
+  ColorSpec m_urgentColor = colorSpecFromRole(ColorRole::Error);
   bool m_showWindowTitle = false;
   float m_windowTitleMaxWidth = 100.0;
   float m_taskbarMaxWidth = 8192.0;
   std::string m_barPosition;
-  ShellConfig::ShadowConfig m_shadowConfig;
+  std::string m_barName;
   bool m_rebuildPending = true;
   bool m_vertical = false;
+  float m_containerWidth = 0.0f;
+  float m_containerHeight = 0.0f;
   std::uint64_t m_textMetricsGeneration = 0;
 
   Flex* m_root = nullptr;

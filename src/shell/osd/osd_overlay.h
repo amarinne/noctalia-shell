@@ -32,7 +32,8 @@ enum class OsdKind : std::uint8_t {
   LockKeys,
   KeyboardLayout,
   Media,
-  Privacy
+  Privacy,
+  KeyboardBacklight
 };
 
 struct OsdContent {
@@ -60,6 +61,10 @@ public:
   void requestRedraw();
 
   void show(const OsdContent& content);
+
+  // True while any instance is on screen or animating into view. Callers use this to correct
+  // already-visible content in place without popping up a fresh OSD.
+  [[nodiscard]] bool isVisible() const;
 
 private:
   struct SurfaceMargins {

@@ -3,11 +3,20 @@
 #include "cursor-shape-v1-client-protocol.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace {
 
   constexpr std::uint32_t kMouseButtonBase = BTN_MOUSE;
   constexpr std::uint32_t kMaxTrackedMouseButtons = 32;
+  // Continuous-source axis units that trigger one wheel-detent step. libinput's
+  // detent convention is 15 units; we require a bit more so touchpad swipes
+  // step deliberately rather than racing the finger.
+  constexpr float kScrollUnitsPerStep = 20.0f;
+
+  bool isWheelSource(std::uint32_t axisSource) noexcept {
+    return axisSource == WL_POINTER_AXIS_SOURCE_WHEEL || axisSource == WL_POINTER_AXIS_SOURCE_WHEEL_TILT;
+  }
 
 } // namespace
 
@@ -29,7 +38,7 @@ std::uint32_t InputArea::buttonMask(std::uint32_t button) noexcept {
   if (index >= kMaxTrackedMouseButtons) {
     return 0;
   }
-  return 1u << index;
+  return 1U << index;
 }
 
 std::uint32_t InputArea::buttonMask(std::initializer_list<std::uint32_t> buttons) noexcept {
@@ -152,6 +161,7 @@ void InputArea::setRetainsFocusOnPointerRelease(bool retain) { m_retainsFocusOnP
 
 void InputArea::dispatchEnter(float localX, float localY) {
   m_hovered = true;
+  resetScrollAccumulators();
   if (m_onEnter) {
     m_onEnter({.localX = localX, .localY = localY});
   }
@@ -161,10 +171,13 @@ void InputArea::dispatchLeave() {
   m_hovered = false;
   m_pressed = false;
   m_pressedButton = 0;
+  resetScrollAccumulators();
   if (m_onLeave) {
     m_onLeave();
   }
 }
+
+void InputArea::resetScrollAccumulators() noexcept { m_scrollStepAccum.fill(0.0f); }
 
 void InputArea::dispatchMotion(float localX, float localY) {
   if (m_onMotion) {
@@ -200,20 +213,44 @@ bool InputArea::dispatchAxis(
     float localX, float localY, std::uint32_t axis, std::uint32_t axisSource, double axisValue,
     std::int32_t axisDiscrete, std::int32_t axisValue120, float axisLines
 ) {
-  if (m_onAxis) {
-    return m_onAxis(
-        {.localX = localX,
-         .localY = localY,
-         .axis = axis,
-         .axisSource = axisSource,
-         .pressed = false,
-         .axisValue = axisValue,
-         .axisDiscrete = axisDiscrete,
-         .axisValue120 = axisValue120,
-         .axisLines = axisLines}
-    );
+  if (!m_onAxis) {
+    return false;
   }
-  return false;
+
+  // Quantize scroll into whole detent steps. Wheel sources are capped at one
+  // step per frame: a ratcheted wheel emits one frame per notch, so the notch
+  // the user feels stays one step even when the compositor scales the delta
+  // (niri's scroll-factor), while free-spinning hi-res wheels emit sub-detent
+  // frames that must first accrue to a full detent. Continuous sources
+  // (touchpads) accrue axisValue until a detent-equivalent is reached.
+  // Scrolling content stays on scrollDelta() and keeps the scaling.
+  float axisSteps = 0.0f;
+  if (axis < m_scrollStepAccum.size()) {
+    float& accum = m_scrollStepAccum[axis];
+    const float detentDelta = axisLines != 0.0f ? axisLines : static_cast<float>(axisValue) / kScrollUnitsPerStep;
+    if ((detentDelta > 0.0f && accum < 0.0f) || (detentDelta < 0.0f && accum > 0.0f)) {
+      accum = 0.0f;
+    }
+    accum += detentDelta;
+    axisSteps = std::trunc(accum);
+    accum -= axisSteps;
+    if (isWheelSource(axisSource)) {
+      axisSteps = std::clamp(axisSteps, -1.0f, 1.0f);
+    }
+  }
+
+  return m_onAxis(
+      {.localX = localX,
+       .localY = localY,
+       .axis = axis,
+       .axisSource = axisSource,
+       .pressed = false,
+       .axisValue = axisValue,
+       .axisDiscrete = axisDiscrete,
+       .axisValue120 = axisValue120,
+       .axisLines = axisLines,
+       .axisSteps = axisSteps}
+  );
 }
 
 void InputArea::dispatchKey(

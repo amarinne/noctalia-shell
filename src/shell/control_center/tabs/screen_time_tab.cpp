@@ -72,8 +72,8 @@ namespace {
             .out = &ptr,
             .text = text,
             .fontSize = Style::fontSizeCaption * scale,
-            .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
             .fontWeight = FontWeight::Bold,
+            .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
         })
     );
     return ptr;
@@ -88,10 +88,10 @@ namespace {
   }
 
   [[nodiscard]] std::uint32_t hashAppKey(std::string_view appKey) {
-    std::uint32_t hash = 2166136261u;
+    std::uint32_t hash = 2166136261U;
     for (const unsigned char byte : appKey) {
       hash ^= byte;
-      hash *= 16777619u;
+      hash *= 16777619U;
     }
     return hash;
   }
@@ -103,7 +103,7 @@ namespace {
     float baseV = 0.0f;
     rgbToHsv(primary, baseH, baseS, baseV);
 
-    const float hashT = static_cast<float>(hashAppKey(appKey) % 1000u) / 1000.0f;
+    const float hashT = static_cast<float>(hashAppKey(appKey) % 1000U) / 1000.0f;
     const float hue = baseH + hashT * 0.72f;
     const float sat = std::clamp(baseS * (0.82f + hashT * 0.22f), 0.38f, 0.82f);
     const float val = std::clamp(baseV * (0.86f + (1.0f - hashT) * 0.14f), 0.52f, 0.90f);
@@ -194,8 +194,8 @@ std::unique_ptr<Flex> ScreenTimeTab::create() {
       ui::label({
           .out = &m_totalLabel,
           .fontSize = Style::fontSizeHeader * 1.6f * scale,
-          .color = colorSpecFromRole(ColorRole::OnSurface),
           .fontWeight = FontWeight::Bold,
+          .color = colorSpecFromRole(ColorRole::OnSurface),
       })
   );
 
@@ -1069,11 +1069,8 @@ std::string ScreenTimeTab::resolveIconPath(const std::string& appKey) const {
   }
 
   const int targetPx = static_cast<int>(std::round(kAppIconSize * contentScale()));
-  const auto lookupOptions = baseKey.starts_with("steam_app_")
-      ? app_identity::DesktopEntryLookupOptions{.includeHidden = true, .includeNoDisplay = true}
-      : app_identity::DesktopEntryLookupOptions{};
   std::string iconName;
-  if (const auto entry = app_identity::findDesktopEntry(baseKey, desktopEntries(), lookupOptions);
+  if (const auto entry = app_identity::findDesktopEntry(baseKey, desktopEntries());
       entry.has_value() && !entry->icon.empty()) {
     iconName = entry->icon;
   } else {

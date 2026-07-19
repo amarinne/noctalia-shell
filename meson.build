@@ -22,8 +22,23 @@ if is_libcxx
 endif
 
 # Sanitizers are enabled via meson's built-in -Db_sanitize=address,undefined.
-# pipewire_lsan.cpp is only needed when address sanitizer is active.
+# lsan_suppressions.cpp is only needed when address sanitizer is active.
 sanitize = get_option('b_sanitize') != 'none'
+
+# Hardened standard-library assertions in debug builds only. A std::clamp(v, lo, hi)
+# with hi < lo aborts here (distro packagers enable this in release, so users see
+# the same abort) — surfacing inverted-bound bugs loudly during development so they
+# can be routed through util::clampOrdered. Release stays unhardened on purpose: a
+# not-yet-converted raw std::clamp there should degrade to a wrong-but-non-fatal
+# value rather than abort a user's session (converted sites log and return lo via
+# clampOrdered). The cost is a few precondition branches (not the heavy _GLIBCXX_DEBUG).
+if get_option('buildtype') != 'release'
+  if is_libcxx
+    add_project_arguments('-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE', language: 'cpp')
+  else
+    add_project_arguments('-D_GLIBCXX_ASSERTIONS', language: 'cpp')
+  endif
+endif
 
 # Tests build by default only for unsanitized debug builds; all other build
 # types skip them unless explicitly enabled (-Dtests=enabled).
@@ -33,14 +48,17 @@ build_tests = tests_opt.enabled() or (tests_opt.auto() and get_option('buildtype
 # ── Release-only optimizations ────────────────────────────────────────────────
 if get_option('buildtype') == 'release'
   add_project_arguments(
-    '-march=native', '-mtune=native',
-    '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections',
+    '-ffunction-sections', '-fdata-sections',
     language: ['c', 'cpp'],
   )
   add_project_link_arguments(
     '-Wl,--gc-sections', '-Wl,--as-needed',
     language: ['c', 'cpp'],
   )
+endif
+
+if get_option('native_optimizations')
+  add_project_arguments('-march=native', '-mtune=native', language: ['c', 'cpp'])
 endif
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
@@ -68,9 +86,13 @@ polkit_gobject_dep  = dependency('polkit-gobject-1')
 # PipeWire/SPA headers use GCC extensions that trigger -Wpedantic/-Wconversion;
 # mark as system so the compiler suppresses those warnings.
 pipewire_dep        = dependency('libpipewire-0.3', include_type: 'system')
+wireplumber_dep     = dependency('wireplumber-0.5', include_type: 'system')
 curl_dep            = dependency('libcurl')
 libqalculate_dep    = dependency('libqalculate')
 libxml2_dep         = dependency('libxml-2.0')
+md4c_dep            = dependency('md4c')
+nlohmann_dep        = dependency('nlohmann_json')
+tomlplusplus_dep    = dependency('tomlplusplus')
 pam_dep             = cc.find_library('pam')
 dl_dep              = cpp.find_library('dl', required: false)
 
@@ -172,29 +194,13 @@ mcu_dep = declare_dependency(
   include_directories: include_directories('third_party/material_color_utilities', is_system: true),
 )
 
-# ── Vendored: stb_image_resize2 (header-only) ─────────────────────────────────
-stb_dep = declare_dependency(
-  include_directories: include_directories('third_party/stb', is_system: true),
-)
-
-# ── Vendored: tomlplusplus (header-only) ─────────────────────────────────
-if get_option('system_tomlplusplus')
-  tomlplusplus_dep = dependency('tomlplusplus')
-else
-  tomlplusplus_dep = declare_dependency(
-    include_directories: include_directories('third_party/tomlplusplus', is_system: true),
-  )
+# ── System: stb_image_resize2 and stb_image_write (header-only) ─────────────────────────────────
+if not cc.has_header('stb/stb_image_resize2.h')
+  error('stb/stb_image_resize2.h not found')
 endif
-
-# ── Vendored: md4c (CommonMark parser) ───────────────────────────────────────
-_md4c_lib = static_library('md4c',
-  'third_party/md4c/md4c.c',
-  override_options: ['warning_level=0'],
-)
-md4c_dep = declare_dependency(
-  link_whole: _md4c_lib,
-  include_directories: include_directories('third_party/md4c', is_system: true),
-)
+if not cc.has_header('stb/stb_image_write.h')
+  error('stb/stb_image_write.h not found')
+endif
 
 # ── System: libwebp (WebP decode and thumbnail encode) ───────────────────────
 libwebp_dep = dependency('libwebp', required: true)
@@ -403,6 +409,7 @@ _noctalia_sources = files(
   'src/auth/pam_authenticator.cpp',
   'src/calendar/caldav_client.cpp',
   'src/calendar/caldav_discovery.cpp',
+  'src/calendar/calendar_discovery_state.cpp',
   'src/calendar/calendar_service.cpp',
   'src/calendar/google_client.cpp',
   'src/calendar/google_oauth.cpp',
@@ -410,22 +417,24 @@ _noctalia_sources = files(
   'src/config/atomic_file.cpp',
   'src/config/config_export.cpp',
   'src/config/config_merge.cpp',
+  'src/config/config_migrations.cpp',
   'src/config/config_overrides.cpp',
   'src/config/config_service.cpp',
   'src/config/config_types.cpp',
   'src/config/config_validate.cpp',
   'src/config/widget_config.cpp',
   'src/config/schema/config_schema.cpp',
+  'src/config/schema/config_sections.cpp',
   'src/config/state_store.cpp',
   'src/config/cli.cpp',
   'src/core/build_info.cpp',
   'src/core/deferred_call.cpp',
-  'src/core/process_fds.cpp',
-  'src/core/file_watcher.cpp',
-  'src/core/key_chord.cpp',
+  'src/core/process/process_fds.cpp',
+  'src/core/files/file_watcher.cpp',
+  'src/core/input/key_chord.cpp',
   'src/core/log.cpp',
-  'src/core/process.cpp',
-  'src/core/resource_paths.cpp',
+  'src/core/process/process.cpp',
+  'src/core/files/resource_paths.cpp',
   'src/core/timer_manager.cpp',
   'src/core/ui_phase.cpp',
   'src/dbus/accounts/accounts_service.cpp',
@@ -436,6 +445,8 @@ _noctalia_sources = files(
   'src/dbus/mpris/mpris_art.cpp',
   'src/dbus/mpris/mpris_service.cpp',
   'src/dbus/network/inetwork_service.cpp',
+  'src/dbus/network/iwd_secret_agent.cpp',
+  'src/dbus/network/iwd_service.cpp',
   'src/dbus/network/network_glyphs.cpp',
   'src/dbus/network/network_manager_service.cpp',
   'src/dbus/network/network_secret_agent.cpp',
@@ -483,6 +494,8 @@ _noctalia_sources = files(
   'src/notification/notification_display_name.cpp',
   'src/notification/notification_history_store.cpp',
   'src/pipewire/pipewire_service.cpp',
+  'src/pipewire/audio_glyphs.cpp',
+  'src/pipewire/wireplumber_mixer.cpp',
   'src/pipewire/privacy_filter.cpp',
   'src/pipewire/pipewire_spectrum.cpp',
   'src/pipewire/sound_player.cpp',
@@ -526,6 +539,7 @@ _noctalia_sources = files(
   'src/render/scene/graph_node.cpp',
   'src/render/scene/node.cpp',
   'src/render/text/cairo_text_renderer.cpp',
+  'src/render/text/font_registry.cpp',
   'src/render/text/font_weight_catalog.cpp',
   'src/render/text/cairo_glyph_renderer.cpp',
   'src/render/wallpaper_renderer.cpp',
@@ -619,6 +633,7 @@ _noctalia_sources = files(
   'src/shell/osd/audio_osd.cpp',
   'src/shell/osd/media_osd.cpp',
   'src/shell/osd/brightness_osd.cpp',
+  'src/shell/osd/keyboard_backlight_osd.cpp',
   'src/shell/osd/lock_keys_osd.cpp',
   'src/shell/osd/keyboard_layout_osd.cpp',
   'src/shell/osd/privacy_osd.cpp',
@@ -680,6 +695,7 @@ _noctalia_sources = files(
   'src/shell/bar/widgets/active_window_widget.cpp',
   'src/shell/bar/widgets/audio_visualizer_widget.cpp',
   'src/shell/bar/widgets/battery_widget.cpp',
+  'src/shell/bar/widgets/battery_widget_definition.cpp',
   'src/shell/bar/widgets/bluetooth_widget.cpp',
   'src/shell/bar/widgets/control_center_widget.cpp',
   'src/shell/bar/widgets/custom_button_widget.cpp',
@@ -715,6 +731,7 @@ _noctalia_sources = files(
   'src/system/desktop_entry_launch.cpp',
   'src/system/terminal_launch.cpp',
   'src/system/brightness_service.cpp',
+  'src/system/keyboard_backlight_service.cpp',
   'src/system/lock_keys_service.cpp',
   'src/system/distro_info.cpp',
   'src/system/format_units.cpp',
@@ -733,6 +750,7 @@ _noctalia_sources = files(
   'src/system/rfkill_helper.cpp',
   'src/system/screen_time_service.cpp',
   'src/system/cpu_temp_sensor.cpp',
+  'src/system/intel_gpu.cpp',
   'src/system/system_monitor_service.cpp',
   'src/system/weather_service.cpp',
   'src/time/time_format.cpp',
@@ -756,7 +774,7 @@ _noctalia_sources = files(
   'src/ui/controls/grid_tile.cpp',
   'src/ui/controls/image.cpp',
   'src/ui/controls/input.cpp',
-  'src/core/keybind_matcher.cpp',
+  'src/core/input/keybind_matcher.cpp',
   'src/ui/controls/keybind_recorder.cpp',
   'src/ui/controls/label.cpp',
   'src/ui/controls/markdown_view.cpp',
@@ -790,6 +808,7 @@ _noctalia_sources = files(
   'src/ui/split_pane_focus.cpp',
   'src/ui/style.cpp',
   'src/util/checksum.cpp',
+  'src/util/clamp.cpp',
   'src/util/fuzzy_match.cpp',
   'src/wayland/clipboard_service.cpp',
   'src/wayland/text_input_service.cpp',
@@ -829,6 +848,7 @@ _noctalia_sources = files(
   'src/compositors/kde/kwin_workspace_backend.cpp',
   'src/compositors/labwc/labwc_workspace_backend.cpp',
   'src/wayland/layer_surface.cpp',
+  'src/wayland/output_probe.cpp',
   'src/wayland/popup_surface.cpp',
   'src/wayland/subsurface.cpp',
   'src/wayland/surface.cpp',
@@ -843,6 +863,7 @@ _noctalia_sources = files(
   'src/theme/contrast.cpp',
   'src/theme/image_loader.cpp',
   'src/theme/palette_generator.cpp',
+  'src/theme/palette_transform.cpp',
   'src/theme/m3_schemes.cpp',
   'src/theme/custom_schemes.cpp',
   'src/theme/builtin_palettes.cpp',
@@ -854,13 +875,14 @@ _noctalia_sources = files(
   'src/theme/template_apply_service.cpp',
   'src/theme/theme_service.cpp',
   'src/theme/json_output.cpp',
+  'src/theme/kde_color_scheme.cpp',
   'src/theme/template_engine.cpp',
   'src/theme/cli.cpp',
   'src/ipc/cli.cpp',
 )
 
 if sanitize
-  _noctalia_sources += files('src/pipewire/pipewire_lsan.cpp')
+  _noctalia_sources += files('src/core/lsan_suppressions.cpp')
 endif
 
 git_program = find_program('git', required: false)
@@ -885,8 +907,6 @@ endif
 _noctalia_inc = [
   include_directories('src'),
   include_directories('third_party/wuffs', is_system: true),
-  # nlohmann is header-only and uses GCC extensions in some paths; treat as system.
-  include_directories('third_party/nlohmann', is_system: true),
   # '.' adds both the source root and the corresponding build-dir root, so
   # generated protocol headers (written to the build root) are found by #include.
   include_directories('.'),
@@ -917,14 +937,15 @@ noctalia_exe = executable('noctalia',
     polkit_agent_dep,
     polkit_gobject_dep,
     pipewire_dep,
+    wireplumber_dep,
     curl_dep,
     libqalculate_dep,
     pam_dep,
     drwav_dep,
     fzy_dep,
     mcu_dep,
+    nlohmann_dep,
     libxml2_dep,
-    stb_dep,
     tomlplusplus_dep,
     md4c_dep,
     libwebp_dep,
@@ -967,6 +988,7 @@ notification_history_utf8_test = executable('notification_history_utf8_test',
   ),
   dependencies: [
     libwebp_dep,
+    nlohmann_dep,
   ],
   include_directories: _noctalia_inc,
 )
@@ -1024,6 +1046,46 @@ input_area_test = executable('input_area_test',
 
 test('input_area', input_area_test)
 
+input_password_mode_test = executable('input_password_mode_test',
+  sources: files(
+    'tests/input_password_mode_test.cpp',
+    'src/core/deferred_call.cpp',
+    'src/core/files/resource_paths.cpp',
+    'src/core/input/key_chord.cpp',
+    'src/core/log.cpp',
+    'src/core/timer_manager.cpp',
+    'src/core/ui_phase.cpp',
+    'src/render/animation/animation.cpp',
+    'src/render/animation/animation_manager.cpp',
+    'src/render/animation/motion_service.cpp',
+    'src/render/core/color.cpp',
+    'src/render/scene/input_area.cpp',
+    'src/render/scene/node.cpp',
+    'src/render/text/glyph_registry.cpp',
+    'src/theme/builtin_palettes.cpp',
+    'src/theme/fixed_palette.cpp',
+    'src/theme/color.cpp',
+    'src/theme/contrast.cpp',
+    'src/ui/controls/input.cpp',
+    'src/ui/controls/label.cpp',
+    'src/ui/palette.cpp',
+    'src/ui/style.cpp',
+    'src/wayland/text_input_service.cpp',
+  ) + _protocol_headers + _protocol_sources,
+  dependencies: [
+    wayland_client_dep,
+    xkbcommon_dep,
+  ],
+  include_directories: _noctalia_inc,
+  cpp_args: [
+    '-DNOCTALIA_SOURCE_ASSETS_DIR="' + meson.project_source_root() / 'assets' + '"',
+    '-DNOCTALIA_INSTALL_PREFIX="' + get_option('prefix') + '"',
+    '-DNOCTALIA_INSTALL_DATADIR="' + get_option('datadir') + '"',
+  ],
+)
+
+test('input_password_mode', input_password_mode_test)
+
 log_test = executable('log_test',
   sources: files(
     'tests/log_test.cpp',
@@ -1048,7 +1110,7 @@ test('ipc_service', ipc_service_test)
 process_test = executable('process_test',
   sources: files(
     'tests/process_test.cpp',
-    'src/core/process.cpp',
+    'src/core/process/process.cpp',
     'src/core/log.cpp'
   ),
   include_directories: _noctalia_inc,
@@ -1066,6 +1128,16 @@ battery_hook_state_test = executable('battery_hook_state_test',
 
 test('battery_hook_state', battery_hook_state_test)
 
+audio_glyphs_test = executable('audio_glyphs_test',
+  sources: files(
+    'tests/audio_glyphs_test.cpp',
+    'src/pipewire/audio_glyphs.cpp',
+  ),
+  include_directories: _noctalia_inc,
+)
+
+test('audio_glyphs', audio_glyphs_test)
+
 hook_manager_test = executable('hook_manager_test',
   sources: files(
     'tests/hook_manager_test.cpp',
@@ -1082,7 +1154,7 @@ desktop_entry_launch_test = executable('desktop_entry_launch_test',
     'tests/desktop_entry_launch_test.cpp',
     'src/system/desktop_entry_launch.cpp',
     'src/system/terminal_launch.cpp',
-    'src/core/process.cpp',
+    'src/core/process/process.cpp',
     'src/core/log.cpp',
   ),
   include_directories: _noctalia_inc,
@@ -1099,6 +1171,42 @@ string_utils_test = executable('string_utils_test',
 
 test('string_utils', string_utils_test)
 
+ical_recurrence_test = executable('ical_recurrence_test',
+  sources: files(
+    'tests/ical_recurrence_test.cpp',
+    'src/calendar/ical_parser.cpp',
+  ),
+  include_directories: _noctalia_inc,
+)
+
+test('ical_recurrence', ical_recurrence_test)
+
+google_client_calendar_list_test = executable('google_client_calendar_list_test',
+  sources: files(
+    'tests/google_client_calendar_list_test.cpp',
+  ),
+  dependencies: [
+    nlohmann_dep,
+  ],
+  include_directories: _noctalia_inc,
+)
+
+test('google_client_calendar_list', google_client_calendar_list_test)
+
+calendar_discovery_state_test = executable('calendar_discovery_state_test',
+  sources: files(
+    'tests/calendar_discovery_state_test.cpp',
+    'src/calendar/calendar_discovery_state.cpp',
+    'src/core/log.cpp',
+  ),
+  dependencies: [
+    nlohmann_dep,
+  ],
+  include_directories: _noctalia_inc,
+)
+
+test('calendar_discovery_state', calendar_discovery_state_test)
+
 time_format_test = executable('time_format_test',
   sources: files(
     'tests/time_format_test.cpp',
@@ -1106,9 +1214,12 @@ time_format_test = executable('time_format_test',
     'src/i18n/i18n.cpp',
     'src/i18n/i18n_service.cpp',
     'src/i18n/language_tag.cpp',
-    'src/core/resource_paths.cpp',
+    'src/core/files/resource_paths.cpp',
     'src/core/log.cpp',
   ),
+  dependencies: [
+    nlohmann_dep,
+  ],
   include_directories: _noctalia_inc,
   cpp_args: [
     '-DNOCTALIA_SOURCE_ASSETS_DIR="' + meson.project_source_root() / 'assets' + '"',
@@ -1168,6 +1279,20 @@ scheme_test = executable('scheme_test',
 
 test('scheme', scheme_test)
 
+kde_color_scheme_test = executable('kde_color_scheme_test',
+  sources: files(
+    'tests/kde_color_scheme_test.cpp',
+    'src/config/atomic_file.cpp',
+    'src/theme/kde_color_scheme.cpp',
+  ),
+  include_directories: _noctalia_inc,
+  dependencies: [
+    sdbus_cpp_dep,
+  ],
+)
+
+test('kde_color_scheme', kde_color_scheme_test)
+
 plugin_source_paths_test = executable('plugin_source_paths_test',
   sources: files(
     'tests/plugin_source_paths_test.cpp',
@@ -1179,7 +1304,7 @@ plugin_source_paths_test = executable('plugin_source_paths_test',
     'src/theme/fixed_palette.cpp',
     'src/theme/color.cpp',
     'src/theme/contrast.cpp',
-    'src/core/key_chord.cpp',
+    'src/core/input/key_chord.cpp',
   ),
   include_directories: _noctalia_inc,
   dependencies: [xkbcommon_dep],
@@ -1201,7 +1326,7 @@ plugin_git_export_test = executable('plugin_git_export_test',
   sources: files(
     'tests/plugin_git_export_test.cpp',
     'src/scripting/plugin_git.cpp',
-    'src/core/process.cpp',
+    'src/core/process/process.cpp',
     'src/core/log.cpp',
   ),
   include_directories: _noctalia_inc,
@@ -1233,9 +1358,10 @@ ui_tree_reconciler_test = executable('ui_tree_reconciler_test',
     'src/ui/app_icon_colorization.cpp',
     'src/ui/palette.cpp',
     'src/ui/style.cpp',
+    'src/util/clamp.cpp',
     'src/core/timer_manager.cpp',
-    'src/core/keybind_matcher.cpp',
-    'src/core/key_chord.cpp',
+    'src/core/input/keybind_matcher.cpp',
+    'src/core/input/key_chord.cpp',
     'src/wayland/text_input_service.cpp',
     'src/i18n/i18n.cpp',
     'src/i18n/i18n_service.cpp',
@@ -1255,7 +1381,7 @@ ui_tree_reconciler_test = executable('ui_tree_reconciler_test',
     'src/render/core/stb_image_resize_impl.cpp',
     'src/core/deferred_call.cpp',
     'src/core/log.cpp',
-    'src/core/resource_paths.cpp',
+    'src/core/files/resource_paths.cpp',
     'src/core/ui_phase.cpp',
     'src/theme/builtin_palettes.cpp',
     'src/theme/fixed_palette.cpp',
@@ -1268,7 +1394,7 @@ ui_tree_reconciler_test = executable('ui_tree_reconciler_test',
     egl_dep,
     librsvg_dep,
     libwebp_dep,
-    stb_dep,
+    nlohmann_dep,
     xkbcommon_dep,
   ],
   include_directories: _noctalia_inc,
@@ -1302,10 +1428,13 @@ plugin_i18n_test = executable('plugin_i18n_test',
     'src/scripting/plugin_i18n.cpp',
     'src/i18n/i18n_service.cpp',
     'src/i18n/language_tag.cpp',
-    'src/core/resource_paths.cpp',
+    'src/core/files/resource_paths.cpp',
     'src/core/log.cpp',
   ),
   include_directories: _noctalia_inc,
+  dependencies: [
+    nlohmann_dep,
+  ],
   cpp_args: [
     '-DNOCTALIA_SOURCE_ASSETS_DIR="' + meson.project_source_root() / 'assets' + '"',
     '-DNOCTALIA_INSTALL_PREFIX="' + get_option('prefix') + '"',
@@ -1319,6 +1448,7 @@ config_schema_roundtrip_test = executable('config_schema_roundtrip_test',
   sources: files(
     'tests/config_schema_roundtrip_test.cpp',
     'src/config/schema/config_schema.cpp',
+    'src/config/schema/config_sections.cpp',
     'src/config/config_export.cpp',
     'src/config/config_types.cpp',
     'src/notification/notification_filter.cpp',
@@ -1328,7 +1458,7 @@ config_schema_roundtrip_test = executable('config_schema_roundtrip_test',
     'src/theme/fixed_palette.cpp',
     'src/theme/color.cpp',
     'src/theme/contrast.cpp',
-    'src/core/key_chord.cpp',
+    'src/core/input/key_chord.cpp',
   ),
   include_directories: _noctalia_inc,
   dependencies: [
@@ -1338,6 +1468,19 @@ config_schema_roundtrip_test = executable('config_schema_roundtrip_test',
 )
 
 test('config_schema_roundtrip', config_schema_roundtrip_test)
+
+config_migration_test = executable('config_migration_test',
+  sources: files(
+    'tests/config_migration_test.cpp',
+    'src/config/config_migrations.cpp',
+  ),
+  include_directories: _noctalia_inc,
+  dependencies: [
+    tomlplusplus_dep,
+  ],
+)
+
+test('config_migration', config_migration_test)
 
 config_widget_test = executable('config_widget_test',
   sources: files(
@@ -1350,7 +1493,7 @@ config_widget_test = executable('config_widget_test',
     'src/theme/fixed_palette.cpp',
     'src/theme/color.cpp',
     'src/theme/contrast.cpp',
-    'src/core/key_chord.cpp',
+    'src/core/input/key_chord.cpp',
   ),
   include_directories: _noctalia_inc,
   dependencies: [
@@ -1365,6 +1508,7 @@ config_path_resolution_test = executable('config_path_resolution_test',
   sources: files(
     'tests/config_path_resolution_test.cpp',
     'src/config/schema/config_schema.cpp',
+    'src/config/schema/config_sections.cpp',
     'src/config/config_types.cpp',
     'src/notification/notification_filter.cpp',
     'src/render/core/color.cpp',
@@ -1373,7 +1517,7 @@ config_path_resolution_test = executable('config_path_resolution_test',
     'src/theme/fixed_palette.cpp',
     'src/theme/color.cpp',
     'src/theme/contrast.cpp',
-    'src/core/key_chord.cpp',
+    'src/core/input/key_chord.cpp',
   ),
   include_directories: _noctalia_inc,
   dependencies: [
@@ -1393,6 +1537,7 @@ sh_program = find_program('sh')
 test('config_validate_cli',
   sh_program,
   args: ['tests/config_validate_cli_test.sh', noctalia_exe.full_path()],
+  depends: noctalia_exe,
   workdir: meson.current_source_dir(),
   env: config_validate_env,
 )
@@ -1432,7 +1577,6 @@ image_file_loader_data_uri_test = executable('image_file_loader_data_uri_test',
     cairo_dep,
     librsvg_dep,
     libwebp_dep,
-    stb_dep,
   ],
   include_directories: _noctalia_inc,
 )
@@ -1474,6 +1618,18 @@ dock_pinned_apps_test = executable('dock_pinned_apps_test',
 )
 
 test('dock_pinned_apps', dock_pinned_apps_test)
+
+triad_workspace_backend_test = executable('triad_workspace_backend_test',
+  sources: files(
+    'tests/triad_workspace_backend_test.cpp',
+    'src/compositors/triad/triad_runtime.cpp',
+    'src/compositors/triad/triad_workspace_backend.cpp',
+    'src/core/log.cpp',
+  ),
+  include_directories: _noctalia_inc,
+)
+
+test('triad_workspace_backend', triad_workspace_backend_test)
 
 wayland_toplevels_identity_test = executable('wayland_toplevels_identity_test',
   sources: files(

@@ -48,7 +48,7 @@ std::string LabwcWorkspaceBackend::workspaceKeyFor(const Workspace& workspace, c
     return workspace.name;
   }
   if (!workspace.coordinates.empty()) {
-    return std::to_string(static_cast<std::size_t>(workspace.coordinates.front()) + 1u);
+    return std::to_string(static_cast<std::size_t>(workspace.coordinates.front()) + 1U);
   }
   return std::to_string(index + 1);
 }

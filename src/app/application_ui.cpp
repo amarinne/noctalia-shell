@@ -5,10 +5,10 @@
 #include "config/config_types.h"
 #include "core/build_info.h"
 #include "core/deferred_call.h"
-#include "core/keybind_matcher.h"
+#include "core/files/resource_paths.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
-#include "core/process.h"
-#include "core/resource_paths.h"
+#include "core/process/process.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "dbus/accounts/accounts_service.h"
 #include "dbus/bluetooth/bluetooth_agent.h"
@@ -82,6 +82,7 @@
 #include "system/easyeffects_service.h"
 #include "system/system_monitor_service.h"
 #include "ui/app_icon_colorization.h"
+#include "ui/controls/context_menu_popup.h"
 #include "ui/controls/input.h"
 #include "ui/dialogs/color_picker_dialog.h"
 #include "ui/dialogs/file_dialog.h"
@@ -115,6 +116,9 @@ void Application::initUi() {
   initNotificationAndOsd();
   initBarDockAndLayout();
   initWidgetControllersAndCallbacks();
+  // Wiring is complete and outputs are enumerated; build every per-output layer
+  // surface once in canonical order. initialize() above only wired dependencies.
+  reconcileOutputSurfaces();
 }
 
 void Application::initUiRenderSurfacesAndSettings() {
@@ -191,6 +195,10 @@ void Application::initUiRenderSurfacesAndSettings() {
 }
 
 void Application::performGreeterSync(bool quiet) {
+  if (!greeter::appearanceSyncAvailable(m_configService.config().shell.greeterSync)) {
+    return;
+  }
+
   const std::uint64_t generation = ++m_greeterSyncGeneration;
   m_greeterSyncTimeoutTimer.stop();
 
@@ -290,7 +298,8 @@ void Application::performGreeterSync(bool quiet) {
 }
 
 void Application::scheduleGreeterAutoSync() {
-  if (!m_configService.config().shell.greeterSync.autoSync) {
+  if (!m_configService.config().shell.greeterSync.autoSync
+      || !greeter::appearanceSyncAvailable(m_configService.config().shell.greeterSync)) {
     return;
   }
   m_greeterAutoSyncTimer.stop();
@@ -311,12 +320,15 @@ void Application::initLockScreenAndSession() {
   });
   m_lockScreen.setSessionHooks(
       [this]() {
+        m_idleGraceOverlay.hide();
         m_lockscreenWidgetsController.onLockStateChanged();
         m_hookManager.fire(HookKind::SessionLocked);
       },
       [this]() {
+        m_idleGraceOverlay.hide();
         m_lockscreenWidgetsController.onLockStateChanged();
         m_hookManager.fire(HookKind::SessionUnlocked);
+        requestAllSurfacesRedraw();
         if (m_logindService != nullptr) {
           m_logindService->syncSessionUnlocked();
         }
@@ -362,6 +374,15 @@ void Application::initInputDispatch() {
       m_lockScreen.onPointerEvent(event);
       return;
     }
+    if (m_windowSwitcher.isActive()) {
+      if (m_windowSwitcher.onPointerEvent(event)) {
+        return;
+      }
+      if (event.type == PointerEvent::Type::Button || event.type == PointerEvent::Type::Axis) {
+        return;
+      }
+      // Enter/Leave/Motion fall through so other surfaces' hover state stays in sync.
+    }
     if (m_colorPickerDialogPopup.onPointerEvent(event)) {
       return;
     }
@@ -392,8 +413,6 @@ void Application::initInputDispatch() {
       return;
     if (m_dock.onPointerEvent(event))
       return;
-    if (m_windowSwitcher.onPointerEvent(event))
-      return;
     if (m_panelManager.onPointerEvent(event))
       return;
     if (m_hotCorners.onPointerEvent(event))
@@ -409,6 +428,14 @@ void Application::initInputDispatch() {
   m_wayland.setKeyboardEventCallback([this](const KeyboardEvent& event) {
     if (m_lockScreen.isActive()) {
       m_lockScreen.onKeyboardEvent(event);
+      return;
+    }
+    // Grab popups are modal — while one is open it owns the keyboard and ESC
+    // dismisses it before anything behind can react.
+    if (ContextMenuPopup::dispatchKeyboardEvent(event)) {
+      return;
+    }
+    if (m_trayMenu.onKeyboardEvent(event)) {
       return;
     }
     if (m_colorPickerDialogPopup.isOpen()) {
@@ -546,6 +573,7 @@ void Application::initPanelManagerAndPanels() {
           .clipboard = &m_clipboardService,
           .accounts = m_accountsService.get(),
           .thumbnails = &m_thumbnailService,
+          .asyncTextures = &m_asyncTextureCache,
       })
   );
   {
@@ -559,6 +587,14 @@ void Application::initPanelManagerAndPanels() {
     m_launcherPanel = launcherPanel.get();
     m_panelManager.registerPanel("launcher", std::move(launcherPanel));
   }
+  m_configService.addReloadCallback(
+      [this]() {
+        if (m_launcherPanel != nullptr) {
+          m_launcherPanel->syncUsageTrackingState();
+        }
+      },
+      "launcher-usage"
+  );
   m_settingsWindow.setResetLauncherUsage([this]() {
     if (m_launcherPanel != nullptr) {
       m_launcherPanel->clearUsage();
@@ -590,7 +626,11 @@ void Application::initPanelManagerAndPanels() {
         );
       }
   );
-  m_compositorPlatform.setOverviewChangeCallback([this]() { m_overviewLauncherCapture.sync(); });
+  m_compositorPlatform.setOverviewChangeCallback([this]() {
+    m_overviewLauncherCapture.sync();
+    m_bar.scheduleSmartAutoHideReevaluation();
+    m_dock.scheduleSmartAutoHideReevaluation();
+  });
   m_panelManager.setPanelOpenedCallback([this]() {
     m_overviewLauncherCapture.sync();
     if (m_panelManager.isAttachedOpen()) {
@@ -640,7 +680,7 @@ void Application::initNotificationAndOsd() {
   m_configService.setNotificationManager(&m_notificationManager);
   m_notificationManager.setSoundPlayer(m_soundPlayer.get());
 
-  TooltipManager::instance().initialize(m_wayland, &m_renderContext);
+  TooltipManager::instance().initialize(m_wayland, &m_configService, &m_renderContext);
   m_osdOverlay.initialize(m_wayland, &m_configService, &m_renderContext);
   m_windowSwitcher.initialize(
       m_wayland, &m_renderContext, m_compositorPlatform, &m_configService, &m_asyncTextureCache
@@ -663,13 +703,16 @@ void Application::initNotificationAndOsd() {
           m_idleGraceOverlay.show(fadeIn, std::move(done));
         });
       },
-      [this](bool userCancelled) {
-        DeferredCall::callLater([this, userCancelled]() {
+      [this](bool userCancelled, bool willLockSession) {
+        // Keep the overlay only when handing off to Noctalia's lock screen (avoids a flash).
+        // External lockers never take ownership; deferred hide also races with suspend.
+        const bool handoffToLockScreen = !userCancelled && willLockSession && m_configService.isLockScreenEnabled();
+        if (!handoffToLockScreen) {
           m_idleGraceOverlay.hide();
-          if (userCancelled) {
-            m_lockScreen.clearPrimedDesktopCaptures();
-          }
-        });
+        }
+        if (userCancelled) {
+          m_lockScreen.clearPrimedDesktopCaptures();
+        }
       }
   );
   m_idleManager.setActionRunner(
@@ -712,6 +755,7 @@ void Application::initNotificationAndOsd() {
   if (m_brightnessService != nullptr) {
     m_brightnessOsd.primeFromService(*m_brightnessService);
   }
+  m_keyboardBacklightOsd.bindOverlay(m_osdOverlay);
   if constexpr (kLockKeysEnabled) {
     m_lockKeysOsd.bindOverlay(m_osdOverlay);
     m_lockKeysOsd.primeFromService(m_lockKeysService);
@@ -730,8 +774,6 @@ void Application::initNotificationAndOsd() {
       },
       "privacy-filters"
   );
-  m_screenCorners.initialize(m_wayland, &m_configService, &m_renderContext);
-  m_screenCorners.onConfigReload();
 }
 
 void Application::initBarDockAndLayout() {
@@ -978,9 +1020,10 @@ void Application::initWidgetControllersAndCallbacks() {
     });
   }
 
-  // Created last so the corner trigger surfaces stack above the bar and dock on
-  // their shared Overlay layer; same ordering is preserved on hot reload in
-  // initWaylandCallbacks (bar/dock onOutputChange run before hot corners').
+  // Wire the corner surface owners here alongside the dock. Surface creation and
+  // stacking order live entirely in reconcileOutputSurfaces(): screen corners and
+  // the hot-corner trigger zones are built after the bar and dock so they are
+  // never occluded by shell chrome on their shared layer.
+  m_screenCorners.initialize(m_wayland, &m_configService, &m_renderContext);
   m_hotCorners.initialize(m_wayland, &m_configService, &m_renderContext);
-  m_hotCorners.onConfigReload();
 }

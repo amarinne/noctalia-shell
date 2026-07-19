@@ -49,6 +49,7 @@ public:
   void onFontChanged();
   void onThemeChanged();
   void onGpuResourcesInvalidated();
+  void prepareForGraphicsReset() noexcept;
   void onWallpaperChanged();
   void onConfigChanged();
   void onLockKeysChanged();

@@ -27,13 +27,30 @@
   librsvg,
   libqalculate,
   libxml2,
+  md4c,
+  stb,
+  fetchFromGitHub,
+  nlohmann_json,
+  tomlplusplus,
+  wireplumber,
   jemalloc,
+  makeWrapper,
+  git,
   autoAddDriverRunpath,
   cudaSupport ? config.cudaSupport,
 }:
 let
   inherit (builtins) head match readFile;
   version = head (match ".*version: '([^']+)'.*" (readFile ../meson.build));
+  stb' = stb.overrideAttrs (_: {
+    version = "unstable-2025-10-26";
+    src = fetchFromGitHub {
+      owner = "nothings";
+      repo = "stb";
+      rev = "f1c79c02822848a9bed4315b12c8c8f3761e1296";
+      hash = "sha256-BlyXJtAI7WqXCTT3ylww8zoG0hBxaojJnQDvdQOXJPE=";
+    };
+  });
 in
 stdenv.mkDerivation {
   pname = "noctalia";
@@ -46,12 +63,18 @@ stdenv.mkDerivation {
     sed -i "s/'-march=native', '-mtune=native',//" meson.build
   '';
 
+  postFixup = ''
+    wrapProgram $out/bin/noctalia \
+      --prefix PATH : ${lib.makeBinPath [ git ]}
+  '';
+
   nativeBuildInputs = [
     meson
     ninja
     pkg-config
     wayland-scanner
     jemalloc
+    makeWrapper
   ]
   ++ lib.optional cudaSupport autoAddDriverRunpath;
 
@@ -69,6 +92,7 @@ stdenv.mkDerivation {
     sdbus-cpp_2
     systemd
     pipewire
+    wireplumber
     pam
     curl
     libwebp
@@ -77,6 +101,10 @@ stdenv.mkDerivation {
     librsvg
     libqalculate
     libxml2
+    md4c
+    stb'
+    nlohmann_json
+    tomlplusplus
   ];
 
   mesonBuildType = "release";
@@ -85,7 +113,7 @@ stdenv.mkDerivation {
 
   meta = with lib; {
     description = "A lightweight Wayland shell and bar built directly on Wayland + OpenGL ES";
-    homepage = "https://github.com/noctalia-dev/noctalia-shell";
+    homepage = "https://github.com/noctalia-dev/noctalia";
     license = licenses.mit;
     platforms = platforms.linux;
     mainProgram = "noctalia";

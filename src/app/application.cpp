@@ -5,10 +5,10 @@
 #include "config/config_types.h"
 #include "core/build_info.h"
 #include "core/deferred_call.h"
-#include "core/keybind_matcher.h"
+#include "core/files/resource_paths.h"
+#include "core/input/keybind_matcher.h"
 #include "core/log.h"
-#include "core/process.h"
-#include "core/resource_paths.h"
+#include "core/process/process.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "dbus/accounts/accounts_service.h"
 #include "dbus/bluetooth/bluetooth_agent.h"
@@ -18,6 +18,7 @@
 #include "dbus/logind/logind_service.h"
 #include "dbus/mpris/mpris_service.h"
 #include "dbus/network/inetwork_service.h"
+#include "dbus/network/iwd_secret_agent.h"
 #include "dbus/network/network_manager_service.h"
 #include "dbus/network/network_secret_agent.h"
 #include "dbus/network/wpa_supplicant_service.h"
@@ -52,6 +53,7 @@
 #include "pipewire/pipewire_spectrum.h"
 #include "pipewire/pipewire_spectrum_poll_source.h"
 #include "pipewire/sound_player.h"
+#include "pipewire/wireplumber_mixer.h"
 #include "render/animation/motion_service.h"
 #include "render/backend/render_backend.h"
 #include "render/core/texture_manager.h"
@@ -80,6 +82,7 @@
 #include "system/brightness_service.h"
 #include "system/distro_info.h"
 #include "system/easyeffects_service.h"
+#include "system/keyboard_backlight_service.h"
 #include "system/system_monitor_service.h"
 #include "ui/app_icon_colorization.h"
 #include "ui/controls/input.h"
@@ -172,6 +175,7 @@ Application::~Application() {
 
 void Application::run(std::function<void()> startupReadyCallback) {
   initLogFile();
+  initLogLevelFromEnvironment();
   kLog.info("noctalia {}", noctalia::build_info::displayVersion());
   runStartupPhase("initServices", [this]() { initServices(); });
   runStartupPhase("initPlugins", [this]() {
@@ -217,6 +221,9 @@ void Application::run(std::function<void()> startupReadyCallback) {
     // A git-source enable exports on a worker thread; redraw the plugins list so the
     // row swaps between its spinner and toggle as the export starts and finishes.
     m_pluginManager.setOnEnablingChanged([this]() { m_settingsWindow.onPluginsChanged(); });
+    m_pluginManager.setOnSourceUpdated([this](const std::string& sourceName) {
+      m_settingsWindow.invalidatePluginSourceCache(sourceName);
+    });
   });
   runStartupPhase("initIpc", [this]() { initIpc(); });
   runStartupPhase("buildPollSources", [this]() { (void)buildPollSources(); });

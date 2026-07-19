@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <limits>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
@@ -160,24 +162,31 @@ namespace scripting {
         return true;
       }
       for (const auto& node : *options) {
-        if (const auto* optTable = node.as_table()) {
-          ManifestSelectOption opt;
-          opt.value = tableString(*optTable, "value");
-          opt.label = tableString(*optTable, "label");
-          opt.labelKey = tableString(*optTable, "label_key");
-          if (!opt.label.empty() && !opt.labelKey.empty()) {
-            error = "setting '" + out.key + "' option '" + opt.value + "' declares both label and label_key";
-            return false;
-          }
-          if (opt.label.empty() && opt.labelKey.empty()) {
-            opt.label = opt.value;
-          }
-          if (!opt.value.empty()) {
-            out.options.push_back(std::move(opt));
-          }
-        } else if (auto value = node.value<std::string>()) {
-          out.options.push_back(ManifestSelectOption{.value = *value, .label = *value, .labelKey = {}});
+        const auto* optTable = node.as_table();
+        if (optTable == nullptr) {
+          error = "setting '" + out.key + "' option must be a table with value and label_key";
+          return false;
         }
+        ManifestSelectOption opt;
+        opt.value = tableString(*optTable, "value");
+        if (opt.value.empty()) {
+          error = "setting '" + out.key + "' option is missing 'value'";
+          return false;
+        }
+        if (optTable->contains("label")) {
+          error = "setting '"
+              + out.key
+              + "' option '"
+              + opt.value
+              + "' uses 'label'; use 'label_key' that points to translation key instead";
+          return false;
+        }
+        opt.labelKey = tableString(*optTable, "label_key");
+        if (opt.labelKey.empty()) {
+          error = "setting '" + out.key + "' option '" + opt.value + "' is missing 'label_key'";
+          return false;
+        }
+        out.options.push_back(std::move(opt));
       }
       return true;
     }
@@ -222,18 +231,22 @@ namespace scripting {
         return out;
       }
       out.type = parseFieldType(tableString(field, "type", "string"));
-      out.label = tableString(field, "label");
+      if (field.contains("label")) {
+        error = "setting '" + out.key + "' uses 'label'; use 'label_key' that points to translation key instead";
+        return std::nullopt;
+      }
+      if (field.contains("description")) {
+        error = "setting '"
+            + out.key
+            + "' uses 'description'; use 'description_key' that points to translation key instead";
+        return std::nullopt;
+      }
       out.labelKey = tableString(field, "label_key");
-      if (!out.label.empty() && !out.labelKey.empty()) {
-        error = "setting '" + out.key + "' declares both label and label_key";
+      if (out.labelKey.empty()) {
+        error = "setting '" + out.key + "' is missing 'label_key'";
         return std::nullopt;
       }
-      out.description = tableString(field, "description");
       out.descriptionKey = tableString(field, "description_key");
-      if (!out.description.empty() && !out.descriptionKey.empty()) {
-        error = "setting '" + out.key + "' declares both description and description_key";
-        return std::nullopt;
-      }
       out.advanced = tableBool(field, "advanced", false);
       out.minValue = tableNumber(field, "min");
       out.maxValue = tableNumber(field, "max");
@@ -309,10 +322,39 @@ namespace scripting {
           }
         }
         if (kind == PluginEntryKind::Panel) {
-          entry.panelWidth = std::max(0.0, tableNumber(*entryTable, "width").value_or(0.0));
-          entry.panelHeight = std::max(0.0, tableNumber(*entryTable, "height").value_or(0.0));
+          // width/height: absent = host default, positive number = logical px,
+          // the literal string "fill" = span the output's available extent on
+          // that axis. Anything else is a manifest error, never a default.
+          const auto parsePanelExtent = [&](const char* key, double& outSize, bool& outFill) -> bool {
+            const auto extentNode = (*entryTable)[key];
+            if (!extentNode) {
+              return true;
+            }
+            if (const auto* str = extentNode.as_string()) {
+              if (str->get() == "fill") {
+                outFill = true;
+                return true;
+              }
+            } else if (
+                const auto number = tableNumber(*entryTable, key);
+                number.has_value() && std::isfinite(*number) && *number > 0.0
+            ) {
+              outSize = *number;
+              return true;
+            }
+            error = "panel entry '" + entry.id + "': " + key + " must be a positive number or \"fill\"";
+            return false;
+          };
+          if (!parsePanelExtent("width", entry.panelWidth, entry.panelWidthFill)
+              || !parsePanelExtent("height", entry.panelHeight, entry.panelHeightFill)) {
+            return false;
+          }
           if (const std::string placement = tableString(*entryTable, "placement"); !placement.empty()) {
             entry.panelPlacementDefault = placement;
+          }
+          if ((entry.panelWidthFill || entry.panelHeightFill) && entry.panelPlacementDefault != "floating") {
+            error = "panel entry '" + entry.id + R"(': width/height "fill" requires placement = "floating")";
+            return false;
           }
           if (const std::string position = tableString(*entryTable, "position"); !position.empty()) {
             entry.panelPositionDefault = position;
@@ -418,10 +460,16 @@ namespace scripting {
     if (manifest.name.empty()) {
       return fail("missing mandatory key 'name'");
     }
-    manifest.minNoctalia = tableString(root, "min_noctalia");
-    if (manifest.minNoctalia.empty()) {
-      return fail("missing mandatory key 'min_noctalia'");
+    if (!root.contains("plugin_api")) {
+      return fail("missing mandatory key 'plugin_api'");
     }
+    const auto pluginApiVersion = root["plugin_api"].value<std::int64_t>();
+    if (!pluginApiVersion.has_value()
+        || *pluginApiVersion <= 0
+        || static_cast<std::uint64_t>(*pluginApiVersion) > std::numeric_limits<std::uint32_t>::max()) {
+      return fail("invalid 'plugin_api' (expected a positive integer)");
+    }
+    manifest.pluginApiVersion = static_cast<std::uint32_t>(*pluginApiVersion);
 
     manifest.version = tableString(root, "version");
     manifest.author = tableString(root, "author");

@@ -4,7 +4,7 @@ namespace scripting {
 
   // Pure-Luau `ui.*` vocabulary, executed in every plugin thread before the
   // entry script loads. Constructors are plain table-taggers — the host reads
-  // the resulting tree from desktopWidget.render(); no per-control C binding.
+  // the resulting tree from render(); no per-control C binding.
   // `key` inside props gives a child a stable identity for keyed reconciliation.
   inline constexpr const char* kUiPrelude = R"luau(
 ui = {}

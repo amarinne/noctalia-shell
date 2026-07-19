@@ -24,7 +24,8 @@
 #include "compositors/triad/triad_workspace_backend.h"
 #include "compositors/workspace_alert_service.h"
 #include "core/log.h"
-#include "core/process.h"
+#include "core/process/process.h"
+#include "wayland/output_probe.h"
 #include "wayland/wayland_connection.h"
 #include "wayland/wayland_workspaces.h"
 
@@ -33,7 +34,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <functional>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <sys/types.h>
@@ -627,6 +628,8 @@ wl_output* CompositorPlatform::outputForSurface(wl_surface* surface) const noexc
 
 FocusGrabService* CompositorPlatform::focusGrabService() const noexcept { return m_wayland.focusGrabService(); }
 
+bool CompositorPlatform::hasPointerPosition() const noexcept { return m_wayland.hasPointerPosition(); }
+
 wl_surface* CompositorPlatform::lastPointerSurface() const noexcept { return m_wayland.lastPointerSurface(); }
 
 wl_surface* CompositorPlatform::lastKeyboardSurface() const noexcept { return m_wayland.lastKeyboardSurface(); }
@@ -647,7 +650,7 @@ void CompositorPlatform::setCursorShape(std::uint32_t serial, std::uint32_t shap
   m_wayland.setCursorShape(serial, shape);
 }
 
-wl_output* CompositorPlatform::preferredInteractiveOutput(std::chrono::milliseconds pointerMaxAge) const {
+wl_output* CompositorPlatform::focusedInteractiveOutput(std::chrono::milliseconds pointerMaxAge) const {
   const auto outputReady = [this](wl_output* output) {
     const auto* info = m_wayland.findOutputByWl(output);
     return info != nullptr && info->done && info->output != nullptr && info->hasUsableGeometry();
@@ -711,11 +714,28 @@ wl_output* CompositorPlatform::preferredInteractiveOutput(std::chrono::milliseco
     }
   }
 
+  return nullptr;
+}
+
+wl_output* CompositorPlatform::preferredInteractiveOutput(std::chrono::milliseconds pointerMaxAge) const {
+  if (wl_output* focused = focusedInteractiveOutput(pointerMaxAge); focused != nullptr) {
+    return focused;
+  }
+
   const auto& outputs = m_wayland.outputs();
   const auto it = std::ranges::find_if(outputs, [](const WaylandOutput& output) {
     return output.done && output.output != nullptr && output.hasUsableGeometry();
   });
   return it != outputs.end() ? it->output : nullptr;
+}
+
+void CompositorPlatform::probeFocusedOutput(
+    std::function<void(wl_output*)> callback, std::chrono::milliseconds timeout
+) {
+  // Replace any in-flight probe; only the latest request matters. A finished
+  // probe goes inert (surface torn down, timer stopped) and lingers here until
+  // the next probe or destruction replaces it.
+  m_outputProbe = std::make_unique<OutputProbe>(m_wayland, timeout, std::move(callback));
 }
 
 std::optional<ActiveToplevel> CompositorPlatform::activeToplevel() const {
@@ -1227,6 +1247,7 @@ std::vector<WorkspaceWindowAssignment> CompositorPlatform::workspaceWindowAssign
             .title = window.title,
             .x = window.x,
             .y = window.y,
+            .active = window.active,
         }
     );
   }
@@ -1279,6 +1300,39 @@ void CompositorPlatform::focusCompositorWindow(const std::string& windowId) cons
   if (m_workspaces != nullptr) {
     m_workspaces->focusWindow(windowId);
   }
+}
+
+void CompositorPlatform::prepareAppLaunchOnOutput(wl_output* output) {
+  if (output == nullptr || m_runtimeRegistry == nullptr || !compositors::isHyprland()) {
+    return;
+  }
+  const std::string connector = connectorNameForOutput(output);
+  if (connector.empty()) {
+    return;
+  }
+  (void)compositors::hyprland::focusOutput(m_runtimeRegistry->hyprland(), connector);
+}
+
+void CompositorPlatform::moveToplevelToOutput(const ToplevelInfo& window, wl_output* output) {
+  if (output == nullptr || m_runtimeRegistry == nullptr || !compositors::isHyprland()) {
+    return;
+  }
+  const std::string connector = connectorNameForOutput(output);
+  if (connector.empty()) {
+    return;
+  }
+
+  syncHyprlandToplevelMappings();
+  const auto windowId = compositorWindowIdForToplevelInfo(window);
+  if (!windowId.has_value() || windowId->empty()) {
+    return;
+  }
+  const auto normalized = compositors::hyprland::normalizeWindowId(*windowId);
+  if (normalized.empty()) {
+    return;
+  }
+  const std::string selector = "address:0x" + normalized;
+  (void)compositors::hyprland::moveWindowToOutput(m_runtimeRegistry->hyprland(), selector, connector);
 }
 
 void CompositorPlatform::activateKdeWindow(
@@ -1529,7 +1583,8 @@ bool CompositorPlatform::sameWorkspaceModelSnapshot(
         && a.appId == b.appId
         && a.title == b.title
         && a.x == b.x
-        && a.y == b.y;
+        && a.y == b.y
+        && a.active == b.active;
   };
 
   if (lhs.size() != rhs.size()) {

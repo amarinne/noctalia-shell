@@ -110,12 +110,11 @@ namespace {
 
 ScreenshotWidget::ScreenshotWidget(
     wl_output* output, std::string barGlyphId, ScreenshotService& screenshots, ConfigService& configService,
-    CompositorPlatform& platform, RenderContext& renderContext, const ShellConfig::ShadowConfig& shadow,
-    std::string barPosition
+    CompositorPlatform& platform, RenderContext& renderContext, std::string barPosition, WidgetCustomImage customImage
 )
     : m_barGlyphId(std::move(barGlyphId)), m_output(output), m_screenshots(screenshots), m_configService(configService),
-      m_platform(platform), m_renderContext(renderContext), m_shadowConfig(shadow),
-      m_barPosition(std::move(barPosition)) {}
+      m_platform(platform), m_renderContext(renderContext), m_barPosition(std::move(barPosition)),
+      m_customImage(std::move(customImage)) {}
 
 ScreenshotWidget::~ScreenshotWidget() = default;
 
@@ -124,7 +123,7 @@ bool ScreenshotWidget::onPointerEvent(const PointerEvent& event) {
     return false;
   }
   const bool consumed = m_menuPopup->onPointerEvent(event);
-  if (!consumed && event.type == PointerEvent::Type::Button && event.state == 1) {
+  if (!consumed && event.type == PointerEvent::Type::Button && event.pressed) {
     m_menuPopup->close();
     return true;
   }
@@ -148,19 +147,32 @@ void ScreenshotWidget::create() {
     }
   });
 
-  area->addChild(
-      ui::glyph({
-          .out = &m_glyph,
-          .glyph = m_barGlyphId.empty() ? "screenshot" : m_barGlyphId,
-          .glyphSize = Style::baseGlyphSize * m_contentScale,
-          .color = widgetIconColorOr(colorSpecFromRole(ColorRole::OnSurface)),
-      })
-  );
+  if (m_customImage.enabled()) {
+    area->addChild(ui::image({.out = &m_image, .fit = ImageFit::Contain}));
+  } else {
+    area->addChild(
+        ui::glyph({
+            .out = &m_glyph,
+            .glyph = m_barGlyphId.empty() ? "screenshot" : m_barGlyphId,
+            .glyphSize = Style::baseGlyphSize * m_contentScale,
+            .color = widgetIconColorOr(colorSpecFromRole(ColorRole::OnSurface)),
+        })
+    );
+  }
 
   setRoot(std::move(area));
 }
 
 void ScreenshotWidget::doLayout(Renderer& renderer, float /*containerWidth*/, float /*containerHeight*/) {
+  if (m_image != nullptr) {
+    widget_custom_image::sync(
+        *m_image, renderer, m_customImage, m_contentScale, widgetIconColorOr(colorSpecFromRole(ColorRole::OnSurface))
+    );
+    if (auto* node = root(); node != nullptr) {
+      node->setSize(m_image->width(), m_image->height());
+    }
+    return;
+  }
   if (m_glyph == nullptr) {
     return;
   }
@@ -229,7 +241,7 @@ void ScreenshotWidget::openCaptureMenu() {
   if (m_menuPopup == nullptr) {
     m_menuPopup = std::make_unique<ContextMenuPopup>(m_platform.wayland(), m_renderContext);
   }
-  m_menuPopup->setShadowConfig(m_shadowConfig);
+  m_menuPopup->setShadowConfig(m_configService.config().shell.shadow);
   const auto options = outputOptions();
   m_menuPopup->setOnActivate([this, options](const ContextMenuControlEntry& entry) {
     if (entry.id == 1) {
@@ -250,12 +262,12 @@ void ScreenshotWidget::openCaptureMenu() {
       barWidgetContextMenuAnchor(m_barPosition, absX, absY, area.width(), area.height(), m_contentScale);
 
   constexpr float kMenuWidth = 246.0f;
-  const float menuWidth = kMenuWidth * m_contentScale;
   const std::size_t maxVisible = std::max<std::size_t>(1, entries.size());
   m_menuPopup->open(
       ContextMenuPopupRequest{
           .entries = std::move(entries),
-          .menuWidth = menuWidth,
+          .minMenuWidth = kMenuWidth * m_contentScale,
+          .maxMenuWidth = Style::menuAutoMaxWidth * m_contentScale,
           .maxVisible = maxVisible,
           .anchor =
               PopupAnchorRect{
@@ -268,6 +280,7 @@ void ScreenshotWidget::openCaptureMenu() {
               PopupSurfaceParent{
                   .layerSurface = layerSurface,
                   .output = m_output,
+                  .wlSurface = pointerSurface,
               },
           .placement = menuAnchor.placement,
       }
