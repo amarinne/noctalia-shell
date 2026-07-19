@@ -84,6 +84,7 @@
 #include "system/brightness_service.h"
 #include "system/distro_info.h"
 #include "system/easyeffects_service.h"
+#include "system/keyboard_backlight_service.h"
 #include "system/system_monitor_service.h"
 #include "ui/app_icon_colorization.h"
 #include "ui/controls/input.h"
@@ -365,6 +366,9 @@ void Application::initStyleThemeAndWayland() {
         std::isfinite(lastCornerRadiusScale) && std::abs(corner - lastCornerRadiusScale) > 1.0e-4f;
     Style::setCornerRadiusScale(corner);
     Style::setButtonBordersEnabled(m_configService.config().shell.buttonBorders);
+    Style::setInputBordersEnabled(m_configService.config().shell.inputBorders);
+    Style::setPopupBordersEnabled(m_configService.config().shell.popupBorders);
+    Style::setPopupShadowsEnabled(m_configService.config().shell.popupShadows);
     lastCornerRadiusScale = corner;
     if (cornerChanged) {
       m_notificationToast.requestLayout();
@@ -819,6 +823,9 @@ void Application::initSystemBusServices() {
       try {
         m_logindService = std::make_unique<LogindService>(*m_systemBus);
         m_logindService->setPrepareForSleepCallback([this](bool sleeping) {
+          // Idle grace overlay must not survive suspend; hide on both edges as a fallback when
+          // fade-complete cleanup races with process freeze.
+          m_idleGraceOverlay.hide();
           if (sleeping) {
             return;
           }
@@ -915,6 +922,16 @@ void Application::initSystemBusServices() {
     } catch (const std::exception& e) {
       kLog.warn("upower disabled: {}", e.what());
       m_upowerService.reset();
+    }
+
+    try {
+      m_keyboardBacklightService = std::make_unique<KeyboardBacklightService>(*m_systemBus);
+      m_keyboardBacklightService->setChangeCallback([this]() {
+        m_keyboardBacklightOsd.onBrightnessChanged(*m_keyboardBacklightService);
+      });
+    } catch (const std::exception& e) {
+      kLog.warn("keyboard backlight disabled: {}", e.what());
+      m_keyboardBacklightService.reset();
     }
 
     try {

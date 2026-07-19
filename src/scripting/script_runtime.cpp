@@ -447,6 +447,19 @@ namespace scripting {
       (void)enqueue(std::move(event));
     }
 
+    void
+    enqueueHttpStreamEvent(std::uint64_t hostId, int streamKey, bool closed, std::string line, bool ok, int status) {
+      ScriptEvent event;
+      event.kind = closed ? ScriptEventKind::HttpStreamClosed : ScriptEventKind::HttpStreamLine;
+      event.hostId = hostId;
+      event.callbackRef = streamKey;
+      event.first = std::move(line);
+      event.httpOk = ok;
+      event.httpStatus = status;
+      event.budget = kCallbackBudget;
+      (void)enqueue(std::move(event));
+    }
+
     void drain() {
       for (;;) {
         ScriptEvent event;
@@ -562,6 +575,25 @@ namespace scripting {
         return collectResult(event, "stream callback", ok);
       }
 
+      if (event.kind == ScriptEventKind::HttpStreamLine) {
+        if (event.hostId != host->hostId() || !host->hasHttpStream(event.callbackRef)) {
+          return std::nullopt; // stale (reloaded host) or stopped stream
+        }
+        bindingContext.beginCall(event.snapshot);
+        const bool ok = host->callHttpStreamLineCallback(event.callbackRef, event.first, event.budget);
+        return collectResult(event, "http stream callback", ok);
+      }
+
+      if (event.kind == ScriptEventKind::HttpStreamClosed) {
+        if (event.hostId != host->hostId() || !host->hasHttpStream(event.callbackRef)) {
+          return std::nullopt;
+        }
+        bindingContext.beginCall(event.snapshot);
+        const bool ok =
+            host->callHttpStreamCloseCallback(event.callbackRef, event.httpOk, event.httpStatus, event.budget);
+        return collectResult(event, "http stream close callback", ok);
+      }
+
       if (event.kind == ScriptEventKind::SettingsChanged) {
         // Swap the live snapshot first, so getConfig() returns the new values
         // both inside onConfigChanged and on the next update().
@@ -649,6 +681,13 @@ namespace scripting {
           state->enqueueStreamLine(hostId, callbackRef, std::move(line));
         }
       });
+      host->setHttpStreamEventHandler(
+          [weak](std::uint64_t hostId, int streamKey, bool closed, std::string line, bool ok, int status) {
+            if (auto state = weak.lock()) {
+              state->enqueueHttpStreamEvent(hostId, streamKey, closed, std::move(line), ok, status);
+            }
+          }
+      );
 
       ScriptResult result;
       result.generation = event.generation;

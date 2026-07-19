@@ -48,14 +48,17 @@ build_tests = tests_opt.enabled() or (tests_opt.auto() and get_option('buildtype
 # ── Release-only optimizations ────────────────────────────────────────────────
 if get_option('buildtype') == 'release'
   add_project_arguments(
-    '-march=native', '-mtune=native',
-    '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections',
+    '-ffunction-sections', '-fdata-sections',
     language: ['c', 'cpp'],
   )
   add_project_link_arguments(
     '-Wl,--gc-sections', '-Wl,--as-needed',
     language: ['c', 'cpp'],
   )
+endif
+
+if get_option('native_optimizations')
+  add_project_arguments('-march=native', '-mtune=native', language: ['c', 'cpp'])
 endif
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
@@ -406,6 +409,7 @@ _noctalia_sources = files(
   'src/auth/pam_authenticator.cpp',
   'src/calendar/caldav_client.cpp',
   'src/calendar/caldav_discovery.cpp',
+  'src/calendar/calendar_discovery_state.cpp',
   'src/calendar/calendar_service.cpp',
   'src/calendar/google_client.cpp',
   'src/calendar/google_oauth.cpp',
@@ -629,6 +633,7 @@ _noctalia_sources = files(
   'src/shell/osd/audio_osd.cpp',
   'src/shell/osd/media_osd.cpp',
   'src/shell/osd/brightness_osd.cpp',
+  'src/shell/osd/keyboard_backlight_osd.cpp',
   'src/shell/osd/lock_keys_osd.cpp',
   'src/shell/osd/keyboard_layout_osd.cpp',
   'src/shell/osd/privacy_osd.cpp',
@@ -690,6 +695,7 @@ _noctalia_sources = files(
   'src/shell/bar/widgets/active_window_widget.cpp',
   'src/shell/bar/widgets/audio_visualizer_widget.cpp',
   'src/shell/bar/widgets/battery_widget.cpp',
+  'src/shell/bar/widgets/battery_widget_definition.cpp',
   'src/shell/bar/widgets/bluetooth_widget.cpp',
   'src/shell/bar/widgets/control_center_widget.cpp',
   'src/shell/bar/widgets/custom_button_widget.cpp',
@@ -725,6 +731,7 @@ _noctalia_sources = files(
   'src/system/desktop_entry_launch.cpp',
   'src/system/terminal_launch.cpp',
   'src/system/brightness_service.cpp',
+  'src/system/keyboard_backlight_service.cpp',
   'src/system/lock_keys_service.cpp',
   'src/system/distro_info.cpp',
   'src/system/format_units.cpp',
@@ -868,6 +875,7 @@ _noctalia_sources = files(
   'src/theme/template_apply_service.cpp',
   'src/theme/theme_service.cpp',
   'src/theme/json_output.cpp',
+  'src/theme/kde_color_scheme.cpp',
   'src/theme/template_engine.cpp',
   'src/theme/cli.cpp',
   'src/ipc/cli.cpp',
@@ -1185,6 +1193,20 @@ google_client_calendar_list_test = executable('google_client_calendar_list_test'
 
 test('google_client_calendar_list', google_client_calendar_list_test)
 
+calendar_discovery_state_test = executable('calendar_discovery_state_test',
+  sources: files(
+    'tests/calendar_discovery_state_test.cpp',
+    'src/calendar/calendar_discovery_state.cpp',
+    'src/core/log.cpp',
+  ),
+  dependencies: [
+    nlohmann_dep,
+  ],
+  include_directories: _noctalia_inc,
+)
+
+test('calendar_discovery_state', calendar_discovery_state_test)
+
 time_format_test = executable('time_format_test',
   sources: files(
     'tests/time_format_test.cpp',
@@ -1256,6 +1278,20 @@ scheme_test = executable('scheme_test',
 )
 
 test('scheme', scheme_test)
+
+kde_color_scheme_test = executable('kde_color_scheme_test',
+  sources: files(
+    'tests/kde_color_scheme_test.cpp',
+    'src/config/atomic_file.cpp',
+    'src/theme/kde_color_scheme.cpp',
+  ),
+  include_directories: _noctalia_inc,
+  dependencies: [
+    sdbus_cpp_dep,
+  ],
+)
+
+test('kde_color_scheme', kde_color_scheme_test)
 
 plugin_source_paths_test = executable('plugin_source_paths_test',
   sources: files(
@@ -1501,6 +1537,7 @@ sh_program = find_program('sh')
 test('config_validate_cli',
   sh_program,
   args: ['tests/config_validate_cli_test.sh', noctalia_exe.full_path()],
+  depends: noctalia_exe,
   workdir: meson.current_source_dir(),
   env: config_validate_env,
 )

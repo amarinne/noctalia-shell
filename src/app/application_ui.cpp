@@ -195,6 +195,10 @@ void Application::initUiRenderSurfacesAndSettings() {
 }
 
 void Application::performGreeterSync(bool quiet) {
+  if (!greeter::appearanceSyncAvailable(m_configService.config().shell.greeterSync)) {
+    return;
+  }
+
   const std::uint64_t generation = ++m_greeterSyncGeneration;
   m_greeterSyncTimeoutTimer.stop();
 
@@ -294,7 +298,8 @@ void Application::performGreeterSync(bool quiet) {
 }
 
 void Application::scheduleGreeterAutoSync() {
-  if (!m_configService.config().shell.greeterSync.autoSync) {
+  if (!m_configService.config().shell.greeterSync.autoSync
+      || !greeter::appearanceSyncAvailable(m_configService.config().shell.greeterSync)) {
     return;
   }
   m_greeterAutoSyncTimer.stop();
@@ -369,6 +374,15 @@ void Application::initInputDispatch() {
       m_lockScreen.onPointerEvent(event);
       return;
     }
+    if (m_windowSwitcher.isActive()) {
+      if (m_windowSwitcher.onPointerEvent(event)) {
+        return;
+      }
+      if (event.type == PointerEvent::Type::Button || event.type == PointerEvent::Type::Axis) {
+        return;
+      }
+      // Enter/Leave/Motion fall through so other surfaces' hover state stays in sync.
+    }
     if (m_colorPickerDialogPopup.onPointerEvent(event)) {
       return;
     }
@@ -398,8 +412,6 @@ void Application::initInputDispatch() {
     if (m_bar.onPointerEvent(event))
       return;
     if (m_dock.onPointerEvent(event))
-      return;
-    if (m_windowSwitcher.onPointerEvent(event))
       return;
     if (m_panelManager.onPointerEvent(event))
       return;
@@ -561,6 +573,7 @@ void Application::initPanelManagerAndPanels() {
           .clipboard = &m_clipboardService,
           .accounts = m_accountsService.get(),
           .thumbnails = &m_thumbnailService,
+          .asyncTextures = &m_asyncTextureCache,
       })
   );
   {
@@ -691,14 +704,15 @@ void Application::initNotificationAndOsd() {
         });
       },
       [this](bool userCancelled, bool willLockSession) {
-        DeferredCall::callLater([this, userCancelled, willLockSession]() {
-          if (userCancelled || !willLockSession) {
-            m_idleGraceOverlay.hide();
-          }
-          if (userCancelled) {
-            m_lockScreen.clearPrimedDesktopCaptures();
-          }
-        });
+        // Keep the overlay only when handing off to Noctalia's lock screen (avoids a flash).
+        // External lockers never take ownership; deferred hide also races with suspend.
+        const bool handoffToLockScreen = !userCancelled && willLockSession && m_configService.isLockScreenEnabled();
+        if (!handoffToLockScreen) {
+          m_idleGraceOverlay.hide();
+        }
+        if (userCancelled) {
+          m_lockScreen.clearPrimedDesktopCaptures();
+        }
       }
   );
   m_idleManager.setActionRunner(
@@ -741,6 +755,7 @@ void Application::initNotificationAndOsd() {
   if (m_brightnessService != nullptr) {
     m_brightnessOsd.primeFromService(*m_brightnessService);
   }
+  m_keyboardBacklightOsd.bindOverlay(m_osdOverlay);
   if constexpr (kLockKeysEnabled) {
     m_lockKeysOsd.bindOverlay(m_osdOverlay);
     m_lockKeysOsd.primeFromService(m_lockKeysService);

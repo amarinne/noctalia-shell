@@ -1322,17 +1322,7 @@ void PipeWireService::onNodeParam(
 
   float candidateVol = resolvedVolume(parsed);
   if (candidateVol >= 0.0f) {
-    if (!nd.applicationBinary.empty()) {
-      const auto prefIt = m_userAppVolumes.find(nd.applicationBinary);
-      if (prefIt != m_userAppVolumes.end() && std::abs(candidateVol - prefIt->second) > kVolumeWriteGuardEpsilon) {
-        nd.volume = prefIt->second;
-        setNodeVolume(nd.id, prefIt->second);
-      } else {
-        mergeIncomingVolumes(nd, parsed);
-      }
-    } else {
-      mergeIncomingVolumes(nd, parsed);
-    }
+    mergeIncomingVolumes(nd, parsed);
   }
 
   recomputeEffectiveMute(nd);
@@ -1722,16 +1712,6 @@ void PipeWireService::applyVolumePropsFromDict(NodeData& nd, const spa_dict* pro
       candidate = std::clamp(*maybeChannelmixVolume, 0.0f, 1.5f);
     } else if (const auto maybeVolume = parseFloat(dictGet(props, "volume")); maybeVolume.has_value()) {
       candidate = std::clamp(*maybeVolume, 0.0f, 1.5f);
-    }
-
-    if (!nd.applicationBinary.empty()) {
-      const auto prefIt = m_userAppVolumes.find(nd.applicationBinary);
-      if (prefIt != m_userAppVolumes.end()
-          && candidate >= 0.0f
-          && std::abs(candidate - prefIt->second) > kVolumeWriteGuardEpsilon) {
-        setNodeVolume(nd.id, prefIt->second);
-        candidate = prefIt->second;
-      }
     }
 
     if (candidate >= 0.0f && !shouldRejectVolumeWrite(nd, candidate)) {

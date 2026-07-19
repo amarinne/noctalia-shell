@@ -14,6 +14,7 @@
 
 class AsyncTextureCache;
 class Flex;
+class InputArea;
 class Label;
 class Renderer;
 class VirtualGridAdapter;
@@ -58,11 +59,21 @@ namespace settings {
     void openDetail(std::size_t filteredIndex);
     void closeDetail();
 
+    // Arrow/page/validate navigation for the catalog grid and detail install action.
+    // Returns true when the event was consumed. Pass the sheet's focused InputArea so
+    // chrome controls (search, category chips) keep their own Enter/arrow handling.
+    [[nodiscard]] bool
+    handleKeyEvent(std::uint32_t sym, std::uint32_t modifiers, bool pressed, bool preedit, InputArea* focused);
+
   private:
     void buildGridView(Flex& body, Renderer& renderer, AsyncTextureCache* textureCache);
     void buildDetailView(Flex& body, Renderer& renderer, AsyncTextureCache* textureCache);
     void applyFilter();
     void collectTags();
+    void selectIndex(std::size_t index);
+    void moveSelection(int delta);
+    [[nodiscard]] bool activateSelection();
+    [[nodiscard]] bool installDetailIfAvailable();
 
     std::vector<StoreCatalogEntry> m_catalog;
     std::vector<std::size_t> m_filteredIndices;
@@ -80,6 +91,7 @@ namespace settings {
 
     VirtualGridView* m_grid = nullptr;
     Label* m_countLabel = nullptr;
+    std::optional<std::size_t> m_selectedIndex;
     std::function<void()> m_onRebuildNeeded;
 
     std::unordered_map<std::string, std::string> m_thumbnailPaths;

@@ -129,10 +129,10 @@ std::optional<ActiveToplevel> WaylandToplevels::matchByTitleAndAppId(
     }
     std::uint64_t score = state.generation;
     if (preferredOutput != nullptr && state.output == preferredOutput) {
-      score += (1ull << 62);
+      score += (1ULL << 62);
     }
     if (state.activated) {
-      score += (1ull << 61);
+      score += (1ULL << 61);
     }
     if (!best.has_value() || score > bestScore) {
       best = ActiveToplevel{

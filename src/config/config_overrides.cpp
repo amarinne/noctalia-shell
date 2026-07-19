@@ -1284,27 +1284,7 @@ bool ConfigService::overridePathEffectiveInTable(
   }
 
   if (isPluginSettingOverridePath(path)) {
-    const auto pluginSettingValue = [](const Config& cfg, const std::string& pluginId,
-                                       const std::string& key) -> std::optional<WidgetSettingValue> {
-      const auto it = cfg.plugins.pluginSettings.find(pluginId);
-      if (it == cfg.plugins.pluginSettings.end()) {
-        return std::nullopt;
-      }
-      const auto kIt = it->second.find(key);
-      if (kIt == it->second.end()) {
-        return std::nullopt;
-      }
-      return kIt->second;
-    };
-    const auto withVal = pluginSettingValue(*parsedWith, path[1], path[2]);
-    const auto withoutVal = pluginSettingValue(*withoutOverride, path[1], path[2]);
-    if (!withVal.has_value() && !withoutVal.has_value()) {
-      return false;
-    }
-    if (!withVal.has_value() || !withoutVal.has_value()) {
-      return true;
-    }
-    return !widgetSettingEqual(*withVal, *withoutVal);
+    return settings::pluginSettingOverrideIsEffective(path[1], path[2], *parsedWith, *withoutOverride);
   }
 
   return !configEqual(*parsedWith, *withoutOverride);

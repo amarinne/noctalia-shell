@@ -505,6 +505,7 @@
         "show-label": "Mostra etichette",
         "show-login-button": "Pulsante di login",
         "show-password-hint": "Suggerimento password",
+        "show-vpn-label": "Mostra etichetta VPN",
         "show-when-idle": "Mostra quando inattivo",
         "stat": "Statistica",
         "stat-cpu-temp": "Temp CPU",
@@ -1382,6 +1383,7 @@
         "delete-confirm-title": "Cancellare \"{name}\"?",
         "deprecated": "deprecato",
         "empty": "Nessun plugin trovato. Aggiungi una sorgente o controlla la rete",
+        "incompatible-plugin-api": "API plugin incompatibile",
         "loading": "Caricamento plugin...",
         "refreshing": "Aggiornamento plugin...",
         "remove": "Rimuovi plugin",
@@ -1782,6 +1784,14 @@
         "background-opacity": {
           "description": "Opacità dello sfondo della dock"
         },
+        "border": {
+          "description": "Ruolo colore per il contorno del dock; sono supportati anche codici colore in formato esadecimale",
+          "label": "Bordo"
+        },
+        "border-width": {
+          "description": "Larghezza del contorno interno al dock",
+          "label": "Larghezza bordo"
+        },
         "concave-edge-corners": {
           "description": "Scolpisci gli angoli verso l'interno sul lato che tocca il bordo dello schermo; richiede che il margine rispetto al bordo dello schermo sia 0",
           "label": "Bordo angoli concavo"
@@ -2063,6 +2073,10 @@
         },
         "blacklist-allow-critical": {
           "description": "Mostra comunque notifiche critiche da mittenti in blacklist"
+        },
+        "border": {
+          "description": "Disegna un contorno attorno ai toast di notifica",
+          "label": "Bordo"
         },
         "collapse-on-dismiss": {
           "description": "Fa scorrere i toast rimanenti per chiudere gli spazi quando uno viene ignorato",
@@ -2591,6 +2605,10 @@
         "osd-background-opacity": {
           "description": "Opacità dello sfondo dei popup OSD",
           "label": "Opacità sfondo"
+        },
+        "osd-border": {
+          "description": "Disegna un contorno attorno ai popup OSD",
+          "label": "Bordo"
         },
         "osd-kinds-bluetooth": {
           "description": "Mostra un popup OSD quando il Bluetooth viene attivato/disattivato",
@@ -3373,6 +3391,10 @@
         "show-temperature": {
           "description": "Mostra valore attuale della temperatura",
           "label": "Mostra temperatura"
+        },
+        "show-vpn-label": {
+          "description": "Mostra l'etichetta VPN invece dell'etichetta dell'interfaccia accanto all'icona",
+          "label": "Mostra etichetta VPN"
         },
         "show-when-idle": {
           "description": "Mantiene visibile il visualizzatore anche quando nessun media è in riproduzione",

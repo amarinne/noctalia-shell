@@ -1,3 +1,4 @@
+#include "calendar/calendar_discovery_state.h"
 #include "config/atomic_file.h"
 #include "config/config_service.h"
 #include "config/config_types.h"
@@ -6,6 +7,7 @@
 #include "net/url_open.h"
 #include "notification/notification_filter.h"
 #include "render/render_context.h"
+#include "render/scene/input_area.h"
 #include "scripting/plugin_catalog.h"
 #include "scripting/plugin_registry.h"
 #include "shell/settings/bar_widget_editor.h"
@@ -22,11 +24,13 @@
 #include "ui/controls/context_menu.h"
 #include "ui/controls/context_menu_popup.h"
 #include "ui/controls/flex.h"
+#include "ui/controls/segmented.h"
 #include "ui/dialogs/file_dialog.h"
 #include "ui/popup_parent.h"
 #include "util/string_utils.h"
 #include "wayland/toplevel_surface.h"
 #include "wayland/wayland_connection.h"
+#include "wayland/wayland_seat.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -45,6 +49,7 @@ namespace {
   constexpr std::int32_t kActionSupportReport = 1;
   constexpr std::int32_t kActionExportConfig = 2;
   constexpr std::string_view kCalendarCredentialOwner = "calendar_credentials";
+  constexpr std::string_view kCalendarDiscoveryOwner = "calendar_discovery";
 
   XdgPopupParent popupParentFor(ToplevelSurface& surface, wl_output* output, std::uint32_t serial) {
     return XdgPopupParent{
@@ -83,6 +88,8 @@ namespace {
     std::string password;
     std::string serverUrl;
     std::string color;
+    std::vector<std::string> calendars;
+    std::vector<CalendarSource> discoveredCalendars;
     bool idInvalid = false;
     bool usernameInvalid = false;
     bool passwordInvalid = false;
@@ -106,7 +113,7 @@ namespace {
     return std::ranges::contains(cfg.plugins.sources, name, &PluginSourceConfig::name);
   }
 
-  std::size_t pluginSourceKindIndex(PluginSourceKind kind) { return kind == PluginSourceKind::Path ? 1u : 0u; }
+  std::size_t pluginSourceKindIndex(PluginSourceKind kind) { return kind == PluginSourceKind::Path ? 1U : 0U; }
 
   const CalendarConfig::Account* findCalendarAccount(const Config& cfg, std::string_view id) {
     const auto it = std::ranges::find(cfg.calendar.accounts, id, &CalendarConfig::Account::id);
@@ -135,6 +142,10 @@ namespace {
       return i18n::tr("settings.calendar-accounts.provider.google");
     }
     return i18n::tr("settings.calendar-accounts.provider.icloud");
+  }
+
+  bool calendarSourceChecked(const CalendarAccountDraft& draft, const CalendarSource& source) {
+    return draft.calendars.empty() || std::ranges::contains(draft.calendars, source.id);
   }
 
   std::string trimInput(Input* input) { return input != nullptr ? StringUtils::trim(input->value()) : std::string{}; }
@@ -311,7 +322,8 @@ void SettingsWindow::openActionsMenu() {
   m_actionsMenuPopup->open(
       ContextMenuPopupRequest{
           .entries = std::move(entries),
-          .menuWidth = 220.0f * scale,
+          .minMenuWidth = 220.0f * scale,
+          .maxMenuWidth = Style::menuAutoMaxWidth * scale,
           .maxVisible = 8,
           .anchor =
               PopupAnchorRect{
@@ -1021,11 +1033,15 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
     draft->username = account->username;
     draft->serverUrl = account->serverUrl;
     draft->color = account->color;
+    draft->calendars = account->calendars;
     if (account->type == "google") {
       draft->provider = CalendarAccountProvider::Google;
     } else {
       draft->provider =
           account->provider == "custom" ? CalendarAccountProvider::CustomCalDav : CalendarAccountProvider::ICloud;
+      const std::string rawDiscovery =
+          m_config->stateString(kCalendarDiscoveryOwner, account->id + "_calendars").value_or(std::string{});
+      draft->discoveredCalendars = calendar::parseCalendarSources(rawDiscovery);
     }
   }
 
@@ -1057,6 +1073,7 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
       (void)m_config->setStateString(kCalendarCredentialOwner, accountId + "_refresh_token", "");
       (void)m_config->setStateString(kCalendarCredentialOwner, accountId + "_access_token", "");
       (void)m_config->setStateString(kCalendarCredentialOwner, accountId + "_access_expiry", "");
+      (void)m_config->setStateString(kCalendarDiscoveryOwner, accountId + "_calendars", "");
       markSettingsWriteSuccess(true);
       if (m_editorSheetPopup != nullptr) {
         m_editorSheetPopup->close();
@@ -1225,6 +1242,80 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
         )
     );
 
+    if (!draft->creating && draft->provider != CalendarAccountProvider::Google && !draft->discoveredCalendars.empty()) {
+      auto calendars = ui::column({
+          .align = FlexAlign::Stretch,
+          .gap = Style::spaceXs * scale,
+      });
+      calendars->addChild(
+          ui::label({
+              .text = i18n::tr("settings.calendar-accounts.calendars-label"),
+              .fontSize = Style::fontSizeCaption * scale,
+              .fontWeight = FontWeight::Medium,
+              .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+          })
+      );
+
+      auto list = ui::column({
+          .align = FlexAlign::Stretch,
+          .gap = Style::spaceXs * scale,
+          .padding = Style::spaceSm * scale,
+          .fill = colorSpecFromRole(ColorRole::SurfaceVariant, 0.35f),
+          .radius = Style::scaledRadiusMd(scale),
+      });
+      for (const CalendarSource& source : draft->discoveredCalendars) {
+        const bool checked = calendarSourceChecked(*draft, source);
+        auto row = ui::row({
+            .align = FlexAlign::Center,
+            .gap = Style::spaceSm * scale,
+            .fillWidth = true,
+        });
+        auto info = ui::column({
+            .align = FlexAlign::Start,
+            .gap = 2.0f * scale,
+            .flexGrow = 1.0f,
+        });
+        info->addChild(
+            ui::label({
+                .text = source.name.empty() ? source.id : source.name,
+                .fontSize = Style::fontSizeBody * scale,
+                .fontWeight = FontWeight::Medium,
+                .color = colorSpecFromRole(ColorRole::OnSurface),
+                .maxLines = 1,
+                .ellipsize = TextEllipsize::End,
+            })
+        );
+        if (!source.name.empty()) {
+          info->addChild(
+              ui::label({
+                  .text = source.id,
+                  .fontSize = Style::fontSizeCaption * scale,
+                  .color = colorSpecFromRole(ColorRole::OnSurfaceVariant),
+                  .maxLines = 1,
+                  .ellipsize = TextEllipsize::End,
+              })
+          );
+        }
+        row->addChild(std::move(info));
+        row->addChild(
+            ui::toggle({
+                .checked = checked,
+                .scale = scale,
+                .onChange = [this, draft, sourceId = source.id](bool on) {
+                  draft->calendars =
+                      calendar::setCalendarSourceChecked(draft->discoveredCalendars, draft->calendars, sourceId, on);
+                  if (m_editorSheetPopup != nullptr) {
+                    m_editorSheetPopup->rebuildBody();
+                  }
+                },
+            })
+        );
+        list->addChild(std::move(row));
+      }
+      calendars->addChild(std::move(list));
+      body.addChild(std::move(calendars));
+    }
+
     const auto persistAccount = [this, draft, idInput, nameInput, usernameInput, passwordInput,
                                  serverInput](bool closeAfter, bool connectAfter) {
       if (m_config == nullptr) {
@@ -1279,6 +1370,8 @@ void SettingsWindow::openCalendarAccountEditor(std::optional<std::string> accoun
       );
       overrides.push_back({{base[0], base[1], base[2], "name"}, draft->name});
       overrides.push_back({{base[0], base[1], base[2], "color"}, draft->color});
+      // Manual calendar selection is currently populated by CalDAV discovery; Google uses CalendarList selected.
+      overrides.push_back({{base[0], base[1], base[2], "calendars"}, draft->calendars});
       if (caldav) {
         overrides.push_back({{base[0], base[1], base[2], "provider"}, calendarProviderKey(draft->provider)});
         overrides.push_back({{base[0], base[1], base[2], "username"}, draft->username});
@@ -1451,7 +1544,7 @@ void SettingsWindow::openBarWidgetEditorSheet(
     output = m_output;
   }
 
-  const std::uint32_t grabSerial = m_pendingEditorSheetNoGrab ? 0u : m_wayland->lastInputSerial();
+  const std::uint32_t grabSerial = m_pendingEditorSheetNoGrab ? 0U : m_wayland->lastInputSerial();
   m_pendingEditorSheetNoGrab = false;
   m_editorSheetPopup->open(
       settings::SettingsSheetPopupRequest{
@@ -1588,13 +1681,21 @@ void SettingsWindow::openPluginSourceCreateEditor(std::optional<PluginSourceConf
                   .scale = scale,
                   .enabled = !fieldsLocked,
                   .equalSegmentWidths = true,
-                  .onChange = [this, draft](std::size_t index) {
-                    draft->kind = index == 1 ? PluginSourceKind::Path : PluginSourceKind::Git;
-                    draft->error.clear();
-                    if (m_editorSheetPopup != nullptr) {
-                      m_editorSheetPopup->rebuildBody();
-                    }
-                  },
+                  .onChange =
+                      [this, draft](std::size_t index) {
+                        draft->kind = index == 1 ? PluginSourceKind::Path : PluginSourceKind::Git;
+                        draft->error.clear();
+                        if (m_editorSheetPopup != nullptr) {
+                          m_editorSheetPopup->rebuildBody();
+                        }
+                      },
+                  .configure =
+                      [](Segmented& seg) {
+                        if (seg.focusArea() != nullptr) {
+                          // Stable key so rebuildBody can restore Left/Right focus after kind changes.
+                          seg.focusArea()->setTabFocusKey("plugin-source-kind");
+                        }
+                      },
               })
           );
 
@@ -1759,14 +1860,35 @@ void SettingsWindow::openPluginStore() {
   if (m_config == nullptr || m_pluginManager == nullptr) {
     return;
   }
-  // Refresh the browsable catalog off the UI thread (throttled) before building the
-  // store, so it lists plugins published since the last fetch. The build itself stays
-  // on the main thread, reading the now-fetched catalog.
+  // Refresh the browsable catalog off the UI thread (throttled) and read it there too:
+  // discoverCatalog clones on first browse and lazy-fetches catalog blobs from the
+  // blobless clone, both network-bound. Only the sheet build runs on the main thread.
   auto* manager = m_pluginManager;
   PluginsConfig pluginsSnapshot = m_config->config().plugins;
   std::thread([this, manager, pluginsSnapshot = std::move(pluginsSnapshot)]() mutable {
     manager->fetchStaleCatalogs(pluginsSnapshot);
-    DeferredCall::callLater([this]() {
+
+    std::vector<settings::StoreCatalogEntry> catalog;
+    for (const auto& source : pluginsSnapshot.sources) {
+      if (!source.enabled) {
+        continue;
+      }
+      auto result = scripting::discoverCatalog(source, scripting::CatalogAccess::Network);
+      if (!result.ok) {
+        continue;
+      }
+      for (auto& entry : result.entries) {
+        catalog.push_back(
+            settings::StoreCatalogEntry{
+                .entry = std::move(entry),
+                .source = source.name,
+                .sourceConfig = source,
+            }
+        );
+      }
+    }
+
+    DeferredCall::callLater([this, catalog = std::move(catalog)]() mutable {
       if (m_wayland == nullptr
           || m_renderContext == nullptr
           || m_surface == nullptr
@@ -1780,28 +1902,7 @@ void SettingsWindow::openPluginStore() {
         m_editorSheetPopup->close();
       }
 
-      const Config& cfg = m_config->config();
       const float scale = uiScale();
-
-      std::vector<settings::StoreCatalogEntry> catalog;
-      for (const auto& source : cfg.plugins.sources) {
-        if (!source.enabled) {
-          continue;
-        }
-        auto result = scripting::discoverCatalog(source);
-        if (!result.ok) {
-          continue;
-        }
-        for (auto& entry : result.entries) {
-          catalog.push_back(
-              settings::StoreCatalogEntry{
-                  .entry = std::move(entry),
-                  .source = source.name,
-                  .sourceConfig = source,
-              }
-          );
-        }
-      }
 
       std::unordered_set<std::string> onDiskIds;
       for (const auto& p : m_pluginList) {
@@ -1941,6 +2042,13 @@ void SettingsWindow::openPluginStore() {
                 }
                 return false;
               },
+              .preDispatchKeyboard =
+                  [storeContent, this](const KeyboardEvent& event) {
+                    InputArea* focused = m_editorSheetPopup != nullptr ? m_editorSheetPopup->focusedArea() : nullptr;
+                    return storeContent->handleKeyEvent(
+                        event.sym, event.modifiers, event.pressed, event.preedit, focused
+                    );
+                  },
           }
       );
     });

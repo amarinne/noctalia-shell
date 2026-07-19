@@ -4,7 +4,7 @@
 
 - Source: `/home/eza/Projects/noctalia-shell`
 - Branch: `noctalia-v5-workspace-apps`
-- Current merge: `7955d8a4c` (`upstream/main` at `cb15ce1c8`, `v5.0.0-beta.3`)
+- Current upstream baseline: `98f0d2b4a` (`v5.0.0-beta.3-86-g98f0d2b4a`)
 - Active prefix: `$HOME/.local/opt/noctalia-v5-patched`
 - Active binary: `$HOME/.local/opt/noctalia-v5-patched/bin/noctalia`
 - Active launcher: `$HOME/.local/bin/noctalia-v5 --daemon`
@@ -32,7 +32,7 @@ just test release
 just install release
 ```
 
-`just test release` must finish `40/40` tests with zero failures before install.
+`just test release` must finish `42/42` tests with zero failures before install.
 Install local prefix as normal user. Do not use `sudo` for this prefix.
 
 If Meson install fails on `build-release/meson-logs/install-log.txt` permission, stale log came from prior root install. Remove that generated log, then retry:
@@ -67,5 +67,6 @@ Expected process path: `$HOME/.local/opt/noctalia-v5-patched/bin/noctalia`.
 - Workspace app initials and icons.
 - Grouped-taskbar active marker and icon padding.
 - Niri workspace task ordering by layout.
+- Taskbar explicit target outputs and workspace drag/drop routing.
 
 Merge resolved workspace widget conflict by keeping upstream hover and entry/exit animation behavior plus local workspace app-icon pills.

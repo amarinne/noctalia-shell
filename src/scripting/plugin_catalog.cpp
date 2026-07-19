@@ -153,7 +153,7 @@ namespace scripting {
     return out;
   }
 
-  CatalogResult discoverCatalog(const PluginSourceConfig& source) {
+  CatalogResult discoverCatalog(const PluginSourceConfig& source, CatalogAccess access) {
     if (!isValidPluginSourceName(source.name)) {
       return {.ok = false, .error = "invalid plugin source name: " + source.name, .entries = {}};
     }
@@ -184,8 +184,12 @@ namespace scripting {
       return {.ok = false, .error = "empty plugin source repo path", .entries = {}};
     }
     auto sourceLock = plugin_source_locks::acquire(source.name);
+    const bool localOnly = access == CatalogAccess::LocalOnly;
     std::error_code ec;
     if (!std::filesystem::exists(dest / ".git", ec)) {
+      if (localOnly) {
+        return {.ok = false, .error = "source '" + source.name + "' is not cloned yet", .entries = {}};
+      }
       std::filesystem::create_directories(dest.parent_path(), ec);
       auto cloned = plugin_git::cloneBlobless(source.location, dest);
       if (!cloned) {
@@ -203,10 +207,10 @@ namespace scripting {
         rev = fetched.out;
       }
     }
-    auto shown = plugin_git::showFile(dest, "catalog.toml", rev);
+    auto shown = plugin_git::showFile(dest, "catalog.toml", rev, localOnly);
     if (!shown && rev != "HEAD") {
-      // Fetched blob unreachable (e.g. offline); fall back to the applied HEAD.
-      shown = plugin_git::showFile(dest, "catalog.toml", "HEAD");
+      // Fetched blob unreachable (e.g. offline / local-only); fall back to the applied HEAD.
+      shown = plugin_git::showFile(dest, "catalog.toml", "HEAD", localOnly);
     }
     if (!shown) {
       return {.ok = false, .error = "no catalog.toml in source '" + source.name + "'", .entries = {}};

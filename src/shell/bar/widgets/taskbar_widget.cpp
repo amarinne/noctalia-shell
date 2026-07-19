@@ -186,12 +186,13 @@ TaskbarWidget::TaskbarWidget(
     : m_platform(platform), m_configService(config), m_output(output), m_configOptions(std::move(options)),
       m_showAllOutputs(m_configOptions.showAllOutputs), m_dragDropCommand(m_configOptions.dragDropCommand),
       m_focusedOutputOnly(m_configOptions.focusedOutputOnly),
-      m_minimal(m_configOptions.minimal), m_showActiveIndicator(m_configOptions.showActiveIndicator),
-      m_activeOpacity(m_configOptions.activeOpacity), m_inactiveOpacity(m_configOptions.inactiveOpacity),
-      m_focusedColor(m_configOptions.focusedColor), m_occupiedColor(m_configOptions.occupiedColor),
-      m_emptyColor(m_configOptions.emptyColor), m_windowTitleMaxWidth(m_configOptions.windowTitleMaxWidth),
+      m_minimal(m_configOptions.minimal), m_enableScroll(m_configOptions.enableScroll),
+      m_showActiveIndicator(m_configOptions.showActiveIndicator), m_activeOpacity(m_configOptions.activeOpacity),
+      m_inactiveOpacity(m_configOptions.inactiveOpacity), m_focusedColor(m_configOptions.focusedColor),
+      m_occupiedColor(m_configOptions.occupiedColor), m_emptyColor(m_configOptions.emptyColor),
+      m_urgentColor(m_configOptions.urgentColor), m_windowTitleMaxWidth(m_configOptions.windowTitleMaxWidth),
       m_taskbarMaxWidth(m_configOptions.taskbarMaxWidth), m_barPosition(std::move(m_configOptions.barPosition)),
-      m_barName(std::move(m_configOptions.barName)), m_shadowConfig(m_configOptions.shadowConfig) {
+      m_barName(std::move(m_configOptions.barName)) {
   syncWorkspaceGroupingCapability();
   buildDesktopIconIndex();
   taskbarWidgetInstances().push_back(this);
@@ -407,6 +408,9 @@ bool TaskbarWidget::consumeSuppressedTaskClick(const std::string& windowId) {
 void TaskbarWidget::create() {
   auto container = std::make_unique<InputArea>();
   container->setOnAxisHandler([this](const InputArea::PointerData& data) {
+    if (!m_enableScroll) {
+      return false;
+    }
     if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL && data.axis != WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
       return false;
     }
@@ -570,7 +574,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
   const float tileWidthWithTitle = tileSize + (showWindowTitle ? windowTitleWidth + windowTitleGap : 0.0f);
 
   const auto workspaceAxisHandler = [this](const InputArea::PointerData& data) -> bool {
-    if (!m_groupByWorkspace) {
+    if (!m_enableScroll || !m_groupByWorkspace) {
       return false;
     }
     if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL && data.axis != WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
@@ -2034,7 +2038,7 @@ bool TaskbarWidget::onPointerEvent(const PointerEvent& event) {
     return false;
   }
   const bool consumed = m_contextMenuPopup->onPointerEvent(event);
-  if (!consumed && event.type == PointerEvent::Type::Button && event.state == 1) {
+  if (!consumed && event.type == PointerEvent::Type::Button && event.pressed) {
     m_contextMenuPopup->close();
     return true;
   }
@@ -2131,7 +2135,7 @@ void TaskbarWidget::openTaskContextMenu(const TaskModel& task, InputArea& area) 
   if (m_contextMenuPopup == nullptr) {
     m_contextMenuPopup = std::make_unique<ContextMenuPopup>(m_platform.wayland(), *renderContext);
   }
-  m_contextMenuPopup->setShadowConfig(m_shadowConfig);
+  m_contextMenuPopup->setShadowConfig(m_configService.config().shell.shadow);
   m_contextMenuPopup->setOnActivate([this, entryActions, entryAppName, entryWorkingDir,
                                      entryTerminal](const ContextMenuControlEntry& entry) {
     if (entry.id >= 0) {
@@ -2183,7 +2187,6 @@ void TaskbarWidget::openTaskContextMenu(const TaskModel& task, InputArea& area) 
   float anchorH = std::max(1.0f, area.height() - (anchorInset * 2.0f));
 
   constexpr float kTaskMenuWidth = 240.0f;
-  const float menuWidth = kTaskMenuWidth * m_contentScale;
   const std::int32_t gap = std::max(2, static_cast<std::int32_t>(std::lround(Style::spaceMd * m_contentScale)));
 
   std::optional<ContextMenuPopupPlacement> placement;
@@ -2207,17 +2210,35 @@ void TaskbarWidget::openTaskContextMenu(const TaskModel& task, InputArea& area) 
         },
     };
   } else if (m_barPosition == "left") {
-    anchorX = absX + area.width() + (menuWidth * 0.5f) + static_cast<float>(gap);
-    anchorW = 1.0f;
+    // Gravity-based placement instead of a width-derived anchor offset, so the menu can auto-size.
+    placement = ContextMenuPopupPlacement{
+        .anchor = XDG_POSITIONER_ANCHOR_RIGHT,
+        .gravity = XDG_POSITIONER_GRAVITY_RIGHT,
+        .offsetX = gap,
+        .offsetY = 0,
+        .chromeAttachment = popup_chrome::Attachment{
+            .horizontal = popup_chrome::HorizontalAttachment::Left,
+            .vertical = popup_chrome::VerticalAttachment::Center,
+        },
+    };
   } else if (m_barPosition == "right") {
-    anchorX = absX - (menuWidth * 0.5f) - static_cast<float>(gap);
-    anchorW = 1.0f;
+    placement = ContextMenuPopupPlacement{
+        .anchor = XDG_POSITIONER_ANCHOR_LEFT,
+        .gravity = XDG_POSITIONER_GRAVITY_LEFT,
+        .offsetX = -gap,
+        .offsetY = 0,
+        .chromeAttachment = popup_chrome::Attachment{
+            .horizontal = popup_chrome::HorizontalAttachment::Right,
+            .vertical = popup_chrome::VerticalAttachment::Center,
+        },
+    };
   }
 
   m_contextMenuPopup->open(
       ContextMenuPopupRequest{
           .entries = std::move(entries),
-          .menuWidth = menuWidth,
+          .minMenuWidth = kTaskMenuWidth * m_contentScale,
+          .maxMenuWidth = Style::menuAutoMaxWidth * m_contentScale,
           .maxVisible = 12,
           .anchor =
               PopupAnchorRect{
@@ -2266,7 +2287,7 @@ std::string TaskbarWidget::workspaceLabel(const Workspace& workspace, std::size_
     return workspace.id;
   }
   if (!workspace.coordinates.empty()) {
-    return std::to_string(static_cast<std::size_t>(workspace.coordinates.front()) + 1u);
+    return std::to_string(static_cast<std::size_t>(workspace.coordinates.front()) + 1U);
   }
   return std::to_string(index + 1);
 }
@@ -2507,7 +2528,7 @@ ColorSpec TaskbarWidget::workspaceFillColor(const Workspace& workspace) const {
     return m_occupiedColor;
   }
   if (workspace.urgent) {
-    return colorSpecFromRole(ColorRole::Error);
+    return m_urgentColor;
   }
   if (workspace.occupied) {
     return m_occupiedColor;
@@ -2521,7 +2542,7 @@ bool TaskbarWidget::isFocusedOutput() const { return m_platform.preferredInterac
 
 ColorSpec TaskbarWidget::workspaceTextColor(const Workspace& workspace) const {
   if (workspace.urgent) {
-    return m_minimal ? colorSpecFromRole(ColorRole::Error) : colorSpecFromRole(ColorRole::OnError);
+    return m_minimal ? m_urgentColor : readableColorForFill(m_urgentColor);
   }
   if (!m_minimal) {
     return readableColorForFill(workspaceFillColor(workspace));

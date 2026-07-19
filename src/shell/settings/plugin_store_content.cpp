@@ -1,5 +1,8 @@
 #include "shell/settings/plugin_store_content.h"
 
+#include "core/input/key_modifiers.h"
+#include "core/input/key_symbols.h"
+#include "core/input/keybind_matcher.h"
 #include "i18n/i18n.h"
 #include "scripting/plugin_file_cache.h"
 #include "scripting/plugin_id.h"
@@ -31,8 +34,8 @@ namespace settings {
 
   namespace {
 
-    constexpr float kSourceBadgeMaxWidth = 120.0F;
-    constexpr float kTagBadgeMaxWidth = 120.0F;
+    constexpr float kSourceBadgeMaxWidth = 120.0f;
+    constexpr float kTagBadgeMaxWidth = 120.0f;
 
     bool containsIgnoreCase(std::string_view haystack, std::string_view needle) {
       if (needle.empty()) {
@@ -60,7 +63,7 @@ namespace settings {
 
       [[nodiscard]] std::unique_ptr<Node> createTile() override { return std::make_unique<PluginStoreTile>(m_scale); }
 
-      void bindTile(Node& tile, std::size_t index, bool /*selected*/, bool hovered) override {
+      void bindTile(Node& tile, std::size_t index, bool selected, bool hovered) override {
         if (m_indices == nullptr || m_catalog == nullptr || index >= m_indices->size()) {
           return;
         }
@@ -74,7 +77,7 @@ namespace settings {
             thumbPath = it->second;
           }
         }
-        t->bind(storeEntry.entry, storeEntry.source, onDisk, hovered, thumbPath, m_renderer, m_textureCache);
+        t->bind(storeEntry.entry, storeEntry.source, onDisk, selected, hovered, thumbPath, m_renderer, m_textureCache);
       }
 
       void onActivate(std::size_t index) override {
@@ -179,6 +182,11 @@ namespace settings {
     std::ranges::sort(m_filteredIndices, [this](std::size_t a, std::size_t b) {
       return m_catalog[a].entry.name < m_catalog[b].entry.name;
     });
+    if (m_filteredIndices.empty()) {
+      m_selectedIndex.reset();
+    } else if (m_selectedIndex.has_value() && *m_selectedIndex >= m_filteredIndices.size()) {
+      m_selectedIndex = m_filteredIndices.size() - 1;
+    }
   }
 
   void PluginStoreContent::populateBody(Flex& body, Renderer& renderer, AsyncTextureCache* textureCache) {
@@ -203,6 +211,7 @@ namespace settings {
               applyFilter();
               if (m_grid != nullptr) {
                 m_grid->notifyDataChanged();
+                m_grid->setSelectedIndex(m_selectedIndex);
               }
               if (m_countLabel != nullptr) {
                 m_countLabel->setText(
@@ -317,6 +326,10 @@ namespace settings {
     grid->setFlexGrow(1.0f);
     grid->setAdapter(adapterPtr);
     m_grid = grid.get();
+    m_grid->setOnSelectionChanged([this](std::optional<std::size_t> index) { m_selectedIndex = index; });
+    if (m_selectedIndex.has_value()) {
+      m_grid->setSelectedIndex(m_selectedIndex);
+    }
     body.addChild(std::move(grid));
 
     if (m_filteredIndices.empty()) {
@@ -359,7 +372,7 @@ namespace settings {
 
     auto header = ui::row({.align = FlexAlign::Stretch, .gap = Style::spaceMd * scale, .fillWidth = true});
 
-    auto pill = [&](const std::string& text, ColorRole fg, ColorRole bg, float bgAlpha, float maxWidth = 0.0F) {
+    auto pill = [&](const std::string& text, ColorRole fg, ColorRole bg, float bgAlpha, float maxWidth = 0.0f) {
       Label* label = nullptr;
       auto badge = ui::row(
           {.align = FlexAlign::Center,
@@ -374,9 +387,9 @@ namespace settings {
               .color = colorSpecFromRole(fg),
           })
       );
-      if (maxWidth > 0.0F) {
+      if (maxWidth > 0.0f) {
         badge->setMaxWidth(maxWidth * scale);
-        label->setMaxWidth((maxWidth - (Style::spaceXs * 2.0F)) * scale);
+        label->setMaxWidth((maxWidth - (Style::spaceXs * 2.0f)) * scale);
         label->setMaxLines(1);
         label->setEllipsize(TextEllipsize::End);
       }
@@ -428,7 +441,7 @@ namespace settings {
         })
     );
     for (const auto& tag : entry.tags) {
-      title->addChild(pill(tag, ColorRole::OnSurfaceVariant, ColorRole::SurfaceVariant, 1.0F, kTagBadgeMaxWidth));
+      title->addChild(pill(tag, ColorRole::OnSurfaceVariant, ColorRole::SurfaceVariant, 1.0f, kTagBadgeMaxWidth));
     }
     info->addChild(std::move(title));
     auto meta = ui::row({.align = FlexAlign::Center, .wrap = true, .gap = Style::spaceXs * scale, .fillWidth = true});
@@ -558,6 +571,7 @@ namespace settings {
 
   void PluginStoreContent::openDetail(std::size_t filteredIndex) {
     m_detailIndex = filteredIndex;
+    m_selectedIndex = filteredIndex;
     m_detailReadme.clear();
     m_detailReadmeLoading = false;
 
@@ -588,6 +602,121 @@ namespace settings {
     if (m_onRebuildNeeded) {
       m_onRebuildNeeded();
     }
+  }
+
+  void PluginStoreContent::selectIndex(std::size_t index) {
+    if (m_filteredIndices.empty()) {
+      m_selectedIndex.reset();
+      if (m_grid != nullptr) {
+        m_grid->setSelectedIndex(std::nullopt);
+      }
+      return;
+    }
+    m_selectedIndex = std::min(index, m_filteredIndices.size() - 1);
+    if (m_grid != nullptr) {
+      m_grid->setSelectedIndex(m_selectedIndex);
+    }
+  }
+
+  void PluginStoreContent::moveSelection(int delta) {
+    if (m_filteredIndices.empty()) {
+      return;
+    }
+    if (!m_selectedIndex.has_value()) {
+      selectIndex(delta >= 0 ? 0 : m_filteredIndices.size() - 1);
+      return;
+    }
+    const int last = static_cast<int>(m_filteredIndices.size() - 1);
+    const int next = std::clamp(static_cast<int>(*m_selectedIndex) + delta, 0, last);
+    selectIndex(static_cast<std::size_t>(next));
+  }
+
+  bool PluginStoreContent::activateSelection() {
+    if (m_filteredIndices.empty()) {
+      return false;
+    }
+    if (!m_selectedIndex.has_value() || *m_selectedIndex >= m_filteredIndices.size()) {
+      selectIndex(0);
+    }
+    openDetail(*m_selectedIndex);
+    return true;
+  }
+
+  bool PluginStoreContent::installDetailIfAvailable() {
+    if (!m_detailIndex.has_value() || *m_detailIndex >= m_filteredIndices.size()) {
+      return false;
+    }
+    const auto& storeEntry = m_catalog[m_filteredIndices[*m_detailIndex]];
+    const auto& entry = storeEntry.entry;
+    if (!entry.compatible || m_onDiskIds.contains(entry.id)) {
+      return false;
+    }
+    if (m_callbacks.isEnabling && m_callbacks.isEnabling(entry.id)) {
+      return false;
+    }
+    if (!m_callbacks.setEnabled) {
+      return false;
+    }
+    m_callbacks.setEnabled(entry.id, true);
+    return true;
+  }
+
+  bool PluginStoreContent::handleKeyEvent(
+      std::uint32_t sym, std::uint32_t modifiers, bool pressed, bool preedit, InputArea* focused
+  ) {
+    if (!pressed || preedit) {
+      return false;
+    }
+
+    // Search, category chips, and detail actions own Enter/arrows while focused.
+    const InputArea* gridFocus = m_grid != nullptr ? m_grid->focusArea() : nullptr;
+    if (focused != nullptr && focused != gridFocus) {
+      return false;
+    }
+
+    if (isDetailView()) {
+      if (KeybindMatcher::matches(KeybindAction::Validate, sym, modifiers)) {
+        return installDetailIfAvailable();
+      }
+      return false;
+    }
+
+    if (m_filteredIndices.empty()) {
+      return false;
+    }
+
+    const int columns = m_grid != nullptr ? static_cast<int>(std::max<std::size_t>(1, m_grid->layoutColumnCount())) : 1;
+
+    if (KeySymbol::isPageUp(sym)) {
+      const int stride = m_grid != nullptr ? static_cast<int>(m_grid->pageItemStride()) : columns;
+      moveSelection(-stride);
+      return true;
+    }
+    if (KeySymbol::isPageDown(sym)) {
+      const int stride = m_grid != nullptr ? static_cast<int>(m_grid->pageItemStride()) : columns;
+      moveSelection(stride);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Left, sym, modifiers)) {
+      moveSelection(-1);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Right, sym, modifiers)) {
+      moveSelection(1);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Up, sym, modifiers)) {
+      moveSelection(-columns);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Down, sym, modifiers)) {
+      moveSelection(columns);
+      return true;
+    }
+    if (KeybindMatcher::matches(KeybindAction::Validate, sym, modifiers)) {
+      return activateSelection();
+    }
+    return false;
   }
 
   void PluginStoreContent::updateOnDiskIds(std::unordered_set<std::string> ids) {

@@ -42,9 +42,12 @@ public:
     }
 
     // Whole wheel-detent steps accumulated by the InputArea (positive = scroll
-    // down). Continuous sources (touchpads, hi-res wheels) emit a step only
-    // once a full detent-equivalent has accrued — use this instead of
-    // scrollDelta() for discrete stepping (volume, workspace cycling, ...).
+    // down). Wheel sources yield at most one step per frame, so a ratcheted
+    // notch is one step regardless of compositor scaling while a free-spinning
+    // hi-res wheel still has to accrue a full detent; continuous sources
+    // (touchpads) emit a step only once a full detent-equivalent has accrued —
+    // use this instead of scrollDelta() for discrete stepping (volume,
+    // workspace cycling, ...).
     [[nodiscard]] float scrollSteps() const noexcept { return axisSteps; }
   };
 

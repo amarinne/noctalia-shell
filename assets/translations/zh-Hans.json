@@ -505,6 +505,7 @@
         "show-label": "显示标签",
         "show-login-button": "登录按钮",
         "show-password-hint": "密码提示",
+        "show-vpn-label": "显示 VPN 标签",
         "show-when-idle": "空闲时显示",
         "stat": "统计项",
         "stat-cpu-temp": "CPU 温度",
@@ -772,7 +773,7 @@
     },
     "enable-failed": {
       "body-error": "{plugin}：{error}",
-      "body-incompatible": "{plugin} 需要 Noctalia {version} 或更高版本。",
+      "body-incompatible": "{plugin} 要求插件 API 版本为 {version}；当前 Noctalia 支持的 API 版本为 {oldest}–{current}。",
       "body-timeout": "{plugin} 安装耗时过长。",
       "title": "插件启用失败"
     }
@@ -1382,6 +1383,7 @@
         "delete-confirm-title": "删除“{name}”？",
         "deprecated": "已弃用",
         "empty": "未启用任何插件。",
+        "incompatible-plugin-api": "插件 API 不兼容",
         "loading": "正在加载插件…",
         "refreshing": "正在刷新插件…",
         "remove": "移除插件",
@@ -1398,7 +1400,7 @@
         "add": "添加源",
         "add-title": "添加插件源",
         "auto-update": "自动更新插件",
-        "auto-update-desc": "在后台检查已启用的源是否有新版本，并保持已安装的插件为最新版本",
+        "auto-update-desc": "在后台检查已启用的源是否有更新，并保持已安装的插件为最新版本",
         "edit": "编辑源",
         "edit-title": "编辑插件源",
         "empty": "未配置任何源。",
@@ -1782,6 +1784,14 @@
         "background-opacity": {
           "description": "Dock 的背景不透明度"
         },
+        "border": {
+          "description": "Dock 轮廓的颜色；也支持固定的十六进制颜色值",
+          "label": "边框"
+        },
+        "border-width": {
+          "description": "Dock 的内部轮廓宽度",
+          "label": "边框宽度"
+        },
         "concave-edge-corners": {
           "description": "在贴近屏幕边缘的一侧形成内凹圆角；要求“边缘边距”为 0",
           "label": "边缘内凹圆角"
@@ -2063,6 +2073,10 @@
         },
         "blacklist-allow-critical": {
           "description": "仍显示来自黑名单发送方的重要通知"
+        },
+        "border": {
+          "description": "在 Toast 通知周围绘制轮廓",
+          "label": "边框"
         },
         "collapse-on-dismiss": {
           "description": "关闭 Toast 通知时，其余通知会自动滑动填补间隙",
@@ -2592,6 +2606,10 @@
           "description": "OSD 弹窗的背景不透明度",
           "label": "背景不透明度"
         },
+        "osd-border": {
+          "description": "在 OSD 弹窗周围绘制轮廓",
+          "label": "边框"
+        },
         "osd-kinds-bluetooth": {
           "description": "切换蓝牙时显示 OSD 弹窗",
           "label": "蓝牙"
@@ -3080,6 +3098,10 @@
           "description": "空工作区的颜色；也支持固定的十六进制颜色值",
           "label": "空工作区颜色"
         },
+        "enable-scroll": {
+          "description": "允许在小组件上使用鼠标滚轮和触控板滚动操作",
+          "label": "启用滚动"
+        },
         "focused-color": {
           "description": "焦点工作区的颜色；也支持固定的十六进制颜色值",
           "label": "焦点工作区颜色"
@@ -3374,6 +3396,10 @@
           "description": "显示当前气温文本",
           "label": "显示气温"
         },
+        "show-vpn-label": {
+          "description": "在图标旁显示 VPN 标签而不是接口标签",
+          "label": "显示 VPN 标签"
+        },
         "show-when-idle": {
           "description": "未播放媒体时保持可视化显示",
           "label": "空闲时显示"
@@ -3418,6 +3444,10 @@
         "type": {
           "description": "具名小组件的内置类型",
           "label": "类型"
+        },
+        "urgent-color": {
+          "description": "紧急工作区的颜色；也支持固定的十六进制颜色值",
+          "label": "紧急工作区颜色"
         },
         "vertical-format": {
           "description": "可选的垂直状态栏格式",

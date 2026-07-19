@@ -211,17 +211,7 @@ namespace {
   }
 
   bool lessCaseInsensitive(std::string_view a, std::string_view b) {
-    const std::size_t minLen = std::min(a.size(), b.size());
-    for (std::size_t i = 0; i < minLen; ++i) {
-      const auto ac = static_cast<unsigned char>(a[i]);
-      const auto bc = static_cast<unsigned char>(b[i]);
-      const auto alc = static_cast<unsigned char>(std::tolower(ac));
-      const auto blc = static_cast<unsigned char>(std::tolower(bc));
-      if (alc != blc) {
-        return alc < blc;
-      }
-    }
-    return a.size() < b.size();
+    return StringUtils::naturalCaseInsensitiveLess(a, b);
   }
 
   std::string pickAlphabeticalWallpaperPath(

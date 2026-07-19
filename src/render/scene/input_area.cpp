@@ -14,6 +14,10 @@ namespace {
   // step deliberately rather than racing the finger.
   constexpr float kScrollUnitsPerStep = 20.0f;
 
+  bool isWheelSource(std::uint32_t axisSource) noexcept {
+    return axisSource == WL_POINTER_AXIS_SOURCE_WHEEL || axisSource == WL_POINTER_AXIS_SOURCE_WHEEL_TILT;
+  }
+
 } // namespace
 
 InputArea::InputArea() : Node(NodeType::Base) {}
@@ -34,7 +38,7 @@ std::uint32_t InputArea::buttonMask(std::uint32_t button) noexcept {
   if (index >= kMaxTrackedMouseButtons) {
     return 0;
   }
-  return 1u << index;
+  return 1U << index;
 }
 
 std::uint32_t InputArea::buttonMask(std::initializer_list<std::uint32_t> buttons) noexcept {
@@ -213,9 +217,13 @@ bool InputArea::dispatchAxis(
     return false;
   }
 
-  // Quantize scroll into whole detent steps. Wheel events carry detents in
-  // axisLines and cross the threshold immediately; continuous sources
+  // Quantize scroll into whole detent steps. Wheel sources are capped at one
+  // step per frame: a ratcheted wheel emits one frame per notch, so the notch
+  // the user feels stays one step even when the compositor scales the delta
+  // (niri's scroll-factor), while free-spinning hi-res wheels emit sub-detent
+  // frames that must first accrue to a full detent. Continuous sources
   // (touchpads) accrue axisValue until a detent-equivalent is reached.
+  // Scrolling content stays on scrollDelta() and keeps the scaling.
   float axisSteps = 0.0f;
   if (axis < m_scrollStepAccum.size()) {
     float& accum = m_scrollStepAccum[axis];
@@ -226,6 +234,9 @@ bool InputArea::dispatchAxis(
     accum += detentDelta;
     axisSteps = std::trunc(accum);
     accum -= axisSteps;
+    if (isWheelSource(axisSource)) {
+      axisSteps = std::clamp(axisSteps, -1.0f, 1.0f);
+    }
   }
 
   return m_onAxis(

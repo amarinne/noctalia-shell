@@ -25,8 +25,8 @@ namespace {
 
   constexpr std::size_t kMinHistoryMaxEntries = static_cast<std::size_t>(noctalia::config::kClipboardHistoryMinEntries);
   constexpr std::size_t kMaxHistoryMaxEntries = static_cast<std::size_t>(noctalia::config::kClipboardHistoryMaxEntries);
-  constexpr std::size_t kMaxHistoryBytes = 64u * 1024u * 1024u;
-  constexpr std::size_t kMaxEntryBytes = 10u * 1024u * 1024u;
+  constexpr std::size_t kMaxHistoryBytes = 64U * 1024U * 1024U;
+  constexpr std::size_t kMaxEntryBytes = 10U * 1024U * 1024U;
   constexpr std::size_t kPreviewBytes = 200;
 
   constexpr std::array kTextMimeTypes = {
@@ -103,7 +103,7 @@ namespace {
   }
 
   void* bindExtManager(wl_registry* registry, std::uint32_t name, std::uint32_t version) {
-    const auto bindVersion = std::min(version, 1u);
+    const auto bindVersion = std::min(version, 1U);
     return wl_registry_bind(registry, name, &ext_data_control_manager_v1_interface, bindVersion);
   }
 
@@ -167,7 +167,7 @@ namespace {
   }
 
   void* bindWlrManager(wl_registry* registry, std::uint32_t name, std::uint32_t version) {
-    const auto bindVersion = std::min(version, 2u);
+    const auto bindVersion = std::min(version, 2U);
     return wl_registry_bind(registry, name, &zwlr_data_control_manager_v1_interface, bindVersion);
   }
 

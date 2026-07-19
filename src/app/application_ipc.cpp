@@ -80,6 +80,7 @@
 #include "system/brightness_service.h"
 #include "system/distro_info.h"
 #include "system/easyeffects_service.h"
+#include "system/keyboard_backlight_service.h"
 #include "system/system_monitor_service.h"
 #include "ui/app_icon_colorization.h"
 #include "ui/controls/input.h"
@@ -544,6 +545,25 @@ void Application::initIpc() {
       m_brightnessOsd.suppressFor(std::chrono::milliseconds(250));
     });
   }
+  if (m_keyboardBacklightService != nullptr) {
+    m_keyboardBacklightService->registerIpc(m_ipcService);
+  }
+  m_ipcService.registerHandler(
+      "keyboard-backlight-osd",
+      [this](const std::string& args) -> std::string {
+        const auto parts = noctalia::ipc::splitWords(args);
+        if (parts.size() != 1) {
+          return "error: keyboard-backlight-osd requires <value>\n";
+        }
+        const auto value = noctalia::ipc::parseNormalizedOrPercent(parts[0]);
+        if (!value.has_value()) {
+          return "error: invalid keyboard backlight value (use percent like 65 or 65%, or normalized like 0.65)\n";
+        }
+        m_keyboardBacklightOsd.showValue(*value);
+        return "ok\n";
+      },
+      "keyboard-backlight-osd <value>", "Show keyboard backlight OSD without changing brightness"
+  );
   m_ipcService.registerHandler(
       "brightness-osd",
       [this](const std::string& args) -> std::string {
@@ -577,7 +597,9 @@ void Application::initIpc() {
         const std::string& cmd = parts[0];
         if (cmd == "list") {
           std::string out;
-          for (const auto& s : m_pluginManager.list()) {
+          // Local-only: IPC handlers run on the main loop, so the listing must never
+          // clone or lazy-fetch; it reflects the last-fetched local catalog.
+          for (const auto& s : m_pluginManager.list(scripting::CatalogAccess::LocalOnly)) {
             const std::string dependencies =
                 s.dependencies.empty() ? std::string{} : " requires " + StringUtils::join(s.dependencies, ", ");
             out += std::format(

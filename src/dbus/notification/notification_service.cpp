@@ -24,14 +24,14 @@ namespace {
   const sdbus::ObjectPath kDbusObjectPath{"/org/freedesktop/DBus"};
   constexpr auto kDbusInterface = "org.freedesktop.DBus";
 
-  constexpr uint32_t kNameFlagAllowReplacement = 1u;
-  constexpr uint32_t kNameFlagReplaceExisting = 2u;
-  constexpr uint32_t kNameFlagDoNotQueue = 4u;
+  constexpr uint32_t kNameFlagAllowReplacement = 1U;
+  constexpr uint32_t kNameFlagReplaceExisting = 2U;
+  constexpr uint32_t kNameFlagDoNotQueue = 4U;
 
-  constexpr uint32_t kNameReplyPrimaryOwner = 1u;
-  constexpr uint32_t kNameReplyInQueue = 2u;
-  constexpr uint32_t kNameReplyExists = 3u;
-  constexpr uint32_t kNameReplyAlreadyOwner = 4u;
+  constexpr uint32_t kNameReplyPrimaryOwner = 1U;
+  constexpr uint32_t kNameReplyInQueue = 2U;
+  constexpr uint32_t kNameReplyExists = 3U;
+  constexpr uint32_t kNameReplyAlreadyOwner = 4U;
 
   [[nodiscard]] std::unique_ptr<sdbus::IProxy> dbusDaemonProxy(sdbus::IConnection& connection) {
     return sdbus::createProxy(connection, kDbusBusName, kDbusObjectPath);

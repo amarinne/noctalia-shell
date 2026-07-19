@@ -6,13 +6,13 @@
 #include "shell/bar/widgets/active_window_widget.h"
 #include "shell/bar/widgets/audio_visualizer_widget.h"
 #include "shell/bar/widgets/battery_widget.h"
+#include "shell/bar/widgets/battery_widget_definition.h"
 #include "shell/bar/widgets/bluetooth_widget.h"
 #include "shell/bar/widgets/brightness_widget.h"
 #include "shell/bar/widgets/clipboard_widget.h"
 #include "shell/bar/widgets/clock_widget.h"
 #include "shell/bar/widgets/control_center_widget.h"
 #include "shell/bar/widgets/custom_button_widget.h"
-#include "system/battery_warning_monitor.h"
 #ifndef NDEBUG
 #include "shell/bar/widgets/debug_indicator_widget.h"
 #endif
@@ -52,6 +52,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <format>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -59,6 +60,12 @@
 
 namespace {
   constexpr Logger kLog("shell");
+
+  template <typename T, typename... Args> std::unique_ptr<Widget> createWidget(float contentScale, Args&&... args) {
+    auto widget = std::make_unique<T>(std::forward<Args>(args)...);
+    widget->setContentScale(contentScale);
+    return widget;
+  }
 
   ActiveWindowTitleScrollMode parseActiveWindowTitleScrollMode(std::string_view value) {
     if (value == "always") {
@@ -178,26 +185,13 @@ std::unique_ptr<Widget> WidgetFactory::create(
   }
 
   if (type == "battery") {
-    const std::string deviceSelector = wc != nullptr ? wc->getString("device", "auto") : std::string("auto");
-    const int warningThreshold = batteryWarningThresholdForSelector(m_config.battery, m_upower, deviceSelector);
-    const ColorSpec warningColor = wc != nullptr
-        ? wc->getColorSpec("warning_color", colorSpecFromRole(ColorRole::Error), "widget." + name + ".warning_color")
-        : colorSpecFromRole(ColorRole::Error);
-    const std::string displayModeStr = wc != nullptr ? wc->getString("display_mode", "glyph") : std::string("glyph");
-    const bool showLabel = wc != nullptr ? wc->getBool("show_label", true) : true;
-    const bool hideWhenPlugged = wc != nullptr ? wc->getBool("hide_when_plugged", false) : false;
-    const bool hideWhenFull = wc != nullptr ? wc->getBool("hide_when_full", false) : false;
-    BatteryDisplayMode displayMode = BatteryDisplayMode::Glyph;
-    if (displayModeStr == "graphic") {
-      displayMode = BatteryDisplayMode::Graphic;
-    } else if (displayModeStr != "glyph") {
-      kLog.warn("invalid widget.{}.display_mode '{}'; expected glyph or graphic", name, displayModeStr);
-    }
-    auto widget = std::make_unique<BatteryWidget>(
-        m_upower, deviceSelector, warningThreshold, warningColor, displayMode, showLabel, hideWhenPlugged, hideWhenFull
+    return createWidget<BatteryWidget>(
+        contentScale, m_upower,
+        batteryWidgetDefinition().resolve(
+            wc, std::format("widget.{}", name),
+            BatteryWidgetDefinitionContext{.batteryConfig = &m_config.battery, .upower = m_upower}
+        )
     );
-    widget->setContentScale(contentScale);
-    return widget;
   }
 
   if (type == "bluetooth") {
@@ -210,9 +204,10 @@ std::unique_ptr<Widget> WidgetFactory::create(
 
   if (type == "brightness") {
     const bool showLabel = wc != nullptr ? wc->getBool("show_label", true) : true;
+    const bool enableScroll = wc != nullptr ? wc->getBool("enable_scroll", true) : true;
     const int scrollStep =
         static_cast<int>(std::clamp<std::int64_t>(wc != nullptr ? wc->getInt("scroll_step", 5) : 5, 1, 25));
-    auto widget = std::make_unique<BrightnessWidget>(m_brightness, output, showLabel, scrollStep);
+    auto widget = std::make_unique<BrightnessWidget>(m_brightness, output, showLabel, scrollStep, enableScroll);
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -266,6 +261,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .middleCommand = trimSetting("middle_command"),
         .scrollUpCommand = trimSetting("scroll_up_command"),
         .scrollDownCommand = trimSetting("scroll_down_command"),
+        .enableScroll = wc != nullptr ? wc->getBool("enable_scroll", true) : true,
         .customImage = customImageFor(wc),
     });
     widget->setContentScale(contentScale);
@@ -365,7 +361,8 @@ std::unique_ptr<Widget> WidgetFactory::create(
   }
 
   if (type == "power_profile") {
-    auto widget = std::make_unique<PowerProfileWidget>(m_powerProfiles);
+    const bool enableScroll = wc != nullptr ? wc->getBool("enable_scroll", true) : true;
+    auto widget = std::make_unique<PowerProfileWidget>(m_powerProfiles, enableScroll);
     widget->setContentScale(contentScale);
     return widget;
   }
@@ -418,7 +415,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
             .audioSpectrum = m_audioSpectrum,
             .mpris = m_mpris,
         },
-        barName, outputName
+        barName, outputName, wc != nullptr ? wc->getBool("enable_scroll", true) : true
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -433,8 +430,8 @@ std::unique_ptr<Widget> WidgetFactory::create(
       barGlyph = "screenshot";
     }
     auto widget = std::make_unique<ScreenshotWidget>(
-        output, std::move(barGlyph), *m_screenshots, m_configService, m_platform, *m_renderContext,
-        m_configService.config().shell.shadow, barPosition, customImageFor(wc)
+        output, std::move(barGlyph), *m_screenshots, m_configService, m_platform, *m_renderContext, barPosition,
+        customImageFor(wc)
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -552,6 +549,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .focusedOutputOnly = wc != nullptr ? wc->getBool("focused_output_only", false) : false,
         .minimal = wc != nullptr ? wc->getBool("minimal", false) : false,
         .groupSingleIconPerApp = wc != nullptr ? wc->getBool("group_single_icon_per_app", false) : false,
+        .enableScroll = wc != nullptr ? wc->getBool("enable_scroll", true) : true,
         .showActiveIndicator = wc != nullptr ? wc->getBool("show_active_indicator", true) : true,
         .activeOpacity = wc != nullptr ? static_cast<float>(wc->getDouble("active_opacity", 1.0)) : 1.0f,
         .inactiveOpacity = wc != nullptr ? static_cast<float>(wc->getDouble("inactive_opacity", 1.0)) : 1.0f,
@@ -570,13 +568,15 @@ std::unique_ptr<Widget> WidgetFactory::create(
                   "empty_color", colorSpecFromRole(ColorRole::Secondary), "widget." + name + ".empty_color"
               )
             : colorSpecFromRole(ColorRole::Secondary),
+        .urgentColor = wc != nullptr
+            ? wc->getColorSpec("urgent_color", colorSpecFromRole(ColorRole::Error), "widget." + name + ".urgent_color")
+            : colorSpecFromRole(ColorRole::Error),
         .showWindowTitle = wc != nullptr ? wc->getBool("show_window_title", false) : false,
         .windowTitleMaxWidth =
             static_cast<float>(wc != nullptr ? wc->getDouble("window_title_max_width", 100.0) : 100.0),
         .taskbarMaxWidth = static_cast<float>(wc != nullptr ? wc->getDouble("taskbar_max_width", 8192.0) : 8192.0),
         .barPosition = barPosition,
         .barName = barName,
-        .shadowConfig = m_config.shell.shadow,
     };
     if (wc != nullptr) {
       const std::string placement = wc->getString("workspace_label_placement", "corner");
@@ -618,6 +618,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
 
   if (type == "volume") {
     const bool showLabel = wc != nullptr ? wc->getBool("show_label", true) : true;
+    const bool enableScroll = wc != nullptr ? wc->getBool("enable_scroll", true) : true;
     const int scrollStep =
         static_cast<int>(std::clamp<std::int64_t>(wc != nullptr ? wc->getInt("scroll_step", 5) : 5, 1, 25));
     const std::string target = wc != nullptr ? wc->getString("device", "output") : std::string("output");
@@ -627,9 +628,12 @@ std::unique_ptr<Widget> WidgetFactory::create(
         : colorSpecFromRole(ColorRole::Error);
     std::string glyphOverride = wc != nullptr ? wc->getString("glyph", "") : std::string{};
     std::string muteGlyphOverride = wc != nullptr ? wc->getString("mute_glyph", "") : std::string{};
+    auto effectsProfileGlyphs =
+        wc != nullptr ? wc->getStringMap("effects_profile_glyphs") : std::unordered_map<std::string, std::string>{};
     auto widget = std::make_unique<VolumeWidget>(
         m_audio, m_easyEffects, &m_config, output, showLabel, volumeTarget, scrollStep, muteColor,
-        std::move(glyphOverride), std::move(muteGlyphOverride), customImageFor(wc)
+        std::move(glyphOverride), std::move(muteGlyphOverride), std::move(effectsProfileGlyphs), customImageFor(wc),
+        enableScroll
     );
     widget->setContentScale(contentScale);
     return widget;
@@ -667,6 +671,9 @@ std::unique_ptr<Widget> WidgetFactory::create(
     const ColorSpec emptyColor = wc != nullptr
         ? wc->getColorSpec("empty_color", colorSpecFromRole(ColorRole::Secondary), "widget." + name + ".empty_color")
         : colorSpecFromRole(ColorRole::Secondary);
+    const ColorSpec urgentColor = wc != nullptr
+        ? wc->getColorSpec("urgent_color", colorSpecFromRole(ColorRole::Error), "widget." + name + ".urgent_color")
+        : colorSpecFromRole(ColorRole::Error);
     WorkspacesWidget::DisplayMode displayMode = WorkspacesWidget::DisplayMode::Id;
     if (display == "id") {
       displayMode = WorkspacesWidget::DisplayMode::Id;
@@ -685,6 +692,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .focusedColor = focusedColor,
         .occupiedColor = occupiedColor,
         .emptyColor = emptyColor,
+        .urgentColor = urgentColor,
         .maxLabelChars = maxLabelChars,
         .labelsOnlyWhenOccupied = wc != nullptr ? wc->getBool("labels_only_when_occupied", false) : false,
         .hideWhenEmpty = wc != nullptr ? wc->getBool("hide_when_empty", false) : false,
@@ -694,6 +702,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
         .minimal = workspaceStyle == "minimal",
         .focusedPill = workspaceStyle == "focus_hint",
         .focusedOutputOnly = wc != nullptr ? wc->getBool("focused_output_only", false) : false,
+        .enableScroll = wc != nullptr ? wc->getBool("enable_scroll", true) : true,
     };
     auto widget = std::make_unique<WorkspacesWidget>(m_platform, m_configService, output, options);
     widget->setContentScale(contentScale);

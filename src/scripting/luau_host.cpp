@@ -57,6 +57,7 @@ namespace {
   constexpr int kMaxGlobalDetachedCommands = 32;
   constexpr std::size_t kMaxAsyncHttpPerHost = 8;
   constexpr std::size_t kMaxStreamsPerHost = 4;
+  constexpr std::size_t kMaxHttpStreamsPerHost = 4;
   // A single stream line can't exceed this; protects against a process spewing one
   // unbounded line with no newline.
   constexpr std::size_t kMaxStreamLineBytes = 64 * 1024;
@@ -902,23 +903,15 @@ namespace {
     return out;
   }
 
-  int luau_http(lua_State* L) {
-    luaL_checktype(L, 1, LUA_TTABLE);
-    luaL_checktype(L, 2, LUA_TFUNCTION);
-    auto* host = hostForState(L);
-    if (host == nullptr) {
-      lua_pushboolean(L, 0);
-      return 1;
-    }
-
+  HttpRequest httpRequestFromTable(lua_State* L, int tableIdx) {
     HttpRequest request;
-    request.url = reqStringField(L, 1, "url");
-    request.method = reqStringField(L, 1, "method", "GET");
-    request.body = reqStringField(L, 1, "body");
-    request.basicUsername = reqStringField(L, 1, "basic_username");
-    request.basicPassword = reqStringField(L, 1, "basic_password");
-    request.followRedirects = reqBoolField(L, 1, "follow_redirects", false);
-    lua_getfield(L, 1, "headers");
+    request.url = reqStringField(L, tableIdx, "url");
+    request.method = reqStringField(L, tableIdx, "method", "GET");
+    request.body = reqStringField(L, tableIdx, "body");
+    request.basicUsername = reqStringField(L, tableIdx, "basic_username");
+    request.basicPassword = reqStringField(L, tableIdx, "basic_password");
+    request.followRedirects = reqBoolField(L, tableIdx, "follow_redirects", false);
+    lua_getfield(L, tableIdx, "headers");
     if (lua_istable(L, -1)) {
       const int headersIdx = lua_gettop(L);
       const int count = lua_objlen(L, headersIdx);
@@ -931,7 +924,19 @@ namespace {
       }
     }
     lua_pop(L, 1);
+    return request;
+  }
 
+  int luau_http(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    luaL_checktype(L, 2, LUA_TFUNCTION);
+    auto* host = hostForState(L);
+    if (host == nullptr) {
+      lua_pushboolean(L, 0);
+      return 1;
+    }
+
+    HttpRequest request = httpRequestFromTable(L, 1);
     if (request.url.empty()) {
       lua_pushboolean(L, 0);
       return 1;
@@ -943,6 +948,46 @@ namespace {
       lua_unref(L, callbackRef);
     }
     lua_pushboolean(L, ok ? 1 : 0);
+    return 1;
+  }
+
+  int luau_httpStreamStop(lua_State* L) {
+    if (auto* host = hostForState(L)) {
+      host->stopHttpStream(lua_tointeger(L, lua_upvalueindex(1)));
+    }
+    return 0;
+  }
+
+  int luau_httpStream(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    luaL_checktype(L, 2, LUA_TFUNCTION);
+    luaL_checktype(L, 3, LUA_TFUNCTION);
+    auto* host = hostForState(L);
+    if (host == nullptr) {
+      lua_pushnil(L);
+      return 1;
+    }
+
+    HttpRequest request = httpRequestFromTable(L, 1);
+    if (request.url.empty()) {
+      lua_pushnil(L);
+      return 1;
+    }
+
+    const int lineRef = lua_ref(L, 2);
+    const int closeRef = lua_ref(L, 3);
+    const int streamKey = host->startHttpStream(std::move(request), lineRef, closeRef);
+    if (streamKey == 0) {
+      lua_unref(L, lineRef);
+      lua_unref(L, closeRef);
+      lua_pushnil(L);
+      return 1;
+    }
+
+    lua_createtable(L, 0, 1);
+    lua_pushinteger(L, streamKey);
+    lua_pushcclosure(L, luau_httpStreamStop, "httpStreamStop", 1);
+    lua_setfield(L, -2, "stop");
     return 1;
   }
 
@@ -1261,6 +1306,7 @@ namespace {
       {"tr", luau_tr},
       {"trp", luau_trp},
       {"http", luau_http},
+      {"httpStream", luau_httpStream},
       {"download", luau_download},
       {"openColorPicker", luau_openColorPicker},
       {"fuzzyScore", luau_fuzzyScore},
@@ -1333,8 +1379,10 @@ LuauHost::LuauHost(scripting::ScriptApiContext& api, CompositorPlatform* platfor
 }
 
 LuauHost::~LuauHost() {
-  // Terminate any long-lived stream subprocesses before tearing down the state.
+  // Terminate any long-lived stream subprocesses and HTTP streams before tearing
+  // down the state.
   stopAllStreams();
+  stopAllHttpStreams();
   if (m_L) {
     if (m_T != nullptr) {
       for (int callbackRef : m_asyncCommandCallbackRefs) {
@@ -1693,6 +1741,148 @@ void LuauHost::stopAllStreams() noexcept {
     }
   }
   m_streamCancels.clear();
+}
+
+int LuauHost::startHttpStream(HttpRequest request, int lineRef, int closeRef) {
+  if (m_httpClient == nullptr
+      || lineRef <= LUA_REFNIL
+      || closeRef <= LUA_REFNIL
+      || m_httpStreams.size() >= kMaxHttpStreamsPerHost) {
+    return 0;
+  }
+  auto handler = m_httpStreamEventHandler;
+  if (!handler) {
+    return 0;
+  }
+
+  const int streamKey = lineRef;
+  auto control = std::make_shared<HttpStreamControl>();
+  m_httpStreams.emplace(streamKey, HttpStreamRecord{lineRef, closeRef, control});
+
+  const std::uint64_t hostId = m_hostId;
+  auto buffer = std::make_shared<std::string>();
+
+  // HttpClient must be driven from the main loop; marshal there. The chunk/close
+  // lambdas run on the main loop and forward through the handler, which enqueues
+  // onto the runtime thread. Line splitting mirrors runStream.
+  DeferredCall::callLater([client = m_httpClient, request = std::move(request), handler = std::move(handler), hostId,
+                           streamKey, control, buffer]() mutable {
+    if (control->cancelled.load(std::memory_order_relaxed)) {
+      return;
+    }
+    auto onData = [handler, hostId, streamKey, control, buffer](std::string_view chunk) {
+      if (control->cancelled.load(std::memory_order_relaxed)) {
+        return;
+      }
+      buffer->append(chunk);
+      std::size_t pos = 0;
+      while ((pos = buffer->find('\n')) != std::string::npos) {
+        std::string line = buffer->substr(0, pos);
+        buffer->erase(0, pos + 1);
+        if (!line.empty() && line.back() == '\r') {
+          line.pop_back();
+        }
+        handler(hostId, streamKey, false, std::move(line), false, 0);
+      }
+      if (buffer->size() > kMaxStreamLineBytes) {
+        buffer->clear(); // drop a pathological unbounded line
+      }
+    };
+    auto onClose = [handler, hostId, streamKey, control](HttpStreamResult result) {
+      if (control->cancelled.load(std::memory_order_relaxed)) {
+        return;
+      }
+      handler(hostId, streamKey, true, std::string(), result.transportOk, static_cast<int>(result.status));
+    };
+    const auto id = client->startStream(std::move(request), std::move(onData), std::move(onClose));
+    control->clientStreamId.store(id, std::memory_order_relaxed);
+    if (id != 0 && control->cancelled.load(std::memory_order_relaxed)) {
+      client->cancelStream(id); // a stop raced stream startup
+    }
+  });
+  return streamKey;
+}
+
+void LuauHost::stopHttpStream(int streamKey) {
+  const auto it = m_httpStreams.find(streamKey);
+  if (it == m_httpStreams.end()) {
+    return;
+  }
+  const HttpStreamRecord record = it->second;
+  m_httpStreams.erase(it);
+  if (m_T != nullptr) {
+    lua_unref(m_T, record.lineRef);
+    lua_unref(m_T, record.closeRef);
+  }
+  if (record.control) {
+    record.control->cancelled.store(true, std::memory_order_relaxed);
+    DeferredCall::callLater([client = m_httpClient, control = record.control]() {
+      const auto id = control->clientStreamId.load(std::memory_order_relaxed);
+      if (id != 0 && client != nullptr) {
+        client->cancelStream(id);
+      }
+    });
+  }
+}
+
+bool LuauHost::callHttpStreamLineCallback(int streamKey, const std::string& line, std::chrono::milliseconds budget) {
+  const auto it = m_httpStreams.find(streamKey);
+  if (m_T == nullptr || it == m_httpStreams.end()) {
+    return false;
+  }
+  // Line callbacks fire repeatedly; the refs are released when the stream closes
+  // or is stopped.
+  lua_getref(m_T, it->second.lineRef);
+  if (!lua_isfunction(m_T, -1)) {
+    lua_pop(m_T, 1);
+    return false;
+  }
+  lua_pushlstring(m_T, line.data(), line.size());
+  return callWithBudget("http stream callback", 1, 0, budget);
+}
+
+bool LuauHost::callHttpStreamCloseCallback(int streamKey, bool ok, int status, std::chrono::milliseconds budget) {
+  const auto it = m_httpStreams.find(streamKey);
+  if (m_T == nullptr || it == m_httpStreams.end()) {
+    return false;
+  }
+  const HttpStreamRecord record = it->second;
+  m_httpStreams.erase(it);
+
+  lua_getref(m_T, record.closeRef);
+  lua_unref(m_T, record.lineRef);
+  lua_unref(m_T, record.closeRef);
+  if (!lua_isfunction(m_T, -1)) {
+    lua_pop(m_T, 1);
+    return false;
+  }
+
+  lua_createtable(m_T, 0, 2);
+  setTableBool(m_T, "ok", ok);
+  setTableInteger(m_T, "status", status);
+  return callWithBudget("http stream close callback", 1, 0, budget);
+}
+
+bool LuauHost::hasHttpStream(int streamKey) const { return m_httpStreams.contains(streamKey); }
+
+void LuauHost::stopAllHttpStreams() noexcept {
+  for (const auto& [streamKey, record] : m_httpStreams) {
+    if (m_T != nullptr) {
+      lua_unref(m_T, record.lineRef);
+      lua_unref(m_T, record.closeRef);
+    }
+    if (!record.control) {
+      continue;
+    }
+    record.control->cancelled.store(true, std::memory_order_relaxed);
+    DeferredCall::callLater([client = m_httpClient, control = record.control]() {
+      const auto id = control->clientStreamId.load(std::memory_order_relaxed);
+      if (id != 0 && client != nullptr) {
+        client->cancelStream(id);
+      }
+    });
+  }
+  m_httpStreams.clear();
 }
 
 bool LuauHost::callStateWatchCallback(int callbackRef, const std::string& json, std::chrono::milliseconds budget) {

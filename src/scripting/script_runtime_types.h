@@ -171,6 +171,8 @@ namespace scripting {
     ColorPickerResult,
     StateWatchResult,
     StreamLine,
+    HttpStreamLine,
+    HttpStreamClosed,
     SettingsChanged,
     Stop,
   };
@@ -190,7 +192,7 @@ namespace scripting {
     std::string functionName;
     std::string chunkName;
     std::string source;
-    // StreamLine payload.
+    // StreamLine / HttpStreamLine payload.
     std::string first;
     // CallArgs payload: the callback's argument list, pushed in order.
     ScriptArgs args;
@@ -205,7 +207,7 @@ namespace scripting {
     bool droppable = false;
     int callbackRef = 0;
     process::RunResult commandResult;
-    // AsyncHttpResult payload.
+    // AsyncHttpResult / HttpStreamClosed payload.
     bool httpOk = false;
     bool httpIsDownload = false;
     int httpStatus = 0;

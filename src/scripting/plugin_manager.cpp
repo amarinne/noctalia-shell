@@ -304,14 +304,13 @@ namespace scripting {
     PluginSourceConfig localSource{
         .kind = PluginSourceKind::Path, .name = "local", .location = (std::filesystem::path(data) / "plugins").string()
     };
-    for (const auto& entry : discoverCatalog(localSource).entries) {
+    for (const auto& entry : discoverCatalog(localSource, CatalogAccess::LocalOnly).entries) {
       ids.insert(entry.id);
     }
     return ids;
   }
 
-  bool PluginManager::ensureEnabledMaterialized(const PluginsConfig& plugins) const {
-    bool materialized = false;
+  void PluginManager::ensureEnabledMaterialized(const PluginsConfig& plugins) const {
     std::error_code ec;
     for (const auto& source : plugins.sources) {
       if (source.kind != PluginSourceKind::Git || !source.enabled) {
@@ -321,21 +320,16 @@ namespace scripting {
       if (repoRoot.empty()) {
         continue;
       }
-      if (std::filesystem::exists(repoRoot / ".git", ec)) {
-        // Repo already present: materialize from local git data only — no network.
-        auto sourceLock = plugin_source_locks::acquire(source.name);
-        if (materializeEnabledFromRepo(source, repoRoot, plugins.enabled)) {
-          materialized = true;
-        }
-        continue;
+      // Even with the repo present, catalog reads and exports lazy-fetch blobs from the
+      // blobless clone (network-bound), so reconciliation always runs off the main
+      // thread; the registry rescan + bar rebuild marshal back when an export lands.
+      const bool cloneFirst = !std::filesystem::exists(repoRoot / ".git", ec);
+      if (cloneFirst) {
+        // Source repo is gone (state dir wiped) or its first clone never completed.
+        std::filesystem::create_directories(repoRoot.parent_path(), ec);
       }
-      // Source repo is gone (state dir wiped) or its first clone never completed
-      // (DNS/proxy hang). Re-clone + materialize off the main thread so startup never
-      // blocks on the network; the bar rebuilds via m_onChanged when the export lands.
-      std::filesystem::create_directories(repoRoot.parent_path(), ec);
-      spawnCloneAndMaterialize(source, repoRoot, plugins.enabled);
+      spawnMaterializeEnabled(source, repoRoot, plugins.enabled, cloneFirst);
     }
-    return materialized;
   }
 
   bool PluginManager::materializeEnabledFromRepo(
@@ -389,28 +383,32 @@ namespace scripting {
     return materialized;
   }
 
-  void PluginManager::spawnCloneAndMaterialize(
-      PluginSourceConfig source, std::filesystem::path repoRoot, std::vector<std::string> enabled
+  void PluginManager::spawnMaterializeEnabled(
+      PluginSourceConfig source, std::filesystem::path repoRoot, std::vector<std::string> enabled, bool cloneFirst
   ) const {
     // `this` is an Application member and outlives the worker; the registry rescan and
     // bar rebuild marshal back to the main thread via DeferredCall.
-    std::thread([this, source = std::move(source), repoRoot = std::move(repoRoot),
-                 enabled = std::move(enabled)]() mutable {
+    std::thread([this, source = std::move(source), repoRoot = std::move(repoRoot), enabled = std::move(enabled),
+                 cloneFirst]() mutable {
       auto sourceLock = plugin_source_locks::acquire(source.name);
-      kLog.info("re-cloning missing plugin source '{}'", source.name);
-      const auto cloned = plugin_git::cloneBlobless(source.location, repoRoot);
-      if (!cloned) {
-        if (cloned.timedOut) {
-          kLog.warn("plugin source '{}': clone timed out", source.name);
-        } else {
-          kLog.warn("plugin source '{}': clone failed with exit code {}", source.name, cloned.exitCode);
+      if (cloneFirst) {
+        kLog.info("re-cloning missing plugin source '{}'", source.name);
+        const auto cloned = plugin_git::cloneBlobless(source.location, repoRoot);
+        if (!cloned) {
+          if (cloned.timedOut) {
+            kLog.warn("plugin source '{}': clone timed out", source.name);
+          } else {
+            kLog.warn("plugin source '{}': clone failed with exit code {}", source.name, cloned.exitCode);
+          }
+          return; // offline / unreachable — list/enable will retry
         }
-        return; // offline / unreachable — list/enable will retry
       }
-      const bool materialized = materializeEnabledFromRepo(source, repoRoot, enabled);
-      DeferredCall::callLater([this, materialized]() {
+      if (!materializeEnabledFromRepo(source, repoRoot, enabled)) {
+        return; // nothing exported; the startup registry scan already reflects disk state
+      }
+      DeferredCall::callLater([this]() {
         PluginRegistry::instance().scan(); // pick up the freshly exported plugins
-        if (materialized && m_onChanged) {
+        if (m_onChanged) {
           m_onChanged(); // rebuild bar + reconcile services
         }
       });
@@ -465,7 +463,7 @@ namespace scripting {
         if (!source.enabled) {
           continue;
         }
-        const auto catalog = discoverCatalog(source);
+        const auto catalog = discoverCatalog(source, CatalogAccess::Network);
         if (std::ranges::any_of(catalog.entries, [&](const CatalogEntry& e) { return e.id == id; })) {
           offering = source;
           break;
@@ -580,9 +578,11 @@ namespace scripting {
     refresh();
   }
 
-  std::vector<PluginStatus> PluginManager::list() const { return list(m_config.config().plugins); }
+  std::vector<PluginStatus> PluginManager::list(CatalogAccess access) const {
+    return list(m_config.config().plugins, access);
+  }
 
-  std::vector<PluginStatus> PluginManager::list(const PluginsConfig& plugins) const {
+  std::vector<PluginStatus> PluginManager::list(const PluginsConfig& plugins, CatalogAccess access) const {
     const std::unordered_set<std::string> enabledSet(plugins.enabled.begin(), plugins.enabled.end());
 
     std::vector<PluginStatus> out;
@@ -648,14 +648,14 @@ namespace scripting {
           .name = "local",
           .location = (std::filesystem::path(data) / "plugins").string()
       };
-      collect("local", discoverCatalog(localSource), localSource);
+      collect("local", discoverCatalog(localSource, access), localSource);
     }
     // Reverse config order: a later user source outranks earlier ones and the defaults.
     for (const auto& source : std::views::reverse(plugins.sources)) {
       if (!source.enabled) {
         continue;
       }
-      collect(source.name, discoverCatalog(source), source);
+      collect(source.name, discoverCatalog(source, access), source);
     }
     return out;
   }
@@ -856,8 +856,11 @@ namespace scripting {
       sourceLock.emplace(plugin_source_locks::acquire(source->name));
     }
 
-    // Disable this source's plugins so no stale enabled ids linger.
-    for (const auto& entry : discoverCatalog(*source).entries) {
+    // Disable this source's plugins so no stale enabled ids linger. Local-only read:
+    // removal runs on the main thread, and enumerating a source just to delete it must
+    // not clone or lazy-fetch. A blob missing locally leaves its id enabled, same as
+    // removing while offline.
+    for (const auto& entry : discoverCatalog(*source, CatalogAccess::LocalOnly).entries) {
       m_config.setPluginEnabled(entry.id, false);
     }
     if (source->kind == PluginSourceKind::Git) {
