@@ -207,7 +207,7 @@ TaskbarWidget::TaskbarWidget(
     : m_platform(platform), m_configService(config), m_output(output), m_configOptions(std::move(options)),
       m_showAllOutputs(m_configOptions.showAllOutputs), m_dragDropCommand(m_configOptions.dragDropCommand),
       m_focusedOutputOnly(m_configOptions.focusedOutputOnly), m_minimal(m_configOptions.minimal),
-      m_enableScroll(m_configOptions.enableScroll), m_showActiveIndicator(m_configOptions.showActiveIndicator),
+      m_showActiveIndicator(m_configOptions.showActiveIndicator),
       m_activeOpacity(m_configOptions.activeOpacity), m_inactiveOpacity(m_configOptions.inactiveOpacity),
       m_pinnedOpacity(m_configOptions.pinnedOpacity), m_focusedColor(m_configOptions.focusedColor),
       m_occupiedColor(m_configOptions.occupiedColor), m_emptyColor(m_configOptions.emptyColor),
@@ -637,38 +637,8 @@ void TaskbarWidget::applyPinnedMerge(std::vector<TaskModel>& tasks) {
   tasks = std::move(merged);
 }
 
-bool TaskbarWidget::reservesMiddleClick(float sceneX, float sceneY) const noexcept {
-  Node* hit = Node::hitTest(root(), sceneX, sceneY);
-  while (hit != nullptr) {
-    if (auto* area = dynamic_cast<InputArea*>(hit); area != nullptr && area->acceptsButton(BTN_MIDDLE)) {
-      return true;
-    }
-    hit = hit->parent();
-  }
-  return false;
-}
-
 void TaskbarWidget::create() {
-  auto container = std::make_unique<InputArea>();
-  container->setOnAxisHandler([this](const InputArea::PointerData& data) {
-    if (!m_enableScroll) {
-      return false;
-    }
-    if (data.axis != WL_POINTER_AXIS_VERTICAL_SCROLL && data.axis != WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
-      return false;
-    }
-
-    const float steps = data.scrollSteps();
-    if (steps == 0.0f) {
-      return false;
-    }
-    if (m_groupByWorkspace) {
-      activateAdjacentWorkspace(steps > 0.0f ? 1 : -1);
-    } else {
-      activateAdjacentTask(steps > 0.0f ? 1 : -1);
-    }
-    return true;
-  });
+  auto container = ui::inputArea({});
 
   auto root = ui::row({
       .out = &m_root,
@@ -870,7 +840,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
 
   auto createTaskTile = [&](const TaskModel& task, std::vector<TaskModel> cycleCandidates = {},
                             std::string cycleKey = {}, std::size_t badgeCount = 1) {
-    auto area = std::make_unique<InputArea>();
+    auto area = ui::inputArea({});
     area->setFrameSize(tileWidthWithTitle, tileSize);
     float tileOpacity = task.active ? m_activeOpacity : m_inactiveOpacity;
     // Pinned-but-not-running tiles are launchers, dim them so they don't read as open apps.
@@ -1189,7 +1159,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
           std::ranges::any_of(tasks, [](const TaskModel* task) { return task != nullptr && task->active; });
       const float summaryOpacity = anyActive ? m_activeOpacity : m_inactiveOpacity;
 
-      auto area = std::make_unique<InputArea>();
+      auto area = ui::inputArea({});
       area->setOpacity(summaryOpacity);
       area->setAcceptedButtons(InputArea::buttonMask(BTN_LEFT));
       auto wsCopy = ws.workspace;
@@ -1470,7 +1440,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
 
       if (emptyWorkspace) {
         if (!inlineBadge || !m_showWorkspaceLabel) {
-          auto switcher = std::make_unique<InputArea>();
+          auto switcher = ui::inputArea({});
           switcher->setFrameSize(tileSize, tileSize);
           switcher->setAcceptedButtons(InputArea::buttonMask(BTN_LEFT));
           auto wsCopy = ws.workspace;
@@ -1716,6 +1686,10 @@ void TaskbarWidget::updateModels() {
 
   // Windows with no app id still get a task keyed by toplevel handle / window id.
   for (const auto& window : m_platform.windowsWithoutAppId(topFilter)) {
+    // Skip anonymous XWayland menu popups (no app id and no title to show).
+    if (window.title.empty()) {
+      continue;
+    }
     const auto handleKey = taskHandleKey(window);
     if (handleKey == 0 || !processedHandles.insert(handleKey).second) {
       continue;
@@ -2426,6 +2400,10 @@ void TaskbarWidget::updateModels() {
         if (!assignment.appId.empty() || assignment.windowId.empty()) {
           continue;
         }
+        // Same empty-title skip as the foreign-toplevel orphan path above.
+        if (assignment.title.empty()) {
+          continue;
+        }
         if (representedWindowIds.contains(assignment.windowId)) {
           continue;
         }
@@ -3117,6 +3095,14 @@ void TaskbarWidget::activateAdjacentWorkspace(int direction) {
 
   const auto& targetWs = workspaces[targetIndex];
   m_platform.activateWorkspace(workspaceHostOutput(targetWs), targetWs.workspace);
+}
+
+void TaskbarWidget::cycleAdjacent(int direction) {
+  if (m_groupByWorkspace) {
+    activateAdjacentWorkspace(direction);
+  } else {
+    activateAdjacentTask(direction);
+  }
 }
 
 void TaskbarWidget::activateAdjacentTask(int direction) {

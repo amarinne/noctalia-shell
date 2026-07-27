@@ -303,9 +303,9 @@ void Application::syncPolkitAgent() {
       return;
     }
     m_polkitIdleCloseTimer.stop();
-    // Open once the session asks for a response so preferredHeight includes the
-    // password field. BeginAuthentication alone still has responseRequired=false.
-    if (!m_polkitAgent->isResponseRequired() && !m_panelManager.isOpenPanel("polkit")) {
+    // BeginAuthentication alone has no prompt yet; show-info and request both do.
+    const bool hasContent = m_polkitAgent->isResponseRequired() || !m_polkitAgent->supplementaryMessage().empty();
+    if (!hasContent && !m_panelManager.isOpenPanel("polkit")) {
       return;
     }
     if (!m_panelManager.isOpenPanel("polkit")) {
@@ -334,6 +334,9 @@ void Application::syncClipboardService() {
   m_wayland.setClipboardService(&m_clipboardService);
   Input::setTextClipboard(&m_clipboardService);
   m_clipboardService.setHistoryRetentionEnabled(enabled);
+  // Taking the selection over when its owner exits belongs to that same live
+  // transport, so it follows its own setting rather than history retention.
+  m_clipboardService.setKeepFromClosedApps(m_configService.config().shell.clipboardKeepFromClosedApps);
   m_clipboardService.setMaxHistoryEntries(
       static_cast<std::size_t>(m_configService.config().shell.clipboardHistoryMaxEntries)
   );
@@ -402,6 +405,7 @@ void Application::initStyleThemeAndWayland() {
     Style::setInputBordersEnabled(m_configService.config().shell.inputBorders);
     Style::setPopupBordersEnabled(m_configService.config().shell.popupBorders);
     Style::setPopupShadowsEnabled(m_configService.config().shell.popupShadows);
+    Style::setCardBordersEnabled(m_configService.config().shell.cardBorders);
     lastCornerRadiusScale = corner;
     if (cornerChanged) {
       m_notificationToast.requestLayout();
@@ -511,6 +515,12 @@ void Application::initStyleThemeAndWayland() {
 
   // Let a plugin toggle one of its own panels.
   m_scriptApi.setTogglePanelHook([this](const std::string& panelId) { m_panelManager.togglePanel(panelId); });
+
+  m_scriptApi.setOpenPluginSettingsHook([this](const std::string& pluginId) {
+    if (!m_panelManager.openPluginSettings(pluginId)) {
+      kLog.warn("plugin openSettings ignored: \"{}\" has no settings", pluginId);
+    }
+  });
 
   m_themeService.setResolvedCallback([this, lastResolvedThemeMode = std::optional<std::string>{},
                                       syncScriptApiWallpaperDirectory](
@@ -1242,14 +1252,19 @@ void Application::initSessionBusServices() {
         m_bar.refresh();
         m_desktopWidgetsController.requestUpdate();
         m_mediaOsd.onMprisChanged(*m_mprisService);
+        if (m_lockScreen.isActive()) {
+          m_lockScreen.requestUpdate();
+        }
         if (shouldRefreshControlCenter()) {
           m_panelManager.refresh();
         }
       });
+      m_lockScreen.setLoginBoxServices(&m_sessionActionRunner, m_mprisService.get(), &m_weatherService, &m_httpClient);
       kLog.info("mpris discovery active");
     } catch (const std::exception& e) {
       kLog.warn("mpris disabled: {}", e.what());
       m_mprisService.reset();
+      m_lockScreen.setLoginBoxServices(&m_sessionActionRunner, nullptr, &m_weatherService, &m_httpClient);
       m_notificationManager.addInternal(
           "Noctalia", i18n::tr("notifications.internal.mpris-disabled"), e.what(), Urgency::Low
       );
@@ -1306,6 +1321,9 @@ void Application::initSessionBusServices() {
   m_weatherService.addChangeCallback([this, shouldRefreshControlCenter]() {
     m_bar.refresh();
     m_desktopWidgetsController.requestLayout();
+    if (m_lockScreen.isActive()) {
+      m_lockScreen.requestUpdate();
+    }
     if (shouldRefreshControlCenter()) {
       m_panelManager.refresh();
     }

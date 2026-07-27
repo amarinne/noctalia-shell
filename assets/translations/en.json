@@ -516,8 +516,11 @@
         "show-keyboard-layout": "Keyboard Layout",
         "show-label": "Show Label",
         "show-login-button": "Login Button",
+        "show-media": "Media",
         "show-password-hint": "Password Hint",
+        "show-session-buttons": "Session Buttons",
         "show-vpn-label": "Show VPN Label",
+        "show-weather": "Weather",
         "show-when-idle": "Show When Idle",
         "stat": "Stat",
         "stat-cpu-temp": "CPU Temp",
@@ -1023,6 +1026,8 @@
         "settings": {
           "empty": "No settings match the current filters.",
           "groups": {
+            "actions": "Actions",
+            "behavior": "Behavior",
             "grouping": "Grouping",
             "presentation": "Presentation",
             "runtime": "Runtime",
@@ -1137,6 +1142,7 @@
         "general": "General",
         "greeter": "Greeter",
         "grouping": "Grouping",
+        "history": "History",
         "home": "Home",
         "hot-corners": "Hot Corners",
         "idle": "Idle",
@@ -1396,7 +1402,7 @@
       "browse-store": "Browse Plugins",
       "panels": {
         "open-near-click": {
-          "description": "Position the panel near the bar widget that opened it; openings without a bar trigger are centered",
+          "description": "Position the panel near the bar widget that opened it when attached or floating with position auto",
           "label": "Along Bar"
         },
         "placement": {
@@ -1415,6 +1421,8 @@
         "delete-confirm-title": "Delete \"{name}\"?",
         "deprecated": "deprecated",
         "empty": "No enabled plugins.",
+        "held-back": "older version",
+        "held-back-hint": "v{version} needs plugin API {required}; this Noctalia supports up to {current}. Upgrade Noctalia to get it.",
         "incompatible-plugin-api": "incompatible plugin API",
         "loading": "Loading plugins…",
         "refreshing": "Refreshing plugins…",
@@ -1462,15 +1470,23 @@
         "categories": "Categories",
         "category-all": "All",
         "empty": "No plugins found",
+        "held-back": "Older version",
+        "held-back-hint": "Installs v{version} for plugin API {resolved}. The newest v{latest} needs plugin API {latestRequired}; this Noctalia supports up to {current}.",
         "incompatible": "Incompatible",
+        "incompatible-hint": "Needs plugin API {required}; this Noctalia supports {oldest}–{current}.",
         "loading": "Loading catalog…",
         "no-readme": "No description available.",
         "open-page": "Open plugin page on noctalia.dev",
         "open-source": "Open plugin source repository",
         "results-count": "{count} plugins",
         "search-placeholder": "Search plugins…",
-        "source-all": "All",
-        "sources": "Sources",
+        "sort-added-at-asc": "Sort by date added (oldest first)",
+        "sort-added-at-desc": "Sort by date added (newest first)",
+        "sort-name-asc": "Sort by name (A-Z)",
+        "sort-name-desc": "Sort by name (Z-A)",
+        "sort-updated-at-asc": "Sort by date updated (oldest first)",
+        "sort-updated-at-desc": "Sort by date updated (newest first)",
+        "source-all": "All sources",
         "title": "Plugin Store"
       }
     },
@@ -1505,6 +1521,10 @@
         "button-borders": {
           "description": "Draw outlines around buttons throughout the shell",
           "label": "Button Borders"
+        },
+        "card-borders": {
+          "description": "Draw outlines around section cards inside panels and the settings window",
+          "label": "Card Borders"
         },
         "community-palette": {
           "description": "Choose a palette from the community catalog",
@@ -1662,25 +1682,8 @@
         "corner-top-right": {
           "description": "Top right corner radius for the bar"
         },
-        "dead-zone-command": {
-          "description": "Shell command to run on left-click in the bar margin outside widget sections",
-          "label": "Left Click"
-        },
-        "dead-zone-middle-command": {
-          "description": "Shell command to run on middle-click in the bar margin outside widget sections",
-          "label": "Middle Click"
-        },
-        "dead-zone-right-command": {
-          "description": "Shell command to run on right-click; leave empty to open Control Center",
-          "label": "Right Click"
-        },
-        "dead-zone-scroll-down-command": {
-          "description": "Shell command to run when scrolling down",
-          "label": "Scroll Down"
-        },
-        "dead-zone-scroll-up-command": {
-          "description": "Shell command to run when scrolling up",
-          "label": "Scroll Up"
+        "dead-zone-action": {
+          "description": "Action run on the parts of the bar no widget covers; leave empty for the default"
         },
         "edge-margin": {
           "description": "Gap between the bar and the screen edge it sits on; set to 0 px to sit flush against that edge"
@@ -2144,6 +2147,10 @@
           "description": "Per-sender rules for toasts, history, and sounds; first matching enabled filter wins",
           "label": "Notification Filters"
         },
+        "history-retention-hours": {
+          "description": "Automatically remove notification history entries older than this many hours (0 to keep forever)",
+          "label": "Keep history for"
+        },
         "layer": {
           "description": "Use Overlay to show notification toasts above fullscreen apps",
           "label": "Wayland Layer"
@@ -2183,7 +2190,7 @@
       },
       "panels": {
         "borders": {
-          "description": "Draw an outline on panels and section cards inside panels",
+          "description": "Draw an outline on floating panels",
           "label": "Borders"
         },
         "control-center-sidebar": {
@@ -2209,6 +2216,10 @@
         "home-shortcuts": {
           "description": "Choose up to six shortcut buttons for the home tab",
           "label": "Home Shortcuts"
+        },
+        "home-shortcuts-show-labels": {
+          "description": "Display text labels under shortcut icons in the home tab",
+          "label": "Show Shortcut Labels"
         },
         "launcher-app-grid": {
           "description": "Show a grid of application icons with labels underneath when results are apps only",
@@ -2296,27 +2307,27 @@
           "label": "List Item Background"
         },
         "open-near-click-clipboard": {
-          "description": "Position the clipboard panel near the bar widget that opened it; openings without a bar trigger are centered",
+          "description": "Position the clipboard panel near the bar widget that opened it when attached or floating with position auto",
           "label": "Along Bar"
         },
         "open-near-click-control-center": {
-          "description": "Position Control Center near the bar widget that opened it; openings without a bar trigger are centered",
+          "description": "Position Control Center near the bar widget that opened it when attached or floating with position auto",
           "label": "Along Bar"
         },
         "open-near-click-launcher": {
-          "description": "Position the launcher near the bar widget that opened it; openings without a bar trigger are centered",
+          "description": "Position the launcher near the bar widget that opened it when attached or floating with position auto",
           "label": "Along Bar"
         },
         "open-near-click-session": {
-          "description": "Position the session panel near the bar widget that opened it; openings without a bar trigger are centered",
+          "description": "Position the session panel near the bar widget that opened it when attached or floating with position auto",
           "label": "Along Bar"
         },
         "open-near-click-wallpaper": {
-          "description": "Position the wallpaper picker near the bar widget that opened it; openings without a bar trigger are centered",
+          "description": "Position the wallpaper picker near the bar widget that opened it when attached or floating with position auto",
           "label": "Along Bar"
         },
         "panel-anchor-bar": {
-          "description": "Which bar panels attach to when opened from a shortcut or the dock. Leave empty to follow the widget that opened them",
+          "description": "Bar panels attach to when opened. Leave empty to follow the widget, shortcut, or dock that opened them",
           "label": "Anchor Bar"
         },
         "placement-clipboard": {
@@ -2677,6 +2688,10 @@
           "label": "Image Action Command",
           "placeholder": "gimp {path} or satty -f -"
         },
+        "clipboard-keep-from-closed-apps": {
+          "description": "Keep the last copied item available to paste after the application you copied it from closes",
+          "label": "Keep Clipboard From Closed Apps"
+        },
         "clipboard-storage": {
           "button": "Retry",
           "description-cancelled": "The Secret Service prompt was cancelled. Clipboard history remains available for this session only.",
@@ -2714,10 +2729,6 @@
           "description": "Wraps apps launched from the launcher, dock, and taskbar; substitutes $CMD with the original command",
           "label": "Custom App Launch Command",
           "placeholder": "$CMD"
-        },
-        "middle-click-opens-widget-settings": {
-          "description": "Open a bar widget's settings from the bar with middle click",
-          "label": "Middle Click Opens Widget Settings"
         },
         "niri-overview-type-to-launch": {
           "description": "Open the launcher when typing in niri overview; uses a tiny keyboard-focus surface while overview is open",
@@ -2929,7 +2940,7 @@
           "label": "Built-In Templates"
         },
         "community-ids": {
-          "description": "Toggle cached community templates to render on each theme change",
+          "description": "Browse and enable community templates applied on each theme change",
           "empty": "No community templates are available yet. Enable community templates and refresh the catalog first.",
           "label": "Community Templates"
         },
@@ -3056,7 +3067,43 @@
       "label": "Recover Private Storage",
       "success": "Private storage was reset successfully."
     },
+    "templates": {
+      "store": {
+        "browse": "Browse Templates",
+        "categories": "Categories",
+        "category-all": "All",
+        "empty": "No templates match your filters",
+        "enabled-count": "{count} enabled",
+        "filter-all": "All",
+        "filter-enabled": "Enabled",
+        "results-count": "{count} templates",
+        "search-placeholder": "Search templates…",
+        "sort-category-asc": "Sort by category (A-Z)",
+        "sort-category-desc": "Sort by category (Z-A)",
+        "sort-name-asc": "Sort by name (A-Z)",
+        "sort-name-desc": "Sort by name (Z-A)",
+        "title": "Community Templates"
+      }
+    },
     "widgets": {
+      "actions": {
+        "command-placeholder": "Shell command",
+        "default": "Default",
+        "disabled": "Disabled",
+        "run-command": "Run a command…",
+        "unset": "Not set"
+      },
+      "gestures": {
+        "back": "Back Button",
+        "forward": "Forward Button",
+        "left": "Left Click",
+        "middle": "Middle Click",
+        "right": "Right Click",
+        "scroll-down": "Scroll Down",
+        "scroll-left": "Scroll Left",
+        "scroll-right": "Scroll Right",
+        "scroll-up": "Scroll Up"
+      },
       "instances": {
         "cpu": "CPU",
         "date": "Date",
@@ -3081,6 +3128,7 @@
         "auto": "Auto",
         "before": "Before",
         "both": "Both",
+        "compact": "Compact",
         "count": "Count",
         "cpu-temp": "CPU Temperature",
         "cpu-usage": "CPU Usage",
@@ -3120,8 +3168,8 @@
         "rate": "Rate",
         "regular": "Regular",
         "replace": "Replace",
-        "screenshot-primary-fullscreen": "Fullscreen",
-        "screenshot-primary-region": "Region",
+        "scroll-gesture": "Once per gesture",
+        "scroll-steps": "Every step",
         "shared": "Shared",
         "short": "Short",
         "swap-percent": "Swap Percent",
@@ -3133,6 +3181,10 @@
         "workspace-label-inside": "Inside Pill"
       },
       "settings": {
+        "actions": {
+          "description": "What each mouse gesture does on this widget. Pick a command, run a shell command, or disable it.",
+          "label": "Gesture Actions"
+        },
         "active-color": {
           "description": "Color used for active privacy indicators; fixed hex colors are also supported",
           "label": "Active Color"
@@ -3216,10 +3268,6 @@
           "description": "Second gradient color in the visualizer",
           "label": "Color 2"
         },
-        "command": {
-          "description": "Shell command run when left-clicking this button",
-          "label": "Left Click Command"
-        },
         "custom-image": {
           "description": "Path to a custom image; leave empty to use the icon glyph",
           "dialog-title": "Select custom image",
@@ -3233,12 +3281,8 @@
           "description": "Map keyboard layout names to custom labels",
           "label": "Custom Labels"
         },
-        "cycle-command": {
-          "description": "Command run when cycling keyboard layouts",
-          "label": "Cycle Command"
-        },
         "detached-panel": {
-          "description": "Open the drawer as a floating panel with its own background instead of merging with the bar",
+          "description": "Open the drawer as a floating panel instead of anchoring it to the bar edge",
           "label": "Detached Panel"
         },
         "device": {
@@ -3458,10 +3502,6 @@
           "description": "Regular expression for microphone app names to ignore",
           "label": "Microphone Filter Regex"
         },
-        "middle-command": {
-          "description": "Shell command run when middle-clicking this button. When set, middle-click opens this command instead of widget settings.",
-          "label": "Middle Click Command"
-        },
         "min-length": {
           "description": "Minimum widget length in pixels",
           "label": "Min Length"
@@ -3518,14 +3558,6 @@
           "description": "Opacity of pinned apps that are not currently running",
           "label": "Pinned App Opacity"
         },
-        "primary-click": {
-          "description": "Action performed when left-clicking the bar button",
-          "label": "Primary click"
-        },
-        "right-command": {
-          "description": "Shell command run when right-clicking this button",
-          "label": "Right Click Command"
-        },
         "scale": {
           "description": "Scale this widget relative to the bar content scale",
           "label": "Scale"
@@ -3538,17 +3570,9 @@
           "description": "Path to the lua script",
           "label": "Script"
         },
-        "scroll-down-command": {
-          "description": "Shell command run when scrolling down over this button",
-          "label": "Scroll Down Command"
-        },
-        "scroll-step": {
-          "description": "Percentage change applied on each mouse wheel step",
-          "label": "Scroll Step"
-        },
-        "scroll-up-command": {
-          "description": "Shell command run when scrolling up over this button",
-          "label": "Scroll Up Command"
+        "scroll-repeat": {
+          "description": "Choose whether scroll actions follow command semantics, run once per gesture, or repeat for every scroll step",
+          "label": "Scroll Repeat"
         },
         "show-active-indicator": {
           "description": "Show a small dot below the active window icon in the taskbar",
