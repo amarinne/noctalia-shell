@@ -11,7 +11,8 @@ class RenderProxyNode;
 
 class DragDropController {
 public:
-  using DropCallback = std::function<void(std::string callback, std::string payload, std::string target)>;
+  using DropCallback =
+      std::function<void(std::string callback, std::string payload, std::string target, float sceneX, float sceneY)>;
 
   enum class State {
     Idle,
@@ -27,7 +28,7 @@ public:
 
   void arm(DragSource& source, float localX, float localY);
   void motion(DragSource& source, float localX, float localY);
-  void release(DragSource& source, float localX, float localY);
+  [[nodiscard]] bool release(DragSource& source, float localX, float localY);
   void cancel();
 
   void sourceChanged(DragSource* source);

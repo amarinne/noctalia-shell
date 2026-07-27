@@ -111,13 +111,13 @@ void DragDropController::motion(DragSource& source, float localX, float localY) 
   updateTarget(sceneX, sceneY);
 }
 
-void DragDropController::release(DragSource& source, float localX, float localY) {
+bool DragDropController::release(DragSource& source, float localX, float localY) {
   if (m_source != &source || m_state == State::Idle) {
-    return;
+    return false;
   }
   if (m_state != State::Dragging) {
-    cancel();
-    return;
+    clearState(true);
+    return true;
   }
 
   float sceneX = 0.0f;
@@ -135,8 +135,9 @@ void DragDropController::release(DragSource& source, float localX, float localY)
   }
   clearState(true);
   if (!callback.empty() && m_dropCallback) {
-    m_dropCallback(std::move(callback), std::move(payload), std::move(targetValue));
+    m_dropCallback(std::move(callback), std::move(payload), std::move(targetValue), sceneX, sceneY);
   }
+  return false;
 }
 
 void DragDropController::cancel() { clearState(true); }

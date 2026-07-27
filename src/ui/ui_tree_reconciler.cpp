@@ -496,7 +496,7 @@ namespace ui {
           "width",   "height",   "flexGrow",    "opacity",         "visible",       "gap",
           "padding", "paddingH", "paddingV",    "align",           "justify",       "fill",
           "radius",  "border",   "borderWidth", "minWidth",        "minHeight",     "dragType",
-          "payload", "enabled",  "tooltip",     "previewAncestor", "liftFromLayout"
+          "payload", "enabled",  "tooltip",     "previewAncestor", "liftFromLayout", "onClick"
       };
       static const std::unordered_set<std::string> kDropZone = {
           "width",     "height",  "flexGrow", "opacity", "visible",   "gap",     "padding",      "paddingH",
@@ -578,11 +578,13 @@ namespace ui {
 
   UiTreeReconciler::UiTreeReconciler()
       : m_defaultFontWeight(FontWeight::Normal), m_dragDropController(std::make_unique<DragDropController>()) {
-    m_dragDropController->setDropCallback([this](std::string callback, std::string payload, std::string target) {
-      if (m_sink) {
-        m_sink(ControlCallback{std::move(callback), std::move(payload), std::move(target), false});
-      }
-    });
+    m_dragDropController->setDropCallback(
+        [this](std::string callback, std::string payload, std::string target, float sceneX, float sceneY) {
+          if (m_sink) {
+            m_sink(ControlCallback{std::move(callback), std::move(payload), std::move(target), false,
+                                   std::format("{}", sceneX), std::format("{}", sceneY)});
+          }
+        });
   }
 
   UiTreeReconciler::~UiTreeReconciler() { reset(); }
@@ -949,6 +951,19 @@ namespace ui {
 
     if (desired.type == "drag_source") {
       auto* source = static_cast<DragSource*>(node);
+      if (const std::string* onClick = callbackProp(desired, "onClick"); onClick != nullptr) {
+        if (*onClick != slot.callbackName) {
+          slot.callbackName = *onClick;
+          source->setOnClick([this, name = slot.callbackName]() {
+            if (m_sink) {
+              m_sink(ControlCallback{name});
+            }
+          });
+        }
+      } else if (!slot.callbackName.empty()) {
+        slot.callbackName.clear();
+        source->setOnClick(nullptr);
+      }
       if (auto error = validateDragDropProps(desired)) {
         kLog.warn(
             "ui tree: '{}' key '{}': prop '{}' {}; control disabled", desired.type,

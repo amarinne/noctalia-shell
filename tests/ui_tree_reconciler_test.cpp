@@ -1320,6 +1320,7 @@ int main() {
     tree.props.emplace("align", std::string("start"));
     tree.children.push_back(makeDragSource("source", "keybind", "bind:42"));
     tree.children.back().props.emplace("tooltip", std::string("Move keybind"));
+    tree.children.back().props.emplace("onClick", std::string("onOpenKeybind"));
     tree.children.push_back(makeDropZone("accepted", {"keybind"}, "category:media", "onDropKeybind"));
     tree.children.push_back(makeDropZone("rejected", {"todo"}, "category:todo", "onDropTodo"));
     (void)reconciler.reconcile(host, tree, renderer);
@@ -1355,7 +1356,13 @@ int main() {
           && ok;
       area->dispatchPress(2.0f + Style::dragStartThreshold - 0.5f, 2.0f, BTN_LEFT, false);
       ok = expect(controller->state() == DragDropController::State::Idle, "below-threshold release returns idle") && ok;
-      ok = expect(callbacks.empty(), "below-threshold release is a no-op") && ok;
+      ok = expect(callbacks.size() == 1, "below-threshold release fires exactly one click callback") && ok;
+      if (callbacks.size() == 1) {
+        ok = expect(callbacks[0].fn == "onOpenKeybind", "drag-source click callback name preserved") && ok;
+        ok = expect(callbacks[0].arg1.empty() && callbacks[0].arg2.empty(), "drag-source click has no drop args") && ok;
+      }
+      callbacks.clear();
+      callbackSawCleanState = false;
 
       float acceptedX = 0.0f;
       float acceptedY = 0.0f;
@@ -1374,6 +1381,9 @@ int main() {
         ok = expect(callbacks[0].fn == "onDropKeybind", "drop callback name preserved") && ok;
         ok = expect(callbacks[0].arg1 == "bind:42", "drop callback receives source payload") && ok;
         ok = expect(callbacks[0].arg2 == "category:media", "drop callback receives target value") && ok;
+        ok = expect(
+                 !callbacks[0].arg3.empty() && !callbacks[0].arg4.empty(), "drop callback receives pointer coordinates"
+             ) && ok;
         ok = expect(!callbacks[0].coalesce, "drop callback is non-coalesced") && ok;
       }
       ok = expect(callbackSawCleanState, "drag state and visuals clear before callback dispatch") && ok;

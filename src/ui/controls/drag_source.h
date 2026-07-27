@@ -3,6 +3,7 @@
 #include "ui/controls/flex.h"
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <string_view>
 
@@ -21,6 +22,7 @@ public:
   void setPayload(std::string value);
   void setEnabled(bool enabled);
   void setTooltip(std::string_view text);
+  void setOnClick(std::function<void()> callback);
   void setSourceOpacity(float opacity);
   void setPreviewAncestor(std::size_t levels);
   void setLiftFromLayout(bool enabled);
@@ -50,6 +52,7 @@ private:
   std::string m_dragType;
   std::string m_payload;
   std::string m_tooltip;
+  std::function<void()> m_onClick;
   float m_sourceOpacity = 1.0f;
   std::size_t m_previewAncestor = 0;
   bool m_enabled = true;

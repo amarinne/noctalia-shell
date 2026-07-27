@@ -27,7 +27,9 @@ DragSource::DragSource(DragDropController* controller) : m_controller(controller
     if (data.pressed) {
       m_controller->arm(*this, data.localX, data.localY);
     } else {
-      m_controller->release(*this, data.localX, data.localY);
+      if (m_controller->release(*this, data.localX, data.localY) && m_onClick) {
+        m_onClick();
+      }
     }
   });
   area->setOnMotion([this](const InputArea::PointerData& data) {
@@ -89,6 +91,10 @@ void DragSource::setEnabled(bool enabled) {
   if (m_inputArea != nullptr) {
     m_inputArea->setEnabled(enabled);
   }
+}
+
+void DragSource::setOnClick(std::function<void()> callback) {
+  m_onClick = std::move(callback);
 }
 
 void DragSource::setTooltip(std::string_view text) {

@@ -163,9 +163,17 @@ void PluginPanel::create() {
   m_treeDirty = true;
 
   m_reconciler.setCallbackSink([this](const ui::UiTreeReconciler::ControlCallback& callback) {
-    if (m_runtime != nullptr) {
+    if (m_runtime == nullptr) {
+      return;
+    }
+    if (callback.arg3.empty() && callback.arg4.empty()) {
       (void)m_runtime->enqueueCallStrings(
           callback.fn, callback.arg1, callback.arg2, makeScriptSnapshot(), callback.coalesce
+      );
+    } else {
+      (void)m_runtime->enqueueCallArgs(
+          callback.fn, {callback.arg1, callback.arg2, callback.arg3, callback.arg4}, makeScriptSnapshot(),
+          {.coalesce = callback.coalesce}
       );
     }
   });

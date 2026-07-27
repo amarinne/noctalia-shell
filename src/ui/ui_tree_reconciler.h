@@ -30,18 +30,24 @@ namespace ui {
     // `arg1`/`arg2` carry the control's value as strings (toggle "true"/"false",
     // slider "0.5", input text, select index + text); empty for value-less
     // callbacks like button clicks. onHover sends state in `arg1` and the node's
-    // `key` in `arg2`, so one handler can serve a whole keyed list. `coalesce`
-    // is set for high-frequency streams (slider drag, input typing) where only
-    // the latest value matters.
+    // `key` in `arg2`, so one handler can serve a whole keyed list. Drop callbacks
+    // additionally receive scene-space pointer x/y in `arg3`/`arg4`, allowing a
+    // host-aware plugin to convert them to compositor-global coordinates. `coalesce`
+    // is set for high-frequency streams (slider drag, input typing) where only the
+    // latest value matters.
     struct ControlCallback {
       explicit ControlCallback(
-          std::string fnName, std::string firstArg = {}, std::string secondArg = {}, bool coalesceStream = false
+          std::string fnName, std::string firstArg = {}, std::string secondArg = {}, bool coalesceStream = false,
+          std::string thirdArg = {}, std::string fourthArg = {}
       )
-          : fn(std::move(fnName)), arg1(std::move(firstArg)), arg2(std::move(secondArg)), coalesce(coalesceStream) {}
+          : fn(std::move(fnName)), arg1(std::move(firstArg)), arg2(std::move(secondArg)),
+            arg3(std::move(thirdArg)), arg4(std::move(fourthArg)), coalesce(coalesceStream) {}
 
       std::string fn;
       std::string arg1;
       std::string arg2;
+      std::string arg3;
+      std::string arg4;
       bool coalesce = false;
     };
     using CallbackSink = std::function<void(const ControlCallback& callback)>;
