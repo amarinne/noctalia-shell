@@ -41,8 +41,6 @@ namespace settings {
 
   namespace {
 
-    constexpr float kDragStartThresholdPx = 6.0f;
-
     struct LaneWidgetDragState {
       bool active = false;
       bool moved = false;
@@ -981,9 +979,32 @@ namespace settings {
       if (!spec.visibleWhen.has_value()) {
         return true;
       }
-      auto matches = [&](const std::string& key, const std::vector<std::string>& values) {
-        const auto currentValue = settingCurrentString(cfg, widgetName, key, allSpecs);
-        for (const auto& v : values) {
+      auto settingValueForKey = [&](const std::string& key) -> WidgetSettingValue {
+        if (const auto it = cfg.widgets.find(std::string(widgetName)); it != cfg.widgets.end()) {
+          if (const auto settingIt = it->second.settings.find(key); settingIt != it->second.settings.end()) {
+            return settingIt->second;
+          }
+        }
+        for (const auto& s : allSpecs) {
+          if (s.schema.key == key) {
+            return s.schema.defaultValue;
+          }
+        }
+        return {};
+      };
+      auto matches = [&](const WidgetSettingVisibilityCondition& condition) {
+        const WidgetSettingValue value = settingValueForKey(condition.key);
+        if (condition.nonEmpty) {
+          if (const auto* list = std::get_if<std::vector<std::string>>(&value)) {
+            return !list->empty();
+          }
+          if (const auto* str = std::get_if<std::string>(&value)) {
+            return !str->empty();
+          }
+          return false;
+        }
+        const auto currentValue = settingCurrentString(cfg, widgetName, condition.key, allSpecs);
+        for (const auto& v : condition.values) {
           if (v == currentValue) {
             return true;
           }
@@ -991,7 +1012,7 @@ namespace settings {
         return false;
       };
       for (const auto& condition : spec.visibleWhen->all) {
-        if (!matches(condition.key, condition.values)) {
+        if (!matches(condition)) {
           return false;
         }
       }
@@ -999,7 +1020,7 @@ namespace settings {
         return true;
       }
       for (const auto& condition : spec.visibleWhen->any) {
-        if (matches(condition.key, condition.values)) {
+        if (matches(condition)) {
           return true;
         }
       }
@@ -1151,6 +1172,23 @@ namespace settings {
                 out += "\"" + concrete[i] + "\"";
               }
               out += "]";
+              return out;
+            } else if constexpr (std::is_same_v<T, WidgetSettingStringMap>) {
+              std::vector<std::string> keys;
+              keys.reserve(concrete.size());
+              for (const auto& [key, mapValue] : concrete) {
+                (void)mapValue;
+                keys.push_back(key);
+              }
+              std::ranges::sort(keys);
+              std::string out = "{";
+              for (std::size_t i = 0; i < keys.size(); ++i) {
+                if (i > 0) {
+                  out += ", ";
+                }
+                out += "\"" + keys[i] + "\" = \"" + concrete.at(keys[i]) + "\"";
+              }
+              out += "}";
               return out;
             }
           },
@@ -1639,19 +1677,32 @@ namespace settings {
           break;
         case WidgetControlKind::StringMap: {
           const bool customLabels = spec.schema.key == "custom_labels";
+          const bool effectsProfileGlyphs = spec.schema.key == "effects_profile_glyphs";
+          WidgetSettingStringMap entries;
+          if (widgetConfig != nullptr) {
+            if (const auto tableIt = widgetConfig->tables.find(spec.schema.key);
+                tableIt != widgetConfig->tables.end()) {
+              entries = tableIt->second;
+            } else if (const auto* defaults = std::get_if<WidgetSettingStringMap>(&spec.schema.defaultValue)) {
+              entries = *defaults;
+            }
+          } else if (const auto* defaults = std::get_if<WidgetSettingStringMap>(&spec.schema.defaultValue)) {
+            entries = *defaults;
+          }
           ctx.makeStringMapBlock(
               *panel, entry,
               StringMapSetting{
-                  .entries = widgetConfig != nullptr ? widgetConfig->getStringMap(spec.schema.key)
-                                                     : std::unordered_map<std::string, std::string>{},
+                  .entries = std::move(entries),
                   .suggestedKeys = customLabels ? ctx.keyboardLayoutNames : std::vector<std::string>{},
                   .keyPlaceholder = i18n::tr(
-                      customLabels ? "settings.widgets.map-placeholders.layout-name"
-                                   : "settings.widgets.map-placeholders.effects-profile-name"
+                      customLabels               ? "settings.widgets.map-placeholders.layout-name"
+                          : effectsProfileGlyphs ? "settings.widgets.map-placeholders.effects-profile-name"
+                                                 : "settings.widgets.map-placeholders.key"
                   ),
                   .valuePlaceholder = i18n::tr(
-                      customLabels ? "settings.widgets.map-placeholders.label"
-                                   : "settings.widgets.map-placeholders.glyph-name"
+                      customLabels               ? "settings.widgets.map-placeholders.label"
+                          : effectsProfileGlyphs ? "settings.widgets.map-placeholders.glyph-name"
+                                                 : "settings.widgets.map-placeholders.value"
                   ),
               }
           );
@@ -2584,7 +2635,7 @@ namespace settings {
         dragState->lastLocalX = localX;
         dragState->lastLocalY = localY;
         if (std::hypot(localX - dragState->startLocalX, localY - dragState->startLocalY)
-            >= kDragStartThresholdPx * scale) {
+            >= Style::dragStartThreshold * scale) {
           dragState->moved = true;
         }
         if (!dragState->moved) {

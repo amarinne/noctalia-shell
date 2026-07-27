@@ -32,6 +32,8 @@ namespace scripting {
       return counter.fetch_add(1, std::memory_order_relaxed);
     }
 
+    // Per-call budgets, spent in worker-thread CPU time (see threadCpuTime() in
+    // luau_host.cpp).
     constexpr auto kLoadBudget = std::chrono::milliseconds(100);
     constexpr auto kUpdateBudget = std::chrono::milliseconds(12);
     constexpr auto kCallbackBudget = std::chrono::milliseconds(25);
@@ -200,6 +202,8 @@ namespace scripting {
     bool hasOnConfigChangedKnown = false;
     bool hasOnScroll = false;
     bool hasOnScrollKnown = false;
+    bool hasOnKey = false;
+    bool hasOnKeyKnown = false;
     bool unhealthy = false;
     int consecutiveTimeouts = 0;
 
@@ -717,6 +721,7 @@ namespace scripting {
       const bool onActivatePresent = host != nullptr && host->hasGlobal("onActivate");
       const bool onConfigChangedPresent = host != nullptr && host->hasGlobal("onConfigChanged");
       const bool onScrollPresent = host != nullptr && host->hasGlobal("onScroll");
+      const bool onKeyPresent = host != nullptr && host->hasGlobal("onKey");
       {
         std::scoped_lock lock(mutex);
         hasOnIpc = result.hasOnIpc;
@@ -727,6 +732,8 @@ namespace scripting {
         hasOnConfigChangedKnown = true;
         hasOnScroll = onScrollPresent;
         hasOnScrollKnown = true;
+        hasOnKey = onKeyPresent;
+        hasOnKeyKnown = true;
       }
       return result;
     }
@@ -753,7 +760,7 @@ namespace scripting {
       result.sideEffects = bindingContext.sideEffects;
       result.hasOnIpcKnown = false;
       if (!ok) {
-        result.error = result.timedOut ? "script execution timed out" : "script callback failed";
+        result.error = result.timedOut ? "script callback exceeded its CPU budget" : "script callback failed";
       }
 
       if (result.patch.updateIntervalMs.has_value()) {
@@ -766,8 +773,8 @@ namespace scripting {
     }
 
     // Health verdict for a finished call. Two independent budgets feed `unhealthy`:
-    // repeated timeouts (a script that won't return) and repeated hard errors (a
-    // script that keeps throwing — including hitting the VM memory ceiling). When
+    // repeated CPU-budget overruns (a script that won't yield) and repeated hard
+    // errors (a script that keeps throwing, including hitting the VM memory ceiling). When
     // either trips, the runtime is auto-disabled (enqueue() drops further events
     // until reload) and the user is notified once.
     void updateHealth(ScriptResult& result) {
@@ -856,6 +863,12 @@ namespace scripting {
       }
 
       dispatchSideEffects(result.sideEffects, clipboard, scriptApi, togglePanelCallback);
+      for (const auto& effect : result.sideEffects) {
+        if (effect.kind == ScriptSideEffectKind::CopyToClipboard) {
+          result.copiedToClipboard = true;
+          break;
+        }
+      }
       result.sideEffects.clear();
 
       for (auto& callback : callbacks) {
@@ -1009,6 +1022,14 @@ namespace scripting {
     }
     std::scoped_lock lock(m_state->mutex);
     return m_state->hasOnScrollKnown && m_state->hasOnScroll;
+  }
+
+  bool ScriptRuntime::hasOnKey() const {
+    if (m_state == nullptr) {
+      return false;
+    }
+    std::scoped_lock lock(m_state->mutex);
+    return m_state->hasOnKeyKnown && m_state->hasOnKey;
   }
 
   bool ScriptRuntime::unhealthy() const {

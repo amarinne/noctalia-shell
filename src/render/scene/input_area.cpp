@@ -3,6 +3,7 @@
 #include "cursor-shape-v1-client-protocol.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 namespace {
@@ -13,6 +14,13 @@ namespace {
   // detent convention is 15 units; we require a bit more so touchpad swipes
   // step deliberately rather than racing the finger.
   constexpr float kScrollUnitsPerStep = 20.0f;
+  // A pause longer than this ends a scroll gesture: the next axis event starts
+  // fresh so a partial detent left over from a free-spin flick can't bank into
+  // the following one and tip it into an extra step.
+  constexpr auto kScrollGestureGap = std::chrono::milliseconds(100);
+  // First non-zero scrollSteps() wins until axis events go idle for this long
+  // (collapses free-spin / hi-res bursts into one discrete action).
+  constexpr auto kScrollStepIdle = std::chrono::milliseconds(50);
 
   bool isWheelSource(std::uint32_t axisSource) noexcept {
     return axisSource == WL_POINTER_AXIS_SOURCE_WHEEL || axisSource == WL_POINTER_AXIS_SOURCE_WHEEL_TILT;
@@ -53,6 +61,7 @@ void InputArea::setOnEnter(PointerCallback callback) { m_onEnter = std::move(cal
 void InputArea::setOnLeave(VoidCallback callback) { m_onLeave = std::move(callback); }
 void InputArea::setOnMotion(PointerCallback callback) { m_onMotion = std::move(callback); }
 void InputArea::setOnPress(PointerCallback callback) { m_onPress = std::move(callback); }
+void InputArea::setOnCancel(VoidCallback callback) { m_onCancel = std::move(callback); }
 void InputArea::setOnAxis(PointerCallback callback) {
   m_onAxis = [callback = std::move(callback)](const PointerData& data) {
     callback(data);
@@ -167,6 +176,8 @@ void InputArea::dispatchEnter(float localX, float localY) {
   }
 }
 
+void InputArea::resetScrollAccumulators() noexcept { m_scrollStepAccum.fill(0.0f); }
+
 void InputArea::dispatchLeave() {
   m_hovered = false;
   m_pressed = false;
@@ -176,8 +187,6 @@ void InputArea::dispatchLeave() {
     m_onLeave();
   }
 }
-
-void InputArea::resetScrollAccumulators() noexcept { m_scrollStepAccum.fill(0.0f); }
 
 void InputArea::dispatchMotion(float localX, float localY) {
   if (m_onMotion) {
@@ -209,6 +218,14 @@ void InputArea::dispatchPress(float localX, float localY, std::uint32_t button, 
   }
 }
 
+void InputArea::dispatchCancel() {
+  m_pressed = false;
+  m_pressedButton = 0;
+  if (m_onCancel) {
+    m_onCancel();
+  }
+}
+
 bool InputArea::dispatchAxis(
     float localX, float localY, std::uint32_t axis, std::uint32_t axisSource, double axisValue,
     std::int32_t axisDiscrete, std::int32_t axisValue120, float axisLines
@@ -224,6 +241,16 @@ bool InputArea::dispatchAxis(
   // frames that must first accrue to a full detent. Continuous sources
   // (touchpads) accrue axisValue until a detent-equivalent is reached.
   // Scrolling content stays on scrollDelta() and keeps the scaling.
+  const auto now = std::chrono::steady_clock::now();
+  const auto sincePreviousAxis = now - m_lastAxisTime;
+  if (sincePreviousAxis > kScrollGestureGap) {
+    resetScrollAccumulators();
+  }
+  if (sincePreviousAxis > kScrollStepIdle) {
+    m_scrollStepEmittedThisGesture = false;
+  }
+  m_lastAxisTime = now;
+
   float axisSteps = 0.0f;
   if (axis < m_scrollStepAccum.size()) {
     float& accum = m_scrollStepAccum[axis];
@@ -236,6 +263,16 @@ bool InputArea::dispatchAxis(
     accum -= axisSteps;
     if (isWheelSource(axisSource)) {
       axisSteps = std::clamp(axisSteps, -1.0f, 1.0f);
+    }
+  }
+
+  // One discrete action per gesture: first non-zero step wins until idle.
+  if (axisSteps != 0.0f) {
+    if (m_scrollStepEmittedThisGesture) {
+      axisSteps = 0.0f;
+    } else {
+      m_scrollStepEmittedThisGesture = true;
+      axisSteps = std::copysign(1.0f, axisSteps);
     }
   }
 

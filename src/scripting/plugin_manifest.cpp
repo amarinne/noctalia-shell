@@ -1,7 +1,9 @@
 #include "scripting/plugin_manifest.h"
 
+#include "core/input/key_chord.h"
 #include "core/log.h"
 #include "core/toml.h" // IWYU pragma: keep
+#include "scripting/plugin_api.h"
 #include "scripting/plugin_id.h"
 #include "scripting/plugin_panel_shell.h"
 
@@ -72,6 +74,9 @@ namespace scripting {
       if (type == "string_list") {
         return ManifestFieldType::StringList;
       }
+      if (type == "string_map") {
+        return ManifestFieldType::StringMap;
+      }
       if (type == "select" || type == "enum") {
         return ManifestFieldType::Select;
       }
@@ -127,7 +132,7 @@ namespace scripting {
       return std::nullopt;
     }
 
-    void parseFieldDefault(const toml::table& field, ManifestField& out) {
+    bool parseFieldDefault(const toml::table& field, ManifestField& out, std::string& error) {
       const auto node = field["default"];
       switch (out.type) {
       case ManifestFieldType::Bool:
@@ -150,10 +155,26 @@ namespace scripting {
           }
         }
         break;
+      case ManifestFieldType::StringMap:
+        if (const auto* values = node.as_table()) {
+          for (const auto& [key, valueNode] : *values) {
+            const auto value = valueNode.value<std::string>();
+            if (!value.has_value()) {
+              error = "setting '" + out.key + "' string_map default values must be strings";
+              return false;
+            }
+            out.stringMapDefault.emplace(std::string(key.str()), *value);
+          }
+        } else if (node) {
+          error = "setting '" + out.key + "' string_map default must be a table";
+          return false;
+        }
+        break;
       default:
         out.stringDefault = node.value<std::string>().value_or(std::string{});
         break;
       }
+      return true;
     }
 
     bool parseFieldOptions(const toml::table& field, ManifestField& out, std::string& error) {
@@ -224,13 +245,21 @@ namespace scripting {
       }
     }
 
-    std::optional<ManifestField> parseField(const toml::table& field, std::string& error) {
+    std::optional<ManifestField>
+    parseField(const toml::table& field, std::uint32_t pluginApiVersion, std::string& error) {
       ManifestField out;
       out.key = tableString(field, "key");
       if (out.key.empty()) {
         return out;
       }
       out.type = parseFieldType(tableString(field, "type", "string"));
+      if (out.type == ManifestFieldType::StringMap && pluginApiVersion < kStringMapSettingPluginApiVersion) {
+        error = "setting '"
+            + out.key
+            + "' type 'string_map' requires plugin_api >= "
+            + std::to_string(kStringMapSettingPluginApiVersion);
+        return std::nullopt;
+      }
       if (field.contains("label")) {
         error = "setting '" + out.key + "' uses 'label'; use 'label_key' that points to translation key instead";
         return std::nullopt;
@@ -253,7 +282,9 @@ namespace scripting {
       if (auto step = tableNumber(field, "step")) {
         out.step = *step;
       }
-      parseFieldDefault(field, out);
+      if (!parseFieldDefault(field, out, error)) {
+        return std::nullopt;
+      }
       if (!parseFieldOptions(field, out, error)) {
         return std::nullopt;
       }
@@ -311,7 +342,7 @@ namespace scripting {
           }
           for (const auto& settingNode : *settings) {
             if (const auto* settingTable = settingNode.as_table()) {
-              auto field = parseField(*settingTable, error);
+              auto field = parseField(*settingTable, manifest.pluginApiVersion, error);
               if (!field.has_value()) {
                 return false;
               }
@@ -362,6 +393,117 @@ namespace scripting {
           if (const auto* openNearClick = (*entryTable)["open_near_click"].as_boolean()) {
             entry.panelOpenNearClickDefault = openNearClick->get();
           }
+          if ((*entryTable)["dismiss_on_outside_click"]) {
+            if (manifest.pluginApiVersion < kPanelDismissOnOutsideClickPluginApiVersion) {
+              error = "panel entry '"
+                  + entry.id
+                  + "': dismiss_on_outside_click requires plugin_api >= "
+                  + std::to_string(kPanelDismissOnOutsideClickPluginApiVersion);
+              return false;
+            }
+            if (const auto* dismissOutside = (*entryTable)["dismiss_on_outside_click"].as_boolean()) {
+              entry.panelDismissOnOutsideClick = dismissOutside->get();
+            } else {
+              error = "panel entry '" + entry.id + "': dismiss_on_outside_click must be a bool";
+              return false;
+            }
+          }
+          if ((*entryTable)["keyboard_focus"]) {
+            if (manifest.pluginApiVersion < kPanelKeyboardFocusPluginApiVersion) {
+              error = "panel entry '"
+                  + entry.id
+                  + "': keyboard_focus requires plugin_api >= "
+                  + std::to_string(kPanelKeyboardFocusPluginApiVersion);
+              return false;
+            }
+            const auto* keyboardFocus = (*entryTable)["keyboard_focus"].as_string();
+            if (keyboardFocus == nullptr || !isValidPanelKeyboardFocus(keyboardFocus->get())) {
+              error = "panel entry '" + entry.id + R"(': keyboard_focus must be "on_demand", "exclusive" or "none")";
+              return false;
+            }
+            entry.panelKeyboardFocus = keyboardFocus->get();
+            // Outside-click dismissal is served either by the click shield (which
+            // swallows the click meant for the app below) or by a compositor focus
+            // grab (which takes keyboard focus). Neither is compatible with a panel
+            // that must never touch focus.
+            if (entry.panelKeyboardFocus == "none" && entry.panelDismissOnOutsideClick) {
+              error = "panel entry '"
+                  + entry.id
+                  + R"(': keyboard_focus = "none" requires dismiss_on_outside_click = false)";
+              return false;
+            }
+          }
+          if ((*entryTable)["persistent"]) {
+            if (manifest.pluginApiVersion < kPersistentPanelPluginApiVersion) {
+              error = "panel entry '"
+                  + entry.id
+                  + "': persistent requires plugin_api >= "
+                  + std::to_string(kPersistentPanelPluginApiVersion);
+              return false;
+            }
+            const auto* persistent = (*entryTable)["persistent"].as_boolean();
+            if (persistent == nullptr) {
+              error = "panel entry '" + entry.id + "': persistent must be a bool";
+              return false;
+            }
+            entry.panelPersistent = persistent->get();
+          }
+          if (entry.panelPersistent) {
+            // A persistent panel has neither click shield nor focus grab.
+            if (entry.panelDismissOnOutsideClick) {
+              error = "panel entry '" + entry.id + "': persistent = true requires dismiss_on_outside_click = false";
+              return false;
+            }
+            // Exclusive keyboard focus on a surface that is never dismissed would
+            // hold the keyboard away from every other window for good.
+            if (entry.panelKeyboardFocus == "exclusive") {
+              error = "panel entry '"
+                  + entry.id
+                  + R"(': persistent = true is incompatible with keyboard_focus = "exclusive")";
+              return false;
+            }
+            // Attached placement is resolved pre-commit against a live bar, which a
+            // panel outside the active-panel slot has no relationship to.
+            if (entry.panelPlacementDefault == "attached") {
+              error = "panel entry '" + entry.id + R"(': persistent = true requires placement = "floating")";
+              return false;
+            }
+          }
+          if ((*entryTable)["capture_keys"]) {
+            if (manifest.pluginApiVersion < kPanelCaptureKeysPluginApiVersion) {
+              error = "panel entry '"
+                  + entry.id
+                  + "': capture_keys requires plugin_api >= "
+                  + std::to_string(kPanelCaptureKeysPluginApiVersion);
+              return false;
+            }
+            if ((*entryTable)["capture_keys"].as_array() == nullptr) {
+              error = "panel entry '" + entry.id + "': capture_keys must be an array of key chord strings";
+              return false;
+            }
+            entry.panelCaptureKeys = tableStringArray(*entryTable, "capture_keys");
+            for (const std::string& spec : entry.panelCaptureKeys) {
+              // parseKeyChordSpec throws on a Super-family modifier, which belongs to the
+              // compositor rather than to a panel.
+              bool parsed = false;
+              try {
+                parsed = parseKeyChordSpec(spec).has_value();
+              } catch (const std::exception& e) {
+                error = "panel entry '" + entry.id + "': capture_keys entry '" + spec + "': " + e.what();
+                return false;
+              }
+              if (!parsed) {
+                error = "panel entry '" + entry.id + "': capture_keys entry '" + spec + "' is not a valid key chord";
+                return false;
+              }
+            }
+            // A panel that never takes focus never receives a key to capture.
+            if (entry.panelKeyboardFocus == "none") {
+              error =
+                  "panel entry '" + entry.id + R"(': capture_keys requires keyboard_focus "on_demand" or "exclusive")";
+              return false;
+            }
+          }
           injectStandardPanelShellSettings(entry);
         }
         if (kind == PluginEntryKind::LauncherProvider) {
@@ -400,6 +542,8 @@ namespace scripting {
       return WidgetSettingValue{numberDefault};
     case ManifestFieldType::StringList:
       return WidgetSettingValue{stringListDefault};
+    case ManifestFieldType::StringMap:
+      return WidgetSettingValue{stringMapDefault};
     default:
       return WidgetSettingValue{stringDefault};
     }
@@ -490,7 +634,7 @@ namespace scripting {
     if (const auto* settings = root["setting"].as_array()) {
       for (const auto& node : *settings) {
         if (const auto* settingTable = node.as_table()) {
-          auto field = parseField(*settingTable, manifestError);
+          auto field = parseField(*settingTable, manifest.pluginApiVersion, manifestError);
           if (!field.has_value()) {
             return fail(manifestError);
           }

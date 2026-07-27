@@ -1,7 +1,6 @@
 #include "shell/bar/widgets/volume_widget.h"
 
 #include "config/config_types.h"
-#include "core/log.h"
 #include "i18n/i18n.h"
 #include "pipewire/pipewire_service.h"
 #include "render/scene/input_area.h"
@@ -16,10 +15,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-
-namespace {
-  constexpr Logger kLog("volume_widget");
-} // namespace
 
 VolumeWidget::VolumeWidget(
     PipeWireService* audio, EasyEffectsService* easyEffects, const Config* config, wl_output* /*output*/,
@@ -167,13 +162,6 @@ void VolumeWidget::syncState(Renderer& renderer) {
   m_lastMuted = muted;
   m_lastVertical = m_isVertical;
   m_lastEffectsProfile = effectsProfile;
-
-  if (m_target == VolumeWidgetTarget::Output) {
-    kLog.debug(
-        "sync vol {:.6f} muted {} glyph {} node {}", volume, muted, glyphName(volume, muted, effectsProfile),
-        node != nullptr ? node->id : 0
-    );
-  }
 
   if (m_image != nullptr) {
     widget_custom_image::sync(

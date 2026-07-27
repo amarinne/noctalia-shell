@@ -42,12 +42,11 @@ public:
     }
 
     // Whole wheel-detent steps accumulated by the InputArea (positive = scroll
-    // down). Wheel sources yield at most one step per frame, so a ratcheted
-    // notch is one step regardless of compositor scaling while a free-spinning
-    // hi-res wheel still has to accrue a full detent; continuous sources
-    // (touchpads) emit a step only once a full detent-equivalent has accrued —
-    // use this instead of scrollDelta() for discrete stepping (volume,
-    // workspace cycling, ...).
+    // down). Wheel sources yield at most one step per frame and at most one
+    // non-zero step until the axis stream goes idle, so a flick is one discrete
+    // action (volume, workspace cycling, …). Continuous sources (touchpads)
+    // still accrue to a full detent before the first step. Use scrollDelta()
+    // for continuous content scrolling (lists, scrollbars).
     [[nodiscard]] float scrollSteps() const noexcept { return axisSteps; }
   };
 
@@ -83,6 +82,7 @@ public:
   void setOnMotion(PointerCallback callback);
   void setOnPress(PointerCallback callback);
   void setOnClick(PointerCallback callback);
+  void setOnCancel(VoidCallback callback);
   void setOnAxis(PointerCallback callback);
   void setOnAxisHandler(AxisCallback callback);
 
@@ -151,6 +151,7 @@ public:
   void dispatchLeave();
   void dispatchMotion(float localX, float localY);
   void dispatchPress(float localX, float localY, std::uint32_t button, bool isPressed);
+  void dispatchCancel();
   [[nodiscard]] bool dispatchAxis(
       float localX, float localY, std::uint32_t axis, std::uint32_t axisSource, double axisValue,
       std::int32_t axisDiscrete, std::int32_t axisValue120, float axisLines
@@ -174,6 +175,7 @@ private:
   PointerCallback m_onMotion;
   PointerCallback m_onPress;
   PointerCallback m_onClick;
+  VoidCallback m_onCancel;
   AxisCallback m_onAxis;
   KeyCallback m_onKeyDown;
   KeyCallback m_onKeyUp;
@@ -190,6 +192,11 @@ private:
   std::uint32_t m_pressedButton = 0;
   // Detent-unit scroll accumulators, indexed by wl_pointer axis (vertical, horizontal).
   std::array<float, 2> m_scrollStepAccum{};
+  // When the last axis event landed; a gap resets the accumulators so leftover
+  // fraction from one gesture can't bank into the next.
+  std::chrono::steady_clock::time_point m_lastAxisTime;
+  // scrollSteps(): set after delivering a non-zero step; cleared after idle.
+  bool m_scrollStepEmittedThisGesture = false;
   bool m_focusable = false;
   bool m_tabStop = true;
   std::string m_tabFocusKey;

@@ -402,6 +402,19 @@ namespace {
               array.push_back(item);
             }
             table.insert_or_assign(key, std::move(array));
+          } else if constexpr (std::is_same_v<T, WidgetSettingStringMap>) {
+            toml::table mapTable;
+            std::vector<std::string> mapKeys;
+            mapKeys.reserve(concrete.size());
+            for (const auto& [mapKey, mapValue] : concrete) {
+              (void)mapValue;
+              mapKeys.push_back(mapKey);
+            }
+            std::ranges::sort(mapKeys);
+            for (const auto& mapKey : mapKeys) {
+              mapTable.insert_or_assign(mapKey, concrete.at(mapKey));
+            }
+            table.insert_or_assign(key, std::move(mapTable));
           } else {
             table.insert_or_assign(key, concrete);
           }
@@ -725,6 +738,7 @@ ConfigChangeSet computeConfigChangeSet(const Config& prev, const Config& next) {
       .controlCenter = !(prev.controlCenter == next.controlCenter),
       .plugins = !pluginsConfigEqual(prev.plugins, next.plugins),
       .hotCorners = !(prev.hotCorners == next.hotCorners),
+      .storage = !(prev.storage == next.storage),
       .accessibility = !(prev.accessibility == next.accessibility),
   };
 }

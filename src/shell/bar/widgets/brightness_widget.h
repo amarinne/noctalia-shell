@@ -9,9 +9,15 @@ struct wl_output;
 
 class BrightnessWidget : public Widget {
 public:
-  BrightnessWidget(
-      BrightnessService* brightness, wl_output* output, bool showLabel, int scrollStepPercent, bool enableScroll = true
-  );
+  struct Options {
+    bool enableScroll = true;
+    int scrollStepPercent = 5;
+    bool showLabel = true;
+
+    bool operator==(const Options&) const = default;
+  };
+
+  BrightnessWidget(BrightnessService* brightness, wl_output* output, Options options);
 
   void create() override;
 

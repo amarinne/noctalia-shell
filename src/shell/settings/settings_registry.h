@@ -78,7 +78,8 @@ namespace settings {
     std::vector<SelectOption> options;
     std::string selectedValue;
     bool clearOnEmpty = false;
-    bool segmented = false;                              // render as Segmented pill group instead of dropdown Select
+    bool allowEmptySelection = false; // empty selectedValue shows a cleared select (no matching option)
+    bool segmented = false;           // render as Segmented pill group instead of dropdown Select
     SelectValueType valueType = SelectValueType::String; // storage type for option values
     float preferredWidth = 0.0f;                         // 0 = default settings dropdown width
     std::vector<std::string> linkedPath;                 // companion path for groupedCommit / override reset
@@ -240,6 +241,7 @@ namespace settings {
     std::string label;
     std::function<void()> action;
     std::string glyph;
+    bool destructive = false;
   };
 
   struct ColorSpecPickerSetting {
@@ -279,6 +281,7 @@ namespace settings {
     bool niriOverviewTypeToLaunchSupported = false; // show niri-only type-to-launch integration
     bool screencopySupported = false;               // lockscreen blurred desktop + screenshot features
     bool ddcutilAvailable = false;                  // disable ddcutil toggle when ddcutil is not on PATH
+    bool systemdUserManaged = false;                // disable systemd app launching when the shell is not a user unit
     bool gammaControlAvailable = false;             // hide night-light entries when gamma control is unavailable
     bool greeterSyncAvailable = false;              // hide greeter appearance sync when greeter is not installed
     std::vector<SelectOption> availableOutputs;     // monitor selectors available on this machine

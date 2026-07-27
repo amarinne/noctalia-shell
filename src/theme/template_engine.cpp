@@ -11,6 +11,7 @@
 #include "cpp/scheme/scheme_rainbow.h"
 #include "cpp/scheme/scheme_tonal_spot.h"
 #include "theme/color.h"
+#include "theme/firefox_theme/firefox_theme.h"
 #include "theme/kde_color_scheme.h"
 #include "theme/palette.h"
 #include "util/file_utils.h"
@@ -1354,11 +1355,15 @@ namespace noctalia::theme {
   }
 
   bool TemplateEngine::processConfigTable(const toml::table& root, const std::filesystem::path& configPath) {
-    auto cancelRequested = [this]() { return m_options.cancelRequested && m_options.cancelRequested(); };
-    if (cancelRequested()) {
+    if (m_options.cancelRequested && m_options.cancelRequested()) {
       return true;
     }
 
+    applyCustomColors(root);
+    return processConfigTemplates(root, configPath);
+  }
+
+  void TemplateEngine::applyCustomColors(const toml::table& root) {
     if (const toml::table* config = root["config"].as_table()) {
       if (const toml::table* customColors = (*config)["custom_colors"].as_table()) {
         std::string sourceHex;
@@ -1429,6 +1434,13 @@ namespace noctalia::theme {
           }
         }
       }
+    }
+  }
+
+  bool TemplateEngine::processConfigTemplates(const toml::table& root, const std::filesystem::path& configPath) {
+    auto cancelRequested = [this]() { return m_options.cancelRequested && m_options.cancelRequested(); };
+    if (cancelRequested()) {
+      return true;
     }
 
     const toml::table* templates = root["templates"].as_table();
@@ -1511,7 +1523,7 @@ namespace noctalia::theme {
         if (entry.postAction.empty()) {
           return true;
         }
-        if (entry.postAction != "kde-color-scheme") {
+        if (entry.postAction != "kde-color-scheme" && entry.postAction != kFirefoxThemePostAction) {
           kLog.warn("unknown post action '{}' for template {}", entry.postAction, entry.name);
           return false;
         }
@@ -1523,13 +1535,25 @@ namespace noctalia::theme {
           return false;
         }
 
-        const KdeColorSchemeApplyResult result = applyKdeColorScheme(effectiveOutputs.front());
+        if (entry.postAction == "kde-color-scheme") {
+          const KdeColorSchemeApplyResult result = applyKdeColorScheme(effectiveOutputs.front());
+          if (!result.success) {
+            kLog.warn("post action '{}' for template {} failed: {}", entry.postAction, entry.name, result.error);
+            return false;
+          }
+          if (!result.notificationError.empty()) {
+            kLog.warn("applied KDE color scheme but failed to notify applications: {}", result.notificationError);
+          }
+          return true;
+        }
+
+        const FirefoxThemeApplyResult result = applyFirefoxTheme(effectiveOutputs.front(), m_options.defaultMode);
         if (!result.success) {
           kLog.warn("post action '{}' for template {} failed: {}", entry.postAction, entry.name, result.error);
           return false;
         }
-        if (!result.notificationError.empty()) {
-          kLog.warn("applied KDE color scheme but failed to notify applications: {}", result.notificationError);
+        if (!result.warning.empty()) {
+          kLog.warn("firefox-theme post action for template {}: {}", entry.name, result.warning);
         }
         return true;
       };

@@ -2,7 +2,9 @@
 
 #include "config/config_types.h"
 #include "i18n/i18n.h"
+#include "net/url_open.h"
 #include "scripting/plugin_i18n.h"
+#include "scripting/plugin_id.h"
 #include "scripting/plugin_panel_shell.h"
 #include "scripting/plugin_registry.h"
 #include "shell/settings/settings_control_factory.h"
@@ -238,14 +240,9 @@ namespace settings {
       if (plugin.source == "official") {
         title->addChild(makeRoleBadge(i18n::tr("settings.badges.official"), ColorRole::Primary, scale));
       } else if (plugin.source == "community") {
-        // Quieter than Official — muted surface tones instead of Primary.
-        title->addChild(
-            makeRoleBadge(i18n::tr("settings.badges.community"), ColorRole::OnSurfaceVariant, scale, 0.12f)
-        );
+        title->addChild(makeRoleBadge(i18n::tr("settings.badges.community"), ColorRole::Secondary, scale));
       } else if (!plugin.source.empty()) {
-        title->addChild(makeLabel(
-            pluginSourceDisplayName(plugin.source), Style::fontSizeCaption * scale, ColorRole::OnSurfaceVariant
-        ));
+        title->addChild(makeRoleBadge(pluginSourceDisplayName(plugin.source), ColorRole::Tertiary, scale));
       }
       title->addChild(makeLabel("v" + version, Style::fontSizeCaption * scale, ColorRole::OnSurfaceVariant));
       if (!plugin.compatible) {
@@ -277,6 +274,18 @@ namespace settings {
         ));
       }
       r->addChild(std::move(info));
+
+      if (const auto pageUrl = scripting::pluginWebsitePageUrl(plugin.source, plugin.id)) {
+        r->addChild(
+            ui::button({
+                .glyph = "external-link",
+                .glyphSize = Style::fontSizeBody * scale,
+                .variant = ButtonVariant::Ghost,
+                .tooltip = i18n::tr("settings.plugins.store.open-page"),
+                .onClick = [url = *pageUrl]() { (void)net::openInBrowser(url); },
+            })
+        );
+      }
 
       const auto* manifest = scripting::PluginRegistry::instance().findManifest(plugin.id);
       const bool hasSettings = [&]() {
@@ -377,6 +386,13 @@ namespace settings {
       return {};
     }
 
+    WidgetSettingStringMap valueAsStringMap(const WidgetSettingValue& value) {
+      if (const auto* map = std::get_if<WidgetSettingStringMap>(&value)) {
+        return *map;
+      }
+      return {};
+    }
+
     bool valueAsBool(const WidgetSettingValue& value) {
       if (const auto* b = std::get_if<bool>(&value)) {
         return *b;
@@ -436,6 +452,21 @@ namespace settings {
         return valueAsString(pluginSettingValue(cfg, pluginId, *depIt));
       };
       const auto matches = [&](const WidgetSettingVisibilityCondition& cond) {
+        if (cond.nonEmpty) {
+          const auto depIt =
+              std::ranges::find_if(allSpecs, [&](const WidgetSettingSpec& s) { return s.schema.key == cond.key; });
+          if (depIt == allSpecs.end()) {
+            return false;
+          }
+          const WidgetSettingValue value = pluginSettingValue(cfg, pluginId, *depIt);
+          if (const auto* list = std::get_if<std::vector<std::string>>(&value)) {
+            return !list->empty();
+          }
+          if (const auto* str = std::get_if<std::string>(&value)) {
+            return !str->empty();
+          }
+          return false;
+        }
         const std::string value = currentString(cond.key);
         return std::ranges::contains(cond.values, value);
       };
@@ -499,6 +530,7 @@ namespace settings {
         return factory.makeColorSpecPicker(pickerSetting, path);
       }
       case WidgetControlKind::StringList:
+      case WidgetControlKind::StringMap:
         return nullptr;
       case WidgetControlKind::String:
       case WidgetControlKind::File:
@@ -566,6 +598,15 @@ namespace settings {
       };
       if (spec.control == WidgetControlKind::StringList) {
         factory.makeListBlock(body, entry, ListSetting{.items = valueAsStringList(value)});
+      } else if (spec.control == WidgetControlKind::StringMap) {
+        factory.makeStringMapBlock(
+            body, entry,
+            StringMapSetting{
+                .entries = valueAsStringMap(value),
+                .keyPlaceholder = i18n::tr("settings.widgets.map-placeholders.key"),
+                .valuePlaceholder = i18n::tr("settings.widgets.map-placeholders.value"),
+            }
+        );
       } else {
         factory.makeRow(body, entry, pluginSettingControl(factory, spec, value, path));
       }

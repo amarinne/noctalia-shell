@@ -34,6 +34,10 @@ namespace {
   constexpr float kWorkspacePillDefaultHeight = Style::baseGlyphSize;
   constexpr float kWorkspaceAnimDurationMs = static_cast<float>(Style::animNormal);
 
+  [[nodiscard]] constexpr float workspaceLabelFontSize(bool minimal) {
+    return minimal ? Style::fontSizeBody : Style::fontSizeMini;
+  }
+
   [[nodiscard]] FontWeight workspaceFontWeight(FontWeight baseWeight, bool minimal, bool active) {
     if (minimal && active) {
       return static_cast<FontWeight>(static_cast<int>(baseWeight) + 200);
@@ -414,7 +418,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   }
 
   const float gap = kWorkspaceGap * m_contentScale;
-  const float labelFontSize = Style::fontSizeMini * m_contentScale;
+  const float labelFontSize = workspaceLabelFontSize(m_minimal) * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const FontWeight configuredFontWeight = labelFontWeight();
 
@@ -685,18 +689,21 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     m_container->setFrameSize(total, m_indicatorHeight);
   }
 
-  ColorSpec hoverFill = widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface));
-  hoverFill.alpha = 0.0f;
-  m_hoverOverlay = static_cast<Box*>(m_container->addChild(
-      ui::box({
-          .fill = hoverFill,
-          .visible = false,
-          .configure = [](Box& box) {
-            box.setParticipatesInLayout(false);
-            box.setHitTestVisible(false);
-          },
-      })
-  ));
+  // Only minimal style draws the translucent per-item hover overlay.
+  if (m_minimal && barCapsuleSpec().hoverHighlight) {
+    ColorSpec hoverFill = widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface));
+    hoverFill.alpha = 0.0f;
+    m_hoverOverlay = static_cast<Box*>(m_container->addChild(
+        ui::box({
+            .fill = hoverFill,
+            .visible = false,
+            .configure = [](Box& box) {
+              box.setParticipatesInLayout(false);
+              box.setHitTestVisible(false);
+            },
+        })
+    ));
+  }
 
   if (needsAnimation) {
     startAnimation();
@@ -776,7 +783,7 @@ void WorkspacesWidget::ensureItemLabel(Renderer& renderer, Item& item, const Wor
     return;
   }
 
-  const float labelFontSize = Style::fontSizeMini * m_contentScale;
+  const float labelFontSize = workspaceLabelFontSize(m_minimal) * m_contentScale;
   item.text = static_cast<Label*>(item.area->addChild(
       ui::label({
           .text = item.label,
@@ -794,7 +801,7 @@ void WorkspacesWidget::recalculateItemMetrics(
     Renderer& renderer, Item& item, const Workspace& workspace, std::size_t displayIndex
 ) {
   const std::string label = workspaceLabel(workspace, displayIndex);
-  const float labelFontSize = Style::fontSizeMini * m_contentScale;
+  const float labelFontSize = workspaceLabelFontSize(m_minimal) * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const float baseSize = std::round(pillHeight);
   const float padding = m_minimal ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
@@ -1119,9 +1126,6 @@ void WorkspacesWidget::updateHoverOverlay() {
   Item& hoveredItem = *hoveredIt;
 
   if (!m_minimal) {
-    if (m_hoverOverlay != nullptr) {
-      m_hoverOverlay->setVisible(false);
-    }
     for (auto& item : m_items) {
       if (&item == &hoveredItem) {
         if (item.indicator != nullptr) {

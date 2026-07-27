@@ -11,6 +11,7 @@
 #include "config/config_service.h"
 #include "core/files/file_watcher.h"
 #include "core/timer_manager.h"
+#include "dbus/network/external_ip_service.h"
 #include "dbus/notification/notification_poll_source.h"
 #include "hooks/battery_hook_state.h"
 #include "hooks/hook_manager.h"
@@ -31,6 +32,8 @@
 #include "scripting/plugin_manager.h"
 #include "scripting/plugin_service_host.h"
 #include "scripting/script_api_context.h"
+#include "security/secret_store.h"
+#include "security/storage_key_provider.h"
 #include "shell/backdrop/backdrop.h"
 #include "shell/bar/bar.h"
 #include "shell/desktop/desktop_widgets_controller.h"
@@ -195,6 +198,7 @@ private:
   void syncPolkitAgent();
   [[nodiscard]] bool likelySupportsInSessionPolkit() const noexcept;
   void syncClipboardService();
+  void syncStorageKeyProvider();
   void syncScreenTimeService();
   void performGreeterSync(bool quiet = false);
   void scheduleGreeterAutoSync();
@@ -214,7 +218,9 @@ private:
   WaylandConnection m_wayland;
   WorkspaceAlertService m_workspaceAlertService;
   CompositorPlatform m_compositorPlatform{m_wayland};
-  ClipboardService m_clipboardService;
+  security::SecretStore m_secretStore;
+  security::StorageKeyProvider m_storageKeyProvider{m_secretStore};
+  ClipboardService m_clipboardService{m_storageKeyProvider};
   TextInputService m_textInputService;
   VirtualKeyboardService m_virtualKeyboardService;
   ConfigService m_configService;
@@ -250,6 +256,7 @@ private:
   std::unique_ptr<PowerProfilesService> m_powerProfilesService;
   std::unique_ptr<INetworkService> m_networkService;
   std::unique_ptr<NetworkSecretAgent> m_networkSecretAgent;
+  ExternalIpService m_externalIpService{&m_httpClient, &m_configService};
   std::unique_ptr<IwdSecretAgent> m_iwdSecretAgent;
   std::unique_ptr<BluetoothService> m_bluetoothService;
   std::unique_ptr<BluetoothAgent> m_bluetoothAgent;
@@ -351,9 +358,11 @@ private:
   CalendarPollSource m_calendarPollSource{m_calendarService};
   Timer m_trayInitTimer;
   Timer m_polkitInitTimer;
+  Timer m_polkitIdleCloseTimer;
   Timer m_greeterSyncTimeoutTimer;
   Timer m_greeterAutoSyncTimer;
   Timer m_clipboardAutoPasteTimer;
+  Timer m_launcherAutoPasteTimer;
   Timer m_pluginAutoUpdateTimer;
   Timer m_graphicsRecoveryTimer;
   std::uint64_t m_greeterSyncGeneration = 0;

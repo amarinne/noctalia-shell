@@ -873,6 +873,14 @@ namespace settings {
         ToggleSetting{cfg.dock.reserveSpace}, "exclusive zone"
     ));
     entries.push_back(makeEntry(
+        SettingsSection::Dock, "behavior", tr("settings.schema.dock.layer.label"),
+        tr("settings.schema.dock.layer.description"), {"dock", "layer"},
+        asSegmented(plainSelect(
+            {{"top", "settings.options.layer.top"}, {"overlay", "settings.options.layer.overlay"}}, cfg.dock.layer
+        )),
+        "layer shell z-order"
+    ));
+    entries.push_back(makeEntry(
         SettingsSection::Dock, "behavior", tr("settings.schema.dock.show-running.label"),
         tr("settings.schema.dock.show-running.description"), {"dock", "show_running"},
         ToggleSetting{cfg.dock.showRunning}, "windows"
@@ -1058,6 +1066,19 @@ namespace settings {
     ));
 
     // Panels
+    {
+      SelectSetting anchorBarSelect;
+      for (const auto& name : barNames(cfg)) {
+        anchorBarSelect.options.push_back(SelectOption{name, name});
+      }
+      anchorBarSelect.selectedValue = cfg.shell.panelAnchorBar;
+      anchorBarSelect.allowEmptySelection = true;
+      entries.push_back(makeEntry(
+          SettingsSection::Panels, "general", tr("settings.schema.panels.panel-anchor-bar.label"),
+          tr("settings.schema.panels.panel-anchor-bar.description"), {"shell", "panel_anchor_bar"},
+          std::move(anchorBarSelect), "anchor attach bar panel wallpaper launcher"
+      ));
+    }
     entries.push_back(makeEntry(
         SettingsSection::Panels, "effects", tr("settings.schema.panels.transparency-mode.label"),
         tr("settings.schema.panels.transparency-mode.description"), {"shell", "panel", "transparency_mode"},
@@ -1189,6 +1210,11 @@ namespace settings {
         "launcher currency exchange rates fetch online conversion"
     ));
     entries.push_back(makeEntry(
+        SettingsSection::Launcher, "launcher", tr("settings.schema.panels.launcher-auto-paste.label"),
+        tr("settings.schema.panels.launcher-auto-paste.description"), {"shell", "launcher", "auto_paste"},
+        enumSelect(kClipboardAutoPasteModes, cfg.shell.launcher.autoPaste), "launcher auto paste"
+    ));
+    entries.push_back(makeEntry(
         SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-prefix-character.label"),
         tr("settings.schema.panels.launcher-prefix-character.description"), {"shell", "launcher", "provider_prefix"},
         TextSetting{.value = cfg.shell.launcher.providerPrefix, .placeholder = "/"}, "launcher common prefix character"
@@ -1206,7 +1232,7 @@ namespace settings {
           SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-prefix-calculator.label"),
           tr("settings.schema.panels.launcher-prefix-calculator.description"),
           {"shell", "launcher", "providers", "calculator", "prefix"},
-          TextSetting{.value = storedPrefix("calculator"), .placeholder = ""}, "launcher calculator prefix trigger"
+          TextSetting{.value = storedPrefix("calculator"), .placeholder = "calc"}, "launcher calculator prefix trigger"
       ));
       entries.push_back(makeEntry(
           SettingsSection::Launcher, "providers", tr("settings.schema.panels.launcher-global-calculator.label"),
@@ -1399,6 +1425,19 @@ namespace settings {
         tr("settings.schema.desktop.hot-corners-enabled.description"), {"hot_corners", "enabled"},
         ToggleSetting{cfg.hotCorners.enabled}, "hot corners trigger mouse edge screen"
     ));
+    {
+      auto delay = sliderFor(
+          static_cast<std::int64_t>(cfg.hotCorners.delayMs), noctalia::config::schema::kHotCornersDelayMsRange, true
+      );
+      delay.valueSuffix = "ms";
+      SettingEntry e = makeEntry(
+          SettingsSection::Desktop, "hot-corners", tr("settings.schema.desktop.hot-corners-delay-ms.label"),
+          tr("settings.schema.desktop.hot-corners-delay-ms.description"), {"hot_corners", "delay_ms"}, std::move(delay),
+          "hot corners delay hold ms timeout"
+      );
+      e.visibleWhen = [](const Config& conf) { return conf.hotCorners.enabled; };
+      entries.push_back(std::move(e));
+    }
 
     auto hotCornerActionSelect = [](const std::string& current) {
       return plainSelect(
@@ -1425,8 +1464,21 @@ namespace settings {
           tr(labelKey + "-command.description"), {"hot_corners", key, "command"},
           TextSetting{.value = currentCommand, .placeholder = "Run command..."}, "hot corners command execute " + key
       );
-      c.visibleWhen = [action = currentAction](const Config& conf) {
-        return conf.hotCorners.enabled && action == "command";
+      c.visibleWhen = [key](const Config& conf) {
+        if (!conf.hotCorners.enabled) {
+          return false;
+        }
+        const HotCornersConfig::Corner* corner = nullptr;
+        if (key == "top_left") {
+          corner = &conf.hotCorners.topLeft;
+        } else if (key == "top_right") {
+          corner = &conf.hotCorners.topRight;
+        } else if (key == "bottom_left") {
+          corner = &conf.hotCorners.bottomLeft;
+        } else if (key == "bottom_right") {
+          corner = &conf.hotCorners.bottomRight;
+        }
+        return corner != nullptr && corner->action == "command";
       };
       entries.push_back(std::move(c));
     };
@@ -1522,7 +1574,9 @@ namespace settings {
               .placeholder = tr("settings.schema.lockscreen.wallpaper.placeholder"),
               .browseMode = TextSettingBrowseMode::OpenFile,
               .browseFileExtensions = {".png", ".jpg", ".jpeg", ".webp", ".svg", ".bmp", ".gif"},
-              .browseFallbackDirectory = wallpaper::resolveGlobalWallpaperDirectory(cfg.wallpaper, cfg.theme.mode),
+              .browseFallbackDirectory = wallpaper::resolveGlobalWallpaperDirectory(
+                  cfg.wallpaper, wallpaper::effectiveThemeMode(cfg.theme.mode, cfg.theme.mode == ThemeMode::Light)
+              ),
           },
           "lock screen background image custom"
       );
@@ -1628,13 +1682,17 @@ namespace settings {
         {"shell", "middle_click_opens_widget_settings"}, ToggleSetting{cfg.shell.middleClickOpensWidgetSettings},
         "bar widget settings middle click configure"
     ));
-    if (process::systemdAvailable()) {
-      entries.push_back(makeEntry(
-          SettingsSection::Shell, "general", tr("settings.schema.shell.launch-apps-as-systemd-services.label"),
-          tr("settings.schema.shell.launch-apps-as-systemd-services.description"),
-          {"shell", "launch_apps_as_systemd_services"}, ToggleSetting{cfg.shell.launchAppsAsSystemdServices}
-      ));
-    }
+    entries.push_back(makeEntry(
+        SettingsSection::Shell, "general", tr("settings.schema.shell.launch-apps-as-systemd-services.label"),
+        env.systemdUserManaged ? tr("settings.schema.shell.launch-apps-as-systemd-services.description")
+                               : tr("settings.schema.shell.launch-apps-as-systemd-services.requires-systemd-session"),
+        {"shell", "launch_apps_as_systemd_services"},
+        ToggleSetting{
+            .checked = cfg.shell.launchAppsAsSystemdServices,
+            // Keep a leftover `true` switchable off even when the session cannot honor it.
+            .enabled = env.systemdUserManaged || cfg.shell.launchAppsAsSystemdServices
+        }
+    ));
     {
       auto e = makeEntry(
           SettingsSection::Shell, "general", tr("settings.schema.shell.launch-apps-custom-command.label"),
@@ -1645,9 +1703,11 @@ namespace settings {
               .width = 320.0f,
               .browseFileExtensions = {},
           },
-          "app command custom launcher"
+          "app command custom launcher dock taskbar"
       );
-      e.visibleWhen = [](const Config& c) { return !c.shell.launchAppsAsSystemdServices; };
+      e.visibleWhen = [managed = env.systemdUserManaged](const Config& c) {
+        return !(c.shell.launchAppsAsSystemdServices && managed);
+      };
       entries.push_back(std::move(e));
     }
     const SettingVisibility clipboardOn = [](const Config& c) { return c.shell.clipboardEnabled; };
@@ -1756,6 +1816,11 @@ namespace settings {
         SettingsSection::Shell, "screenshot", tr("settings.schema.shell.screenshot-confirm-region.label"),
         tr("settings.schema.shell.screenshot-confirm-region.description"), {"shell", "screenshot", "confirm_region"},
         ToggleSetting{cfg.shell.screenshot.confirmRegion}, "screenshot capture confirm region selection"
+    ));
+    entries.push_back(makeEntry(
+        SettingsSection::Shell, "screenshot", tr("settings.schema.shell.screenshot-show-cursor.label"),
+        tr("settings.schema.shell.screenshot-show-cursor.description"), {"shell", "screenshot", "show_cursor"},
+        ToggleSetting{cfg.shell.screenshot.showCursor}, "screenshot capture show cursor pointer mouse"
     ));
     entries.push_back(makeEntry(
         SettingsSection::Shell, "screenshot", tr("settings.schema.shell.screenshot-pipe-to-command.label"),
@@ -2176,8 +2241,22 @@ namespace settings {
           mon.swapPctCriticalThreshold, noctalia::sysmon::thresholdProfile(Stat::SwapPct), true, "%"
       );
       addThresholdPair(
-          "disk_pct", "settings.schema.services.system-monitor.stats.disk-usage", mon.diskPctActivityThreshold,
-          mon.diskPctCriticalThreshold, noctalia::sysmon::thresholdProfile(Stat::DiskPct), true, "%"
+          "disk_used_pct", "settings.schema.services.system-monitor.stats.disk-used-pct",
+          mon.diskUsedPctActivityThreshold, mon.diskUsedPctCriticalThreshold,
+          noctalia::sysmon::thresholdProfile(Stat::DiskUsedPct), true, "%"
+      );
+      addThresholdPair(
+          "disk_used", "settings.schema.services.system-monitor.stats.disk-used", mon.diskUsedActivityThreshold,
+          mon.diskUsedCriticalThreshold, noctalia::sysmon::thresholdProfile(Stat::DiskUsed), true, "%"
+      );
+      addThresholdPair(
+          "disk_free_pct", "settings.schema.services.system-monitor.stats.disk-free-pct",
+          mon.diskFreePctActivityThreshold, mon.diskFreePctCriticalThreshold,
+          noctalia::sysmon::thresholdProfile(Stat::DiskFreePct), true, "%"
+      );
+      addThresholdPair(
+          "disk_free", "settings.schema.services.system-monitor.stats.disk-free", mon.diskFreeActivityThreshold,
+          mon.diskFreeCriticalThreshold, noctalia::sysmon::thresholdProfile(Stat::DiskFree), true, "%"
       );
       addThresholdPair(
           "net_rx", "settings.schema.services.system-monitor.stats.network-rx", mon.netRxActivityThreshold,
@@ -2419,6 +2498,42 @@ namespace settings {
     ));
     {
       auto e = makeEntry(
+          SettingsSection::Services, "calendar", tr("settings.schema.services.calendar-event-date-format.label"),
+          tr("settings.schema.services.calendar-event-date-format.description"),
+          {"control_center", "calendar", "event_date_format"},
+          TextSetting{
+              .value = cfg.controlCenter.calendarTab.eventDateFormat,
+              .placeholder = "%A %e %B",
+              .browseFileExtensions = {}
+          },
+          "calendar date format strftime chrono"
+      );
+      e.visibleWhen = calendarOn;
+      entries.push_back(std::move(e));
+    }
+    {
+      auto e = makeEntry(
+          SettingsSection::Services, "calendar", tr("settings.schema.services.calendar-event-time-format.label"),
+          tr("settings.schema.services.calendar-event-time-format.description"),
+          {"control_center", "calendar", "event_time_format"},
+          TextSetting{
+              .value = cfg.controlCenter.calendarTab.eventTimeFormat, .placeholder = "%H:%M", .browseFileExtensions = {}
+          },
+          "calendar time format strftime chrono"
+      );
+      e.visibleWhen = calendarOn;
+      entries.push_back(std::move(e));
+    }
+    // Week numbers are a grid decoration, so they stay available when event syncing is off.
+    entries.push_back(makeEntry(
+        SettingsSection::Services, "calendar", tr("settings.schema.services.calendar-week-numbers.label"),
+        tr("settings.schema.services.calendar-week-numbers.description"),
+        {"control_center", "calendar", "show_week_numbers"},
+        ToggleSetting{cfg.controlCenter.calendarTab.showWeekNumbers}, "calendar week numbers iso"
+    ));
+    // Sync cadence belongs with the accounts it drives; the account rows are injected right after it.
+    {
+      auto e = makeEntry(
           SettingsSection::Services, "calendar", tr("settings.schema.services.calendar-refresh-interval.label"),
           tr("settings.schema.services.calendar-refresh-interval.description"), {"calendar", "refresh_minutes"},
           sliderFor(cfg.calendar.refreshMinutes, noctalia::config::schema::kRefreshMinutesRange, true), "calendar sync"
@@ -2524,6 +2639,11 @@ namespace settings {
       e.visibleWhen = [](const Config& c) { return c.shell.session.grid; };
       entries.push_back(std::move(e));
     }
+    entries.push_back(makeEntry(
+        SettingsSection::Power, "session-panel", tr("settings.schema.power.session-show-shortcuts.label"),
+        tr("settings.schema.power.session-show-shortcuts.description"), {"shell", "session", "show_shortcuts"},
+        ToggleSetting{.checked = cfg.shell.session.showShortcuts}, "session panel show shortcuts"
+    ));
     entries.push_back(makeEntry(
         SettingsSection::Power, "session-panel", tr("settings.schema.power.session-actions.label"),
         tr("settings.schema.power.session-actions.description"), {"shell", "session", "actions"},
@@ -2744,7 +2864,7 @@ namespace settings {
       ));
       const SettingVisibility autoHideOn = [barName = bar.name](const Config& c) {
         const BarConfig* b = findBar(c, barName);
-        return b != nullptr && b->autoHide && !b->smartAutoHide;
+        return b != nullptr && b->isAutoHideEnabled();
       };
       {
         auto e = makeEntry(
@@ -3085,9 +3205,7 @@ namespace settings {
             return false;
           }
           const BarMonitorOverride* o = findMonitorOverride(*b, match);
-          const bool autoHide = o != nullptr && o->autoHide.has_value() ? *o->autoHide : b->autoHide;
-          const bool smart = o != nullptr && o->smartAutoHide.has_value() ? *o->smartAutoHide : b->smartAutoHide;
-          return autoHide && !smart;
+          return o != nullptr ? o->isAutoHideEnabled(b->autoHide, b->smartAutoHide) : b->isAutoHideEnabled();
         };
         {
           auto e = makeEntry(
