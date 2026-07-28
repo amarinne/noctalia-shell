@@ -673,23 +673,47 @@ void Application::initWaylandCallbacks() {
       m_lockScreen.onKeyboardLayoutChanged();
     }
   });
-  m_compositorPlatform.setToplevelChangeCallback([this]() {
-    m_screenTimeService.onFocusChange();
-    m_bar.scheduleSmartAutoHideReevaluation();
-    m_dock.scheduleSmartAutoHideReevaluation();
-    m_bar.refresh();
-    m_dock.refresh();
-    m_windowSwitcher.onToplevelChange();
-    if (m_panelManager.isOpenPanel("control-center")) {
-      m_panelManager.refresh();
-    }
-    if (!m_lockScreen.isActive() && m_wayland.hasPointerPosition() && !m_wayland.activeToplevel().has_value()) {
-      const std::uint32_t serial = m_wayland.lastInputSerial();
-      if (serial != 0) {
-        m_wayland.setCursorShape(serial, WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
+  auto taskbarRunningState = [](CompositorPlatform& platform) {
+    auto ids = platform.runningAppIds(nullptr);
+    std::ranges::sort(ids);
+    return ids;
+  };
+  auto taskbarActiveState = [](CompositorPlatform& platform) {
+    const auto active = platform.activeToplevel();
+    const auto handle = active.has_value() ? reinterpret_cast<std::uintptr_t>(active->handle) : std::uintptr_t{0};
+    return std::pair{
+        handle,
+        active.has_value() && handle == 0 ? active->identifier : std::string{},
+    };
+  };
+  m_compositorPlatform.setToplevelChangeCallback(
+      [this, taskbarRunningState, taskbarActiveState,
+       lastRunning = taskbarRunningState(m_compositorPlatform),
+       lastActive = taskbarActiveState(m_compositorPlatform)]() mutable {
+        m_screenTimeService.onFocusChange();
+        auto running = taskbarRunningState(m_compositorPlatform);
+        auto active = taskbarActiveState(m_compositorPlatform);
+        const bool taskbarStateChanged = running != lastRunning || active != lastActive;
+        lastRunning = std::move(running);
+        lastActive = std::move(active);
+        if (taskbarStateChanged) {
+          m_bar.scheduleSmartAutoHideReevaluation();
+          m_dock.scheduleSmartAutoHideReevaluation();
+          m_bar.refresh();
+          m_dock.refresh();
+        }
+        m_windowSwitcher.onToplevelChange();
+        if (m_panelManager.isOpenPanel("control-center")) {
+          m_panelManager.refresh();
+        }
+        if (!m_lockScreen.isActive() && m_wayland.hasPointerPosition() && !m_wayland.activeToplevel().has_value()) {
+          const std::uint32_t serial = m_wayland.lastInputSerial();
+          if (serial != 0) {
+            m_wayland.setCursorShape(serial, WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
+          }
+        }
       }
-    }
-  });
+  );
   if constexpr (kLockKeysEnabled) {
     if (lockKeysConsumersEnabled(m_configService.config())) {
       m_lockKeysService.refreshNow();

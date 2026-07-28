@@ -3102,20 +3102,27 @@ void Bar::updateWidgets(BarInstance& instance) {
   const float barAreaW = barVisual.width;
   const float barAreaH = barVisual.height;
 
+  bool needsSectionLayout = false;
   auto updateSection = [&](std::vector<std::unique_ptr<Widget>>& widgets) {
     for (auto& widget : widgets) {
       if (widget->root() == nullptr) {
         continue;
       }
       widget->update(*renderer);
-      widget->layout(*renderer, barAreaW, barAreaH);
+      Node* const bounds = widget->outerNode();
+      if (bounds != nullptr && bounds->layoutDirty()) {
+        widget->layout(*renderer, barAreaW, barAreaH);
+        needsSectionLayout = true;
+      }
     }
   };
 
   updateSection(instance.startWidgets);
   updateSection(instance.centerWidgets);
   updateSection(instance.endWidgets);
-  layoutBarSections(instance, *renderer, barAreaW, barAreaH, padding, isVertical);
+  if (needsSectionLayout) {
+    layoutBarSections(instance, *renderer, barAreaW, barAreaH, padding, isVertical);
+  }
 }
 
 void Bar::prepareFrame(BarInstance& instance, bool needsUpdate, bool needsLayout) {

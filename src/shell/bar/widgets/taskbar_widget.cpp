@@ -2935,6 +2935,11 @@ std::string TaskbarWidget::workspaceLabel(const Workspace& workspace, std::size_
 bool TaskbarWidget::modelsEqual(
     const std::vector<TaskModel>& tasks, const std::vector<WorkspaceModel>& workspaces
 ) const {
+  // Icon-only taskbars do not need a full scene rebuild for title-only events.
+  // Terminals and browsers can update titles many times per second. Rebuilding
+  // icons, workspace capsules, and layout for those events causes visible lag.
+  // KDE still needs title changes because title can be part of window identity.
+  const bool titleAffectsScene = m_showWindowTitle || compositors::isKde();
   if (tasks.size() != m_tasks.size() || workspaces.size() != m_workspaces.size()) {
     return false;
   }
@@ -2946,7 +2951,7 @@ bool TaskbarWidget::modelsEqual(
         || tasks[i].workspaceKey != m_tasks[i].workspaceKey
         || tasks[i].order != m_tasks[i].order
         || tasks[i].workspaceOrder != m_tasks[i].workspaceOrder
-        || tasks[i].title != m_tasks[i].title
+        || (titleAffectsScene && tasks[i].title != m_tasks[i].title)
         || tasks[i].pinned != m_tasks[i].pinned
         || tasks[i].running != m_tasks[i].running
         || tasks[i].instanceCount != m_tasks[i].instanceCount
