@@ -1,17 +1,19 @@
 # Local Noctalia v5 deployment
 
-## Active deployment
+## Desktop deployment
 
-- Source: `/home/eza/Projects/noctalia-shell`
-- Branch: `noctalia-v5-workspace-apps`
-- Current upstream baseline: `98f0d2b4a` (`v5.0.0-beta.3-86-g98f0d2b4a`)
-- Active prefix: `$HOME/.local/opt/noctalia-v5-patched`
-- Active binary: `$HOME/.local/opt/noctalia-v5-patched/bin/noctalia`
-- Active launcher: `$HOME/.local/bin/noctalia-v5 --daemon`
-- Niri startup config: `$HOME/.config/niri/config.d/40-startup-and-general.kdl`
-- Runtime config/state/data: `$HOME/.local/share/noctalia-v5-test/{config,state,data}`
+- Source: `/home/ez/Projects/noctalia-shell`
+- Fork merge: `06a5cbe9c`
+- Upstream baseline: `082e0e386`
+- Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
+- Active launcher: `/home/ez/.local/bin/noctalia-v5`
+- Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
+- Active config: `/home/ez/.config/noctalia/config.toml`
+- Niri startup file: `/home/ez/.config/niri/config.d/40-startup-and-general.kdl`
+- v4 rollback: `/home/ez/.local/share/noctalia-rollback/v4-desktop-20260728`
 
-`/usr/bin/noctalia` is not active. Niri starts local launcher above.
+Niri starts the local launcher. The desktop does not use `/usr/bin/noctalia`.
+Do not start the old `qs -c noctalia-shell` process with v5.
 
 ## Fedora build dependencies
 
@@ -22,33 +24,35 @@ sudo dnf install md4c-devel json-devel tomlplusplus-devel stb-devel
 Fedora package name is `json-devel`, not `nlohmann-json-devel`.
 Upstream now requires system md4c, nlohmann/json, toml++, and stb. Vendored copies removed.
 
-## Build, test, install
+## Build and test
 
 ```sh
-cd /home/eza/Projects/noctalia-shell
-just configure release "$HOME/.local/opt/noctalia-v5-patched"
-just build release
-just test release
-just install release
+cd /home/ez/Projects/noctalia-shell
+meson setup build-release --buildtype=release -Dcpp_std=c++23 \
+  -Dtests=enabled -Db_lto=true \
+  --prefix="$HOME/.local/opt/noctalia-v5-patched"
+meson compile -C build-release
+meson test -C build-release --print-errorlogs
 ```
 
-`just test release` must finish `42/42` tests with zero failures before install.
-Install local prefix as normal user. Do not use `sudo` for this prefix.
+All 62 tests must pass. Run the build on the desktop. Do not compile Noctalia
+on the laptop.
 
-If Meson install fails on `build-release/meson-logs/install-log.txt` permission, stale log came from prior root install. Remove that generated log, then retry:
+The desktop package bundles private libraries in `lib/`. The installed binary
+must have this RPATH:
 
-```sh
-rm build-release/meson-logs/install-log.txt
-just install release
+```text
+$ORIGIN/../lib
 ```
 
-## Restart active shell
+Do not deploy a binary with an absolute build-host RPATH.
+
+## Restart the active shell
 
 No `noctalia.service` exists. Niri owns process scope.
 
 ```sh
-systemctl --user list-units --all --no-legend | rg 'niri-noctalia'
-systemctl --user stop '<exact scope name from previous command>'
+qs -c noctalia-shell kill --any-display
 niri msg action spawn -- "$HOME/.local/bin/noctalia-v5" --daemon
 ```
 
@@ -60,13 +64,27 @@ $HOME/.local/opt/noctalia-v5-patched/bin/noctalia --version
 systemctl --user list-units --all --no-legend | rg 'niri-noctalia'
 ```
 
-Expected process path: `$HOME/.local/opt/noctalia-v5-patched/bin/noctalia`.
+The expected process path is
+`$HOME/.local/opt/noctalia-v5-patched/bin/noctalia`.
 
-## Current local changes retained across upstream merge
+## Local changes retained across upstream merges
 
 - Workspace app initials and icons.
 - Grouped-taskbar active marker and icon padding.
 - Niri workspace task ordering by layout.
 - Taskbar explicit target outputs and workspace drag/drop routing.
+- Plugin bar drag sources with click support.
 
-Merge resolved workspace widget conflict by keeping upstream hover and entry/exit animation behavior plus local workspace app-icon pills.
+Keep upstream plugin frame ticks, service exit reasons, tray fixes, and bar
+fixes. Keep the local taskbar fields `target_output` and `drag_drop_command`.
+
+## Desktop cutover checks
+
+- Confirm no Noctalia bar appears on `HDMI-A-1`.
+- Confirm one top bar appears on `HDMI-A-2`.
+- Confirm the bar contains one taskbar for each output.
+- Confirm each taskbar shows only its target output.
+- Confirm taskbar clicks and same-monitor drag work.
+- Confirm `Mod+Z` and XMB drag work.
+- Confirm tray, audio, network, notifications, lock, and wallpaper work.
+- Confirm `pgrep -a qs` and `pgrep -a neowall` return no process.
