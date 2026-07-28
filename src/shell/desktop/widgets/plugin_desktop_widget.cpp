@@ -160,6 +160,7 @@ void PluginDesktopWidget::handleScriptResult(scripting::ScriptResult result) {
 
   if (result.unhealthy) {
     m_updateTimer.stop();
+    m_needsFrameTick = false;
     kLog.warn("plugin desktop widget '{}' disabled after repeated timeouts", m_entryId);
   }
 

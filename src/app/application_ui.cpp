@@ -137,6 +137,7 @@ void Application::initUiRenderSurfacesAndSettings() {
   );
   m_settingsWindow.setPluginManager(&m_pluginManager);
   m_settingsWindow.setIpcService(&m_ipcService);
+  m_settingsWindow.setAsyncTextureCache(&m_asyncTextureCache);
   m_settingsWindow.setOpenDesktopWidgetEditor([this]() {
     if (m_lockscreenWidgetsController.isEditing()) {
       m_lockscreenWidgetsController.exitEdit();
@@ -803,6 +804,7 @@ void Application::initNotificationAndOsd() {
 
 void Application::initBarDockAndLayout() {
   m_trayMenu.initialize(m_wayland, &m_configService, m_trayService.get(), &m_renderContext);
+  m_trayMenu.setClosedCallback([this]() { m_bar.reevaluateAutoHideAfterPopup(); });
 
   m_bar.initialize({
       .platform = m_compositorPlatform,
@@ -995,6 +997,7 @@ void Application::initWidgetControllersAndCallbacks() {
         m_colorPickerDialogPopup.requestLayout();
         m_glyphPickerDialogPopup.requestLayout();
         m_fileDialogPopup.requestLayout();
+        scheduleGreeterAutoSync();
       },
       "shell-font-family"
   );

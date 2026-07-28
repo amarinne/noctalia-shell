@@ -528,6 +528,8 @@ void TaskbarWidget::launchDesktopEntry(const TaskModel& task) {
             .activationToken = std::move(token),
             .runAsSystemdService = configService.config().shell.launchAppsAsSystemdServices,
             .customCommand = configService.config().shell.launchAppsCustomCommand,
+            .dbusActivatable = entry.dbusActivatable,
+            .dbusAppId = entry.id,
         }
     );
   });
@@ -2767,8 +2769,9 @@ void TaskbarWidget::openTaskContextMenu(const TaskModel& task, InputArea& area) 
         const auto& action = entryActions[idx];
         auto& platform = m_platform;
         auto& configService = m_configService;
+        const bool dbusActivatable = menuEntry.has_value() && menuEntry->dbusActivatable;
         DeferredCall::callLater([action, appName = entryAppName, workingDir = entryWorkingDir, terminal = entryTerminal,
-                                 &platform, &configService]() {
+                                 dbusActivatable, &platform, &configService]() {
           std::string token;
           if (platform.hasXdgActivation()) {
             token = platform.requestActivationToken(nullptr);
@@ -2779,6 +2782,8 @@ void TaskbarWidget::openTaskContextMenu(const TaskModel& task, InputArea& area) 
                   .activationToken = std::move(token),
                   .runAsSystemdService = configService.config().shell.launchAppsAsSystemdServices,
                   .customCommand = configService.config().shell.launchAppsCustomCommand,
+                  .dbusActivatable = dbusActivatable,
+                  .dbusAppId = appName,
               }
           );
         });
