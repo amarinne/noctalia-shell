@@ -797,6 +797,7 @@ namespace settings {
         add(withGroup(boolSpec("show_all_outputs", false), "taskbar.windows"));
         add(withGroup(stringSpec("target_output", ""), "taskbar.windows"));
         add(withGroup(stringSpec("drag_drop_command", ""), "taskbar.windows"));
+        add(withGroup(stringSpec("middle_click_command", ""), "taskbar.windows"));
         add(withGroup(boolSpec("show_active_indicator", true), "taskbar.windows"));
         add(withGroup(doubleSpec("active_opacity", 1.0, 0.1, 1.0, 0.01), "taskbar.windows"));
         add(withGroup(doubleSpec("inactive_opacity", 1.0, 0.1, 1.0, 0.01), "taskbar.windows"));

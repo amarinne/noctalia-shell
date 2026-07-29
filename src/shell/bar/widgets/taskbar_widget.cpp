@@ -206,6 +206,7 @@ TaskbarWidget::TaskbarWidget(
 )
     : m_platform(platform), m_configService(config), m_output(output), m_configOptions(std::move(options)),
       m_showAllOutputs(m_configOptions.showAllOutputs), m_dragDropCommand(m_configOptions.dragDropCommand),
+      m_middleClickCommand(m_configOptions.middleClickCommand),
       m_focusedOutputOnly(m_configOptions.focusedOutputOnly), m_minimal(m_configOptions.minimal),
       m_showActiveIndicator(m_configOptions.showActiveIndicator),
       m_activeOpacity(m_configOptions.activeOpacity), m_inactiveOpacity(m_configOptions.inactiveOpacity),
@@ -472,6 +473,14 @@ void TaskbarWidget::closeTaskModel(const TaskModel& task) {
     info.identifier = task.workspaceWindowId;
     m_platform.closeToplevelInfo(info);
   }
+}
+
+bool TaskbarWidget::runMiddleClickCommand() const {
+  if (m_middleClickCommand.empty()) {
+    return false;
+  }
+  (void)process::runAsync(m_middleClickCommand);
+  return true;
 }
 
 std::vector<std::string> TaskbarWidget::pinnedConfigIds() const {
@@ -928,6 +937,9 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
                         cycleKey = std::move(cycleKey)](const InputArea::PointerData& data) {
         if (task.pinned) {
           if (data.button == BTN_MIDDLE) {
+            if (runMiddleClickCommand()) {
+              return;
+            }
             if (task.running) {
               closeTaskModel(task);
             }
@@ -943,6 +955,9 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
           return;
         }
         if (data.button == BTN_MIDDLE) {
+          if (runMiddleClickCommand()) {
+            return;
+          }
           if (!cycleCandidates.empty()) {
             for (const auto& candidate : cycleCandidates) {
               if (candidate.active) {

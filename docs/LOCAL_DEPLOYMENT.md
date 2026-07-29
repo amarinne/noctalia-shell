@@ -76,7 +76,8 @@ The expected process path is
 - Plugin bar drag sources with click support.
 
 Keep upstream plugin frame ticks, service exit reasons, tray fixes, and bar
-fixes. Keep the local taskbar fields `target_output` and `drag_drop_command`.
+fixes. Keep the local taskbar fields `target_output`, `drag_drop_command`,
+and `middle_click_command`.
 
 ## Desktop cutover checks
 

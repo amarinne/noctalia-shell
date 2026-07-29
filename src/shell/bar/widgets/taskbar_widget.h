@@ -38,6 +38,7 @@ struct TaskbarWidgetOptions {
   bool showAllOutputs = false;
   std::string targetOutput;
   std::string dragDropCommand;
+  std::string middleClickCommand;
   bool onlyActiveWorkspace = false;
   bool showWorkspaceLabel = true;
   WorkspaceLabelPlacement workspaceLabelPlacement = WorkspaceLabelPlacement::Corner;
@@ -168,6 +169,7 @@ private:
   [[nodiscard]] bool consumeSuppressedTaskClick(const std::string& windowId);
   [[nodiscard]] static Node* sceneRootFor(Node* node) noexcept;
   void closeTaskModel(const TaskModel& task);
+  [[nodiscard]] bool runMiddleClickCommand() const;
   void applyPinnedMerge(std::vector<TaskModel>& tasks);
   void activateOrLaunchPinned(const TaskModel& task);
   void launchDesktopEntry(const TaskModel& task);
@@ -183,6 +185,7 @@ private:
   bool m_groupByWorkspace = false;
   bool m_showAllOutputs = false;
   std::string m_dragDropCommand;
+  std::string m_middleClickCommand;
   bool m_onlyActiveWorkspace = false;
   bool m_showWorkspaceLabel = true;
   WorkspaceLabelPlacement m_workspaceLabelPlacement = WorkspaceLabelPlacement::Corner;
