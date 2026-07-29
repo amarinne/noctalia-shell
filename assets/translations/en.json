@@ -117,7 +117,18 @@
         "error": "Weather err",
         "loading": "Weather…",
         "no-location": "No location",
-        "off": "Weather off"
+        "off": "Weather off",
+        "tooltip": {
+          "condition": "Condition",
+          "high": "High",
+          "humidity": "Humidity",
+          "low": "Low",
+          "sunrise": "Sunrise",
+          "sunset": "Sunset",
+          "temperature": "Temperature",
+          "uv": "UV Index",
+          "wind": "Wind"
+        }
       }
     }
   },
@@ -2046,6 +2057,10 @@
           "description": "Close popups, dismiss panels, or abort the current operation",
           "label": "Cancel"
         },
+        "delete": {
+          "description": "Delete the selected item",
+          "label": "Delete"
+        },
         "down": {
           "description": "Move focus or selection down one row",
           "label": "Navigate Down"
@@ -2208,6 +2223,10 @@
         "control-center-width": {
           "description": "Width of the control center panel in pixels (compact and no-sidebar modes scale down from this)",
           "label": "Control Center Width"
+        },
+        "floating-layer": {
+          "description": "Use Top if input method candidate windows are hidden behind floating panels; Overlay keeps panels above fullscreen content",
+          "label": "Floating Panel Layer"
         },
         "floating-offset": {
           "description": "Gap in pixels between a floating or detached panel and the bar edge",
@@ -3751,6 +3770,20 @@
       "native-title": "Noctalia Settings",
       "no-results": "No settings found",
       "no-results-hint": "Try a different setting name or config key.",
+      "offline-mode-notice": {
+        "appearance": "Community palette downloads will not work.",
+        "calendar-account": "Calendar discovery and sync will not work.",
+        "disable-hint": "Disable Offline Mode in the Security section.",
+        "launcher": "Currency exchange rate fetching will not work.",
+        "location": "Weather and location lookups will not work.",
+        "plugin-store": "Remote plugin catalog and download requests will not work.",
+        "plugins": "Plugin HTTP requests will not work. Git sources can still update.",
+        "security": "External IP lookup and telemetry will not work.",
+        "services": "Calendar account sync will not work.",
+        "template-store": "Community template downloads will not work.",
+        "templates": "Community template downloads and updates will not work.",
+        "title": "Offline Mode"
+      },
       "reset-page": "Reset Page",
       "reset-page-confirm": "Confirm Reset",
       "search-placeholder": "Search settings…",
