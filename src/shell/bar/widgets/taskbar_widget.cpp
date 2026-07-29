@@ -274,7 +274,44 @@ bool TaskbarWidget::taskInWorkspaceGroup(const TaskModel& task, const WorkspaceM
   return !ws.workspace.name.empty() && task.workspaceKey == ws.workspace.name;
 }
 
+bool TaskbarWidget::focusWindowThroughCommand(const std::string& windowId) const {
+  if (!compositors::isNiri() || m_dragDropCommand.empty() || windowId.empty()) {
+    return false;
+  }
+  return process::runAsync(
+      std::vector<std::string>{m_dragDropCommand, "focus-window", "--window-id", windowId}
+  );
+}
+
+bool TaskbarWidget::focusWorkspaceThroughCommand(const Workspace& workspace) const {
+  if (!compositors::isNiri() || m_dragDropCommand.empty() || workspace.id.empty()) {
+    return false;
+  }
+  return process::runAsync(
+      std::vector<std::string>{m_dragDropCommand, "focus-workspace", "--workspace-id", workspace.id}
+  );
+}
+
+void TaskbarWidget::activateWorkspaceModel(wl_output* output, const Workspace& workspace) {
+  if (!focusWorkspaceThroughCommand(workspace)) {
+    m_platform.activateWorkspace(output, workspace);
+  }
+}
+
+void TaskbarWidget::activateToplevelInfoModel(const ToplevelInfo& window) {
+  if (focusWindowThroughCommand(window.identifier)) {
+    return;
+  }
+  const auto windowId = m_platform.compositorWindowIdForToplevelInfo(window);
+  if (!windowId.has_value() || !focusWindowThroughCommand(*windowId)) {
+    m_platform.activateToplevelInfo(window);
+  }
+}
+
 void TaskbarWidget::activateTaskModel(const TaskModel& task) {
+  if (focusWindowThroughCommand(task.workspaceWindowId)) {
+    return;
+  }
   if (task.firstHandle != nullptr) {
     m_platform.activateToplevel(task.firstHandle);
     return;
@@ -290,7 +327,7 @@ void TaskbarWidget::activateTaskModel(const TaskModel& task) {
   if (!task.workspaceKey.empty()) {
     for (const auto& workspace : m_workspaces) {
       if (taskInWorkspaceGroup(task, workspace)) {
-        m_platform.activateWorkspace(workspaceHostOutput(workspace), workspace.workspace);
+        activateWorkspaceModel(workspaceHostOutput(workspace), workspace.workspace);
         return;
       }
     }
@@ -545,7 +582,7 @@ void TaskbarWidget::activateOrLaunchPinned(const TaskModel& task) {
     return;
   }
   if (windows.size() == 1) {
-    m_platform.activateToplevelInfo(windows[0]);
+    activateToplevelInfoModel(windows[0]);
     return;
   }
 
@@ -554,7 +591,7 @@ void TaskbarWidget::activateOrLaunchPinned(const TaskModel& task) {
   if (cursor >= windows.size()) {
     cursor = 0;
   }
-  m_platform.activateToplevelInfo(windows[cursor]);
+  activateToplevelInfoModel(windows[cursor]);
   cursor = (cursor + 1) % windows.size();
 }
 
@@ -863,7 +900,6 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
     }
     const std::optional<Workspace> clickWorkspace =
         taskWorkspace != nullptr ? std::optional<Workspace>(taskWorkspace->workspace) : std::nullopt;
-    wl_output* const taskWsHost = taskWorkspace != nullptr ? workspaceHostOutput(*taskWorkspace) : effectiveOutput();
     auto* areaPtr = area.get();
 
     if (!m_dragDropCommand.empty() && !task.workspaceWindowId.empty()) {
@@ -888,7 +924,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
         || !cycleCandidates.empty()
         || task.pinned) {
       area->setOnClick([this, task, areaPtr, handle = task.firstHandle, windowId = task.workspaceWindowId,
-                        clickWorkspace, taskWsHost, cycleCandidates = std::move(cycleCandidates),
+                        cycleCandidates = std::move(cycleCandidates),
                         cycleKey = std::move(cycleKey)](const InputArea::PointerData& data) {
         if (task.pinned) {
           if (data.button == BTN_MIDDLE) {
@@ -932,21 +968,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
             activateTaskModel(target);
             return;
           }
-          if (handle != nullptr) {
-            m_platform.activateToplevel(handle);
-            return;
-          }
-          if (!windowId.empty()) {
-            m_platform.focusCompositorWindow(windowId);
-            return;
-          }
-          if (compositors::isKde() && (!task.title.empty() || !task.appId.empty())) {
-            m_platform.activateKdeWindow(task.title, task.appId);
-            return;
-          }
-          if (clickWorkspace.has_value()) {
-            m_platform.activateWorkspace(taskWsHost, *clickWorkspace);
-          }
+          activateTaskModel(task);
           return;
         }
         if (data.button == BTN_RIGHT && areaPtr != nullptr && (handle != nullptr || compositors::isKde())) {
@@ -1148,7 +1170,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
 
       auto wsCopy = ws.workspace;
       wl_output* const wsHost = workspaceHostOutput(ws);
-      badge->setOnClick([this, wsCopy, wsHost]() { m_platform.activateWorkspace(wsHost, wsCopy); });
+      badge->setOnClick([this, wsCopy, wsHost]() { activateWorkspaceModel(wsHost, wsCopy); });
 
       if (hover) {
         attachHover(*badge->inputArea(), disc.width, disc.height);
@@ -1168,7 +1190,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
       wl_output* const wsHost = workspaceHostOutput(ws);
       area->setOnClick([this, wsCopy, wsHost](const InputArea::PointerData& data) {
         if (data.button == BTN_LEFT) {
-          m_platform.activateWorkspace(wsHost, wsCopy);
+          activateWorkspaceModel(wsHost, wsCopy);
         }
       });
 
@@ -1449,7 +1471,7 @@ void TaskbarWidget::buildTaskButtons(Renderer& renderer) {
           wl_output* const wsHost = workspaceHostOutput(ws);
           switcher->setOnClick([this, wsCopy, wsHost](const InputArea::PointerData& data) {
             if (data.button == BTN_LEFT) {
-              m_platform.activateWorkspace(wsHost, wsCopy);
+              activateWorkspaceModel(wsHost, wsCopy);
             }
           });
           group->addChild(std::move(switcher));
@@ -3104,7 +3126,7 @@ void TaskbarWidget::activateAdjacentWorkspace(int direction) {
   }
 
   const auto& targetWs = workspaces[targetIndex];
-  m_platform.activateWorkspace(workspaceHostOutput(targetWs), targetWs.workspace);
+  activateWorkspaceModel(workspaceHostOutput(targetWs), targetWs.workspace);
 }
 
 void TaskbarWidget::cycleAdjacent(int direction) {

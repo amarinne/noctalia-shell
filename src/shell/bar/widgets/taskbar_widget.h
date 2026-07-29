@@ -157,6 +157,10 @@ private:
   [[nodiscard]] static ColorSpec readableColorForFill(const ColorSpec& fill);
   [[nodiscard]] static ColorRole onRoleForFill(ColorRole fill);
   [[nodiscard]] static bool taskInWorkspaceGroup(const TaskModel& task, const WorkspaceModel& ws);
+  [[nodiscard]] bool focusWindowThroughCommand(const std::string& windowId) const;
+  [[nodiscard]] bool focusWorkspaceThroughCommand(const Workspace& workspace) const;
+  void activateWorkspaceModel(wl_output* output, const Workspace& workspace);
+  void activateToplevelInfoModel(const ToplevelInfo& window);
   void activateTaskModel(const TaskModel& task);
   void beginTaskDrag(InputArea* sourceArea, const std::string& sourceWindowId, float localX, float localY);
   void updateTaskDrag(float localX, float localY);
