@@ -20,6 +20,10 @@
 
 struct WaylandOutput;
 
+// Direction hidden accordion members unfold relative to the always-visible first member, along the
+// bar lane's main axis.
+enum class BarAccordionDirection : std::uint8_t { End = 0, Start = 1 };
+
 // A capsule group: an ordered set of member widgets sharing one capsule + style. `id` is opaque and
 // auto-generated. A group appears in a bar lane as a single token (see makeCapsuleGroupToken); its
 // members live inside the group, not loose in the lane.
@@ -35,6 +39,11 @@ struct BarCapsuleGroupStyle {
   float padding = Style::barCapsulePadding;
   std::optional<float> radius;
   float opacity = 1.0f;
+  // Collapse the group to its first member; hovering the capsule reveals the rest inline.
+  bool accordion = false;
+  BarAccordionDirection accordionDirection = BarAccordionDirection::End;
+  // Gap between members inside the capsule, in logical pixels; unset inherits the bar's widget_spacing.
+  std::optional<std::int32_t> widgetSpacing;
 
   bool operator==(const BarCapsuleGroupStyle&) const = default;
 };
@@ -334,6 +343,8 @@ enum class KeybindAction : std::uint8_t {
   TabNext = 6,
   TabPrevious = 7,
   Delete = 8,
+  Copy = 9,
+  Save = 10,
 };
 
 [[nodiscard]] std::vector<KeyChord> defaultKeybindSet(KeybindAction action);
@@ -362,6 +373,11 @@ struct WidgetBarCapsuleSpec {
   // Capsule background opacity multiplier (0.0–1.0).
   float opacity = 1.0f;
   bool hoverHighlight = true;
+  // Accordion mode (capsule groups only): collapse to the first member; hover expands.
+  bool accordion = false;
+  BarAccordionDirection accordionDirection = BarAccordionDirection::End;
+  // Gap between group members; unset inherits the bar's widget_spacing. Meaningless for single widgets.
+  std::optional<float> widgetSpacing;
 
   bool operator==(const WidgetBarCapsuleSpec&) const = default;
 };
@@ -531,6 +547,11 @@ template <typename T, std::size_t N> constexpr std::string_view enumToKey(const 
   }
   return {};
 }
+
+constexpr EnumOption<BarAccordionDirection> kBarAccordionDirections[] = {
+    {BarAccordionDirection::End, "end", "settings.options.accordion-direction.end"},
+    {BarAccordionDirection::Start, "start", "settings.options.accordion-direction.start"},
+};
 
 enum class DockEdge : std::uint8_t {
   Top = 0,
@@ -975,6 +996,7 @@ struct ShellConfig {
     bool copyToClipboard = true;
     bool freezeScreen = true;
     bool confirmRegion = false;
+    bool rememberLastRegion = false;
     bool showCursor = false;
     bool pipeToCommand = false;
     std::string pipeCommand;
@@ -1240,6 +1262,8 @@ struct KeybindsConfig {
   std::vector<KeyChord> tabNext;
   std::vector<KeyChord> tabPrevious;
   std::vector<KeyChord> deleteEntry;
+  std::vector<KeyChord> copy;
+  std::vector<KeyChord> save;
 
   bool operator==(const KeybindsConfig&) const = default;
 };

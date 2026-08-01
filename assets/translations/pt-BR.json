@@ -29,7 +29,7 @@
   "bar": {
     "screenshot": {
       "choose-display": "Escolha o monitor",
-      "confirm-region": "Enter ou Espaço para capturar · Esc para cancelar · Arraste para reselecionar",
+      "confirm-region": "{copy} para copiar · {save} para salvar · Enter ou Espaço para padrões · {cancel} para cancelar · Arraste para reselecionar",
       "fullscreen": "Tela cheia",
       "overlay-alloc-failed": "Não foi possível mostrar a camada de captura de tela (GPU sem memória disponível?",
       "region": "Selecione a área"
@@ -117,7 +117,18 @@
         "error": "Erro no clima",
         "loading": "Clima...",
         "no-location": "Sem localização",
-        "off": "Clima desligado"
+        "off": "Clima desligado",
+        "tooltip": {
+          "condition": "Condição",
+          "high": "Máxima",
+          "humidity": "Umidade",
+          "low": "Mínima",
+          "sunrise": "Nascer do Sol",
+          "sunset": "Pôr do Sol",
+          "temperature": "Temperatura",
+          "uv": "Índice UV",
+          "wind": "Vento"
+        }
       }
     }
   },
@@ -255,6 +266,7 @@
       "start-playback": "Iniciar reprodução em um aplicativo MPRIS"
     },
     "network": {
+      "available": "Disponível",
       "connect": "Conectar",
       "current-connection": "Conexão atual",
       "external-ip": "WAN {ip}",
@@ -263,6 +275,7 @@
       "password": "Senha",
       "password-prompt": "Digitar a senha",
       "password-prompt-for": "Digite a senha para {ssid}",
+      "saved": "Salvo",
       "unavailable-detail": "Instale e ative o NetworkManager, wpa_supplicant ou iwd para gerenciar redes a partir daqui.",
       "unavailable-title": "Serviço de rede indisponível",
       "vpns": "VPNs",
@@ -519,6 +532,7 @@
         "show-media": "Mídia",
         "show-password-hint": "Dica de Senha",
         "show-session-buttons": "Botões de Sessão",
+        "show-unlock-hint": "Dica de Desbloqueio",
         "show-vpn-label": "Mostra Rótulo VPN",
         "show-weather": "Clima",
         "show-when-idle": "Mostrar Quando Ocioso",
@@ -854,7 +868,7 @@
       "inherited": "Herdado",
       "monitor": "Monitor",
       "official": "Oficial",
-      "override": "Sobrescrever"
+      "override": "Sobrescrito"
     },
     "calendar-accounts": {
       "add-title": "Adicionar Conta de Calendário",
@@ -952,10 +966,16 @@
           "title": "Widgets da Barra"
         },
         "group": {
+          "accordion": "Acordeão",
+          "accordion-description": "Mostra somente o primeiro widget; pairando sobre a capsula revela o resto",
+          "accordion-direction": "Direção de revelação",
+          "accordion-direction-description": "Lado do ",
           "action": "Grupo",
           "border": "Borda",
           "border-description": "Cor do contorno da cápsula; deixe em Padrão para nenhum contorno.",
           "clear": "Apagar",
+          "deselect": "Desmarcar",
+          "drag": "Reordenar",
           "drawer-columns": "Número de ícones do tray por linha no painel do drawer.",
           "drawer-columns-description": "Número de widgets por linha no painel gaveta",
           "drawer-detached": "Painel Destacado",
@@ -982,12 +1002,19 @@
           "padding-description": "Espaçamento interno entre a borda da cápsula e seus widgets, em pixels.",
           "radius": "Raio",
           "radius-description": "Raio do canto da cápsula em pixels; Automaticamente herda o raio da cápsula da barra",
+          "remove-from-group": "Remover do grupo",
+          "remove-orphan": "Remover grupo desconhecido",
+          "remove-widget": "Remover da barra",
+          "select": "Selecionar para agrupar",
           "selected": "{count} selecionado",
+          "settings-widget": "Configurações do widget",
           "show": "Exibir este grupo",
           "show-widget": "Exibir este widget",
           "style": "Estilo",
           "title": "Grupo de cápsula",
-          "ungroup": "Desagrupar"
+          "ungroup": "Desagrupar",
+          "widget-spacing": "Espaçamento",
+          "widget-spacing-description": "Espaço entre widgets neste grupo em pixels; Herda automaticamente o espaçamento de widget da barra"
         },
         "inspector": {
           "add-instance-title": "Adicionar novo widget nomeado {widget} a {lane}",
@@ -1242,6 +1269,10 @@
       }
     },
     "options": {
+      "accordion-direction": {
+        "end": "Depois do primeiro widget",
+        "start": "Antes do primeiro widget"
+      },
       "bar": {
         "auto-hide": {
           "off": "Desligado",
@@ -2046,6 +2077,14 @@
           "description": "Feche janelas pop-up, descarte painéis ou interrompa a operação atual",
           "label": "Cancelar"
         },
+        "copy": {
+          "description": "Copiar a seleção ou item atual",
+          "label": "Copiar"
+        },
+        "delete": {
+          "description": "Excluir o item selecionado",
+          "label": "Excluir"
+        },
         "down": {
           "description": "Mova o foco ou a seleção uma linha para baixo",
           "label": "Navegar para Baixo"
@@ -2057,6 +2096,10 @@
         "right": {
           "description": "Mova o foco ou a seleção para a direita",
           "label": "Navegar para Direita"
+        },
+        "save": {
+          "description": "Salvar a seleção ou item atual",
+          "label": "Salvar"
         },
         "tab-next": {
           "description": "Mover o foco para o próximo controle",
@@ -2208,6 +2251,10 @@
         "control-center-width": {
           "description": "Largura do painel da Central de Controle em pixels (os modos compacto e sem barra lateral são redimensionados a partir desse valor)",
           "label": "Largura da Central de Controle"
+        },
+        "floating-layer": {
+          "description": "Use \"Topo\" se houver janelas atrás de painéis flutuantes; \"Overlay\" mantém painéis sobre conteúdo de tela cheia",
+          "label": "Camada do Painel Flutuante"
         },
         "floating-offset": {
           "description": "Espaço, em pixels, entre um painel flutuante ou separado e a extremidade da barra",
@@ -2452,7 +2499,7 @@
           "description-error": "Não foi possível abrir ou salvar o cache criptografado de eventos do calendário.",
           "description-locked": "O armazenamento criptografado está bloqueado ou o acesso foi negado. Corrija o acesso e tente novamente.",
           "description-migration": "O cache de eventos do calendário em texto simples está aguardando criptografia. Ele será preservado até que a migração seja concluída com sucesso.",
-          "description-missing-key": "A chave de armazenamento criptografado configurada está ausente. Os arquivos de cache do calendário existentes foram preservados.",
+          "description-missing-key": "Faltando chave do cache de evento do calendário. As credenciais da conta utilizam um armazenamento separado; os arquivos de cache existentes foram preservados.",
           "description-opening": "O cache criptografado de eventos do calendário está sendo aberto.",
           "description-recovery": "O evento de calendário não pôde ser autenticado ou está danificado. Tente novamente depois de restaurar a chave correta, ou redefina o armazenamento privado.",
           "description-unavailable": "Nenhum provedor do Secret Service está disponível. Os eventos do calendário permanecerão disponíveis apenas nesta sessão.",
@@ -2899,6 +2946,10 @@
           "description": "Envia o PNG capturado para um comando do shell em stdin",
           "label": "Pipe para Comando"
         },
+        "screenshot-remember-last-region": {
+          "description": "Pré-selecionar a última região(incluindo depois de cancelar) na próxima captura de tela por região",
+          "label": "Lembrar Última Região"
+        },
         "screenshot-save-to-file": {
           "description": "Salva as capturas de tela como arquivos PNG no diretório de saída",
           "label": "Salvar para Arquivo"
@@ -3258,6 +3309,10 @@
           "description": "Centraliza as barras do visualizador em vez de alinhá-las à borda",
           "label": "Centralizado"
         },
+        "change-color-on-hover": {
+          "description": "Mude o preenchimento de espaço de trabalho e cores de rótulos quando o ponteiro pairar sobre",
+          "label": "Mudar Cor ao Passar o Mouse"
+        },
         "color": {
           "description": "Cor do ícone e rótulo deste widget; cores hexadecimais fixas também são suportadas",
           "label": "Cor"
@@ -3596,12 +3651,12 @@
           "description": "Exibe o placeholder quando nenhuma janela estiver em foco, em vez de ocultar o widget",
           "label": "Mostrar Rótulo Vazio"
         },
-        "show-icon": {
-          "description": "Exibe o ícone deste widget",
-          "label": "Exibir Ícone"
+        "show-glyph": {
+          "description": "Mostrar o símbolo do widget ou imagem personalizada",
+          "label": "Mostrar Símbolo"
         },
         "show-label": {
-          "description": "Exibe texto ao lado do ícone",
+          "description": "Exibe texto do rótulo do widget",
           "label": "Exibir Rótulo"
         },
         "show-num-lock": {
@@ -3615,6 +3670,14 @@
         "show-temperature": {
           "description": "Mostrar texto com temperatura atual",
           "label": "Exibir Temperatura"
+        },
+        "show-unlock-hint": {
+          "description": "Exibir o card de status acima da caixa de login para dicas de desbloqueio e prompts de autenticação. Erros e avisos de Caps Lock ainda aparecem quando isso está desligado.",
+          "label": "Dica de Desbloqueio"
+        },
+        "show-value": {
+          "description": "Mostrar o valor atual próximo à visualização",
+          "label": "Mostrar Valor"
         },
         "show-vpn-label": {
           "description": "Substitui rótulo de rede com rótulo da VPN em modo de substituição; adiciona rótulo próximo ao ícone de VPN em ambos modos",
@@ -3676,6 +3739,10 @@
         "vertical-format": {
           "description": "Formato opcional usado em barras verticais",
           "label": "Formato vertical"
+        },
+        "visualization": {
+          "description": "Mostrar",
+          "label": "Visualização"
         },
         "vpn-status": {
           "description": "Como mostrar o status da VPN: troca o ícone de rede para um escudo VPN, ambos mostrar lado a lado, oculto desativa o indicador da VPN",

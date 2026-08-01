@@ -291,6 +291,9 @@ void PluginWidget::create() {
     if (token == nullptr || !*token) {
       return;
     }
+    if (result.modulePathsKnown) {
+      m_scriptWatcher.setModulePaths(result.modulePaths);
+    }
     handleScriptResult(std::move(result));
   });
 
@@ -840,17 +843,10 @@ void PluginWidget::scheduleImageReloadRetry() {
 bool PluginWidget::shouldDeferUpdate() const { return m_updateDeferralCallback && m_updateDeferralCallback(); }
 
 void PluginWidget::setupScriptWatch() {
-  if (m_sourcePath.empty() || !m_fileWatcher)
-    return;
-  m_watchId = m_fileWatcher->watch(m_sourcePath, [this] { reloadScript(); }, FileWatcher::WatchTrigger::WriteCompleted);
+  m_scriptWatcher.start(m_fileWatcher, m_sourcePath, [this] { reloadScript(); });
 }
 
-void PluginWidget::teardownScriptWatch() {
-  if (m_watchId == 0 || !m_fileWatcher)
-    return;
-  m_fileWatcher->unwatch(m_watchId);
-  m_watchId = 0;
-}
+void PluginWidget::teardownScriptWatch() { m_scriptWatcher.stop(); }
 
 void PluginWidget::reloadScript() {
   std::string source = readFile(m_sourcePath);

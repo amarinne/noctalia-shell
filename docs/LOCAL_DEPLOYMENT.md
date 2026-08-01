@@ -3,8 +3,8 @@
 ## Desktop deployment
 
 - Source: `/home/ez/Projects/noctalia-shell`
-- Fork merge: `06a5cbe9c`
-- Upstream baseline: `082e0e386`
+- Fork branch: `main`
+- Upstream baseline: `73e498510`
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
 - Active launcher: `/home/ez/.local/bin/noctalia-v5`
 - Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
@@ -18,11 +18,12 @@ Do not start the old `qs -c noctalia-shell` process with v5.
 ## Fedora build dependencies
 
 ```sh
-sudo dnf install md4c-devel json-devel tomlplusplus-devel stb-devel
+sudo dnf install md4c-devel json-devel tomlplusplus-devel stb-devel \
+  libical-devel libsndfile-devel
 ```
 
 Fedora package name is `json-devel`, not `nlohmann-json-devel`.
-Upstream now requires system md4c, nlohmann/json, toml++, and stb. Vendored copies removed.
+Upstream requires system md4c, nlohmann/json, toml++, stb, libical, and libsndfile.
 
 ## Build and test
 
@@ -35,7 +36,7 @@ meson compile -C build-release
 meson test -C build-release --print-errorlogs
 ```
 
-All 62 tests must pass. Run the build on the desktop. Do not compile Noctalia
+All 66 tests must pass. Run the build on the desktop. Do not compile Noctalia
 on the laptop.
 
 The desktop package bundles private libraries in `lib/`. The installed binary
@@ -69,11 +70,12 @@ The expected process path is
 
 ## Local changes retained across upstream merges
 
-- Workspace app initials and icons.
 - Grouped-taskbar active marker and icon padding.
 - Niri workspace task ordering by layout.
 - Taskbar explicit target outputs and workspace drag/drop routing.
 - Plugin bar drag sources with click support.
+
+Use the upstream `WorkspacesWidget`. The XMB plugin provides the custom workspace strip.
 
 Keep upstream plugin frame ticks, service exit reasons, tray fixes, and bar
 fixes. Keep the local taskbar fields `target_output`, `drag_drop_command`,

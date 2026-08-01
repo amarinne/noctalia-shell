@@ -213,6 +213,7 @@ private:
   void onGraphicsReset(RenderGraphicsResetStatus status);
   void recoverGraphicsAfterReset();
   void requestAllSurfacesRedraw();
+  void releaseSleepDelayInhibitIfPending();
   void onUpowerStateChangedForHooks();
   void onNetworkStateChangedForEvents(const NetworkState& state, NetworkChangeOrigin origin);
   void onBluetoothStateChangedForEvents(const BluetoothState& state, BluetoothStateChangeOrigin origin);
@@ -245,6 +246,8 @@ private:
   std::unique_ptr<SessionBus> m_bus;
   std::unique_ptr<SystemBus> m_systemBus;
   std::unique_ptr<LogindService> m_logindService;
+  // Set on PrepareForSleep(true); cleared when the session lock engages (or the lock aborts).
+  bool m_releaseSleepDelayWhenLocked = false;
   std::unique_ptr<AccountsService> m_accountsService;
   std::unique_ptr<ScreenSaverService> m_screenSaverService;
   std::unique_ptr<ScreenSaverPollSource> m_screenSaverPollSource;
@@ -256,7 +259,9 @@ private:
   HookManager m_hookManager;
   DependencyService m_dependencyService;
   GammaService m_gammaService;
-  ScreenshotService m_screenshotService{m_wayland, m_compositorPlatform, m_notificationManager, &m_clipboardService};
+  ScreenshotService m_screenshotService{
+      m_wayland, m_compositorPlatform, m_configService, m_notificationManager, &m_clipboardService
+  };
   std::unique_ptr<MprisService> m_mprisService;
   std::unique_ptr<PowerProfilesService> m_powerProfilesService;
   std::unique_ptr<INetworkService> m_networkService;
@@ -292,7 +297,7 @@ private:
   std::unique_ptr<WirePlumberMixer> m_wirePlumberMixer;
   std::unique_ptr<EasyEffectsService> m_easyEffectsService;
   std::unique_ptr<PipeWireSpectrum> m_pipewireSpectrum;
-  std::unique_ptr<SoundPlayer> m_soundPlayer;
+  std::shared_ptr<SoundPlayer> m_soundPlayer;
 
   TelemetryService m_telemetryService;
   ScreenTimeService m_screenTimeService;

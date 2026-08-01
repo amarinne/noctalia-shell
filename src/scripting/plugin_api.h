@@ -18,7 +18,11 @@ namespace scripting {
   inline constexpr std::uint32_t kExtendedSystemStatsPluginApiVersion = 16;
   inline constexpr std::uint32_t kServiceLifecyclePluginApiVersion = 17;
   inline constexpr std::uint32_t kPanelFrameTickPluginApiVersion = 18;
-  inline constexpr std::uint32_t kCurrentPluginApiVersion = kPanelFrameTickPluginApiVersion;
+  inline constexpr std::uint32_t kFormatTimeTimezonePluginApiVersion = 19;
+  inline constexpr std::uint32_t kSoundPluginApiVersion = 20;
+  inline constexpr std::uint32_t kPluginUiPropsPluginApiVersion = 21;
+  inline constexpr std::uint32_t kModuleRequirePluginApiVersion = 22;
+  inline constexpr std::uint32_t kCurrentPluginApiVersion = kModuleRequirePluginApiVersion;
 
   static_assert(kOldestSupportedPluginApiVersion <= kCurrentPluginApiVersion);
 

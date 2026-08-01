@@ -18,6 +18,7 @@ class ContextMenuPopup;
 class ConfigService;
 class Flex;
 class InputArea;
+class TaskbarWidgetTestAccess;
 struct wl_output;
 struct zwlr_foreign_toplevel_handle_v1;
 
@@ -49,6 +50,7 @@ struct TaskbarWidgetOptions {
   bool minimal = false;
   bool groupSingleIconPerApp = false;
   bool showActiveIndicator = true;
+  ColorSpec activeIndicatorColor = colorSpecFromRole(ColorRole::Primary);
   float activeOpacity = 1.0f;
   float inactiveOpacity = 1.0f;
   float pinnedOpacity = 0.5f;
@@ -77,6 +79,8 @@ public:
   void cycleAdjacent(int direction);
 
 private:
+  friend class TaskbarWidgetTestAccess;
+
   struct TaskModel {
     std::uintptr_t handleKey = 0;
     std::uint64_t order = 0;
@@ -128,6 +132,17 @@ private:
     bool dragging = false;
   };
 
+  struct ModelComparison {
+    bool layoutEqual = false;
+    // Meaningful only when layoutEqual is true and the existing task tiles will be retained.
+    bool titlesChanged = false;
+  };
+
+  struct TaskRef {
+    std::size_t index = 0;
+    std::uint64_t generation = 0;
+  };
+
   void doLayout(Renderer& renderer, float containerWidth, float containerHeight) override;
   void doUpdate(Renderer& renderer) override;
 
@@ -138,8 +153,11 @@ private:
   void syncWorkspaceGroupingCapability();
   [[nodiscard]] static std::string toLower(std::string value);
   [[nodiscard]] static std::string workspaceLabel(const Workspace& workspace, std::size_t index);
-  [[nodiscard]] bool
-  modelsEqual(const std::vector<TaskModel>& tasks, const std::vector<WorkspaceModel>& workspaces) const;
+  [[nodiscard]] static ModelComparison compareModels(
+      bool showWindowTitle, const std::vector<TaskModel>& previousTasks,
+      const std::vector<WorkspaceModel>& previousWorkspaces, const std::vector<TaskModel>& nextTasks,
+      const std::vector<WorkspaceModel>& nextWorkspaces
+  );
   void buildDesktopIconIndex();
   [[nodiscard]] std::string resolveIconPath(const std::string& appId, const std::string& iconNameOrPath);
   void openTaskContextMenu(const TaskModel& task, InputArea& area);
@@ -162,6 +180,8 @@ private:
   [[nodiscard]] bool focusWorkspaceThroughCommand(const Workspace& workspace) const;
   void activateWorkspaceModel(wl_output* output, const Workspace& workspace);
   void activateToplevelInfoModel(const ToplevelInfo& window);
+  [[nodiscard]] static const TaskModel*
+  resolveTask(const std::vector<TaskModel>& tasks, TaskRef ref, std::uint64_t currentGeneration);
   void activateTaskModel(const TaskModel& task);
   void beginTaskDrag(InputArea* sourceArea, const std::string& sourceWindowId, float localX, float localY);
   void updateTaskDrag(float localX, float localY);
@@ -198,6 +218,7 @@ private:
   bool m_minimal = false;
   bool m_groupSingleIconPerApp = false;
   bool m_showActiveIndicator = true;
+  ColorSpec m_activeIndicatorColor = colorSpecFromRole(ColorRole::Primary);
   float m_activeOpacity = 1.0f;
   float m_inactiveOpacity = 1.0f;
   float m_pinnedOpacity = 0.5f;
@@ -221,6 +242,10 @@ private:
   Flex* m_taskStrip = nullptr;
 
   std::vector<TaskModel> m_tasks;
+  // Retained controls resolve task indices only while this model generation matches.
+  std::uint64_t m_taskGeneration = 0;
+  // Non-owning; cleared before task-strip children are destroyed.
+  std::vector<InputArea*> m_taskTileAreas;
   std::vector<WorkspaceModel> m_workspaces;
   std::vector<DragDropTarget> m_dragDropTargets;
   DragState m_dragState;

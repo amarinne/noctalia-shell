@@ -1,5 +1,6 @@
 #include "shell/bar/widgets/workspaces_widget.h"
 
+#include "compositors/workspace_backend.h"
 #include "config/config_service.h"
 #include "core/ui_phase.h"
 #include "render/animation/animation.h"
@@ -9,10 +10,10 @@
 #include "render/scene/node.h"
 #include "system/app_identity.h"
 #include "system/desktop_entry.h"
+#include "system/icon_resolver.h"
 #include "system/internal_app_metadata.h"
 #include "ui/app_icon_colorization.h"
 #include "ui/builders.h"
-#include "ui/controls/image.h"
 #include "ui/style.h"
 #include "util/string_utils.h"
 
@@ -73,28 +74,30 @@ namespace {
 } // namespace
 
 WorkspacesWidget::WorkspacesWidget(
-    CompositorPlatform& platform, ConfigService& configService, wl_output* output, Options options
+    CompositorPlatform& platform, ConfigService& config, wl_output* output, Options options
 )
-    : m_platform(platform), m_configService(configService), m_output(output), m_displayMode(options.displayMode),
-      m_maxLabelChars(options.maxLabelChars), m_labelsOnlyWhenOccupied(options.labelsOnlyWhenOccupied),
-      m_hideWhenEmpty(options.hideWhenEmpty), m_pillScale(options.pillScale),
-      m_activePillSize(std::clamp(options.activePillSize, 0.25f, 8.0f)),
-      m_inactivePillSize(std::clamp(options.inactivePillSize, 0.25f, 8.0f)), m_minimal(options.minimal),
-      m_focusedOutputOnly(options.focusedOutputOnly),
+    : m_platform(platform), m_configService(config), m_output(output), m_labelSource(options.labelSource),
+      m_showLabels(options.showLabels), m_maxLabelChars(options.maxLabelChars),
+      m_labelsOnlyWhenOccupied(options.labelsOnlyWhenOccupied), m_hideWhenEmpty(options.hideWhenEmpty),
+      m_pillScale(options.pillScale), m_activePillSize(std::clamp(options.activePillSize, 0.25f, 8.0f)),
+      m_inactivePillSize(std::clamp(options.inactivePillSize, 0.25f, 8.0f)), m_style(options.style),
+      m_focusedOutputOnly(options.focusedOutputOnly), m_changeColorOnHover(options.changeColorOnHover),
       m_focusedColor(options.focusedColor), m_occupiedColor(options.occupiedColor), m_emptyColor(options.emptyColor),
       m_urgentColor(options.urgentColor) {
   buildDesktopIconIndex();
 }
 
-WorkspacesWidget::DisplayMode WorkspacesWidget::effectiveDisplayMode() const noexcept {
-  if (m_minimal && m_displayMode == DisplayMode::None) {
-    return DisplayMode::Id;
-  }
-  return m_displayMode;
-}
-
+// Precedence: the master switch wins everywhere, then the style's own annotation
+// rule, then label content, then the occupied filter. FocusHint annotates only the
+// focused workspace, so the occupied filter never applies to it.
 bool WorkspacesWidget::shouldShowWorkspaceLabel(const Workspace& workspace, std::string_view label) const noexcept {
-  if (effectiveDisplayMode() == DisplayMode::None || label.empty()) {
+  if (!m_showLabels) {
+    return false;
+  }
+  if (isFocusHint()) {
+    return workspace.active && (!label.empty() || !activeWindowAppId().empty());
+  }
+  if (label.empty()) {
     return false;
   }
   if (m_labelsOnlyWhenOccupied && !workspace.occupied && !workspace.active) {
@@ -111,6 +114,11 @@ void WorkspacesWidget::create() {
   auto container = ui::inputArea({});
   m_container = container.get();
   setRoot(std::move(container));
+
+  m_appIconColorizeConn = shellAppIconColorizationChanged().connect([this]() {
+    m_iconColorizeRefreshPending = true;
+    requestUpdate();
+  });
 }
 
 void WorkspacesWidget::doLayout(Renderer& renderer, float containerWidth, float containerHeight) {
@@ -177,8 +185,17 @@ bool WorkspacesWidget::releaseHeldVisualStyles() {
 }
 
 void WorkspacesWidget::doUpdate(Renderer& renderer) {
+  if (m_iconColorizeRefreshPending && isFocusHint()) {
+    for (auto& item : m_items) {
+      syncActiveWindowIcon(renderer, item);
+    }
+    m_iconColorizeRefreshPending = false;
+    if (root() != nullptr) {
+      root()->markPaintDirty();
+    }
+  }
+
   auto current = m_platform.workspaces(m_output);
-  auto currentAppsByWorkspace = m_platform.appIdsByWorkspace(m_output);
 
   if (!m_cachedState.empty() && !current.empty() && !std::ranges::any_of(current, [](const Workspace& ws) {
         return ws.active;
@@ -200,7 +217,6 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
     if (!m_cachedState.empty() || !m_items.empty()) {
       cancelAnimation();
       m_cachedState.clear();
-      m_cachedAppsByWorkspace.clear();
       m_items.clear();
       if (m_container != nullptr) {
         m_container->setFrameSize(0.0f, 0.0f);
@@ -222,8 +238,19 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
 
   bool structuralChange = current.size() != m_cachedState.size();
   bool activeChange = false;
-  const bool appsChange = currentAppsByWorkspace != m_cachedAppsByWorkspace;
   bool hideWhenEmptyTransition = false;
+  if (isFocusHint()) {
+    const auto desktopVersion = desktopEntriesVersion();
+    if (desktopVersion != m_desktopEntriesVersion) {
+      buildDesktopIconIndex();
+      activeChange = true;
+    }
+    const std::string nextActiveWindowAppId = activeWindowAppId();
+    if (nextActiveWindowAppId != m_cachedActiveWindowAppId) {
+      m_cachedActiveWindowAppId = nextActiveWindowAppId;
+      activeChange = true;
+    }
+  }
   if (!structuralChange) {
     for (std::size_t i = 0; i < current.size(); ++i) {
       const auto& a = current[i];
@@ -247,7 +274,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
     structuralChange = !std::ranges::equal(m_items, m_cachedState, {}, &Item::key, workspaceIdentityKey);
   }
 
-  if (!structuralChange && !activeChange && !hideWhenEmptyTransition && !appsChange) {
+  if (!structuralChange && !activeChange && !hideWhenEmptyTransition) {
     if (m_focusedOutputOnly) {
       const bool isFocused = isFocusedOutput();
       if (isFocused != m_wasFocusedOutput) {
@@ -258,7 +285,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
     return;
   }
 
-  if ((structuralChange || appsChange) && m_rebuildSnapshot.empty()) {
+  if (structuralChange && m_rebuildSnapshot.empty()) {
     snapshotItemsForRebuild();
   }
 
@@ -277,9 +304,8 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
         }
     );
   }
-  m_cachedAppsByWorkspace = std::move(currentAppsByWorkspace);
 
-  if (structuralChange || hideWhenEmptyTransition || appsChange) {
+  if (structuralChange || hideWhenEmptyTransition) {
     m_rebuildPending = true;
     if (root() != nullptr) {
       root()->markLayoutDirty();
@@ -291,7 +317,7 @@ void WorkspacesWidget::doUpdate(Renderer& renderer) {
 
 void WorkspacesWidget::rebuild(Renderer& renderer) {
   uiAssertNotRendering("WorkspacesWidget::rebuild");
-  const bool animateFromSnapshot = !m_minimal && !m_rebuildSnapshot.empty();
+  const bool animateFromSnapshot = !isMinimal() && !m_rebuildSnapshot.empty();
   m_activeUsesFocusedColor = !m_focusedOutputOnly || isFocusedOutput();
   cancelAnimation();
   if (m_animations != nullptr) {
@@ -304,15 +330,12 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     m_container->removeChild(m_container->children().back().get());
   }
   m_items.clear();
-  buildDesktopIconIndex();
 
   struct RebuildEntry {
     Workspace workspace;
     std::string key;
     std::string label;
-    std::vector<std::string> iconPaths;
     bool showLabel = false;
-    bool showIcons = false;
     bool exiting = false;
     const ItemSnapshot* snapshot = nullptr;
   };
@@ -346,9 +369,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
                 .workspace = snapshot.workspace,
                 .key = snapshot.key,
                 .label = snapshot.label,
-                .iconPaths = snapshot.iconPaths,
                 .showLabel = snapshot.showLabel,
-                .showIcons = snapshot.showIcons,
                 .exiting = true,
                 .snapshot = &snapshot,
             }
@@ -365,15 +386,12 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       }
 
       const std::string label = workspaceLabel(workspace, i);
-      const auto iconPaths = workspaceAppIcons(workspace, i);
       entries.push_back(
           RebuildEntry{
               .workspace = workspace,
               .key = key,
               .label = label,
-              .iconPaths = iconPaths,
-              .showLabel = iconPaths.empty() && shouldShowWorkspaceLabel(workspace, label),
-              .showIcons = !iconPaths.empty(),
+              .showLabel = shouldShowWorkspaceLabel(workspace, label),
               .exiting = false,
               .snapshot = snapshotIndex.has_value() ? &m_rebuildSnapshot[*snapshotIndex] : nullptr,
           }
@@ -388,22 +406,19 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     for (std::size_t i = 0; i < workspaces.size(); ++i) {
       const auto& workspace = workspaces[i];
       const std::string label = workspaceLabel(workspace, i);
-      const auto iconPaths = workspaceAppIcons(workspace, i);
       entries.push_back(
           RebuildEntry{
               .workspace = workspace,
               .key = workspaceIdentityKey(workspace),
               .label = label,
-              .iconPaths = iconPaths,
-              .showLabel = iconPaths.empty() && shouldShowWorkspaceLabel(workspace, label),
-              .showIcons = !iconPaths.empty(),
+              .showLabel = shouldShowWorkspaceLabel(workspace, label),
           }
       );
     }
   }
 
   const float gap = kWorkspaceGap * m_contentScale;
-  const float labelFontSize = workspaceLabelFontSize(m_minimal) * m_contentScale;
+  const float labelFontSize = workspaceLabelFontSize(isMinimal()) * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const FontWeight configuredFontWeight = labelFontWeight();
 
@@ -411,31 +426,26 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   // Width = max(baseSize * pill_size, textWidth + padding); pill_size comes from active/inactive settings.
   struct SlotMetrics {
     float textWidth = 0.0f;
-    float iconsWidth = 0.0f;
+    float textHeight = 0.0f;
     float inactiveWidth = 0.0f;
     float activeWidth = 0.0f;
   };
   std::vector<SlotMetrics> slots(entries.size());
-  const float baseSize = std::round(pillHeight);
-  const float padding = m_minimal ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
-  const float iconSize = std::max(10.0f, std::round(baseSize * 0.70f));
-  const float iconGap = std::max(1.0f, std::round(Style::spaceXs * m_contentScale * 0.5f));
 
   for (std::size_t i = 0; i < entries.size(); ++i) {
     auto& slot = slots[i];
     const auto& entry = entries[i];
 
     if (entry.showLabel) {
-      const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, entry.workspace.active);
+      const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, isMinimal(), entry.workspace.active);
       const TextMetrics tm = renderer.measureText(entry.label, labelFontSize, slotFontWeight);
       slot.textWidth = std::max(tm.right - tm.left, tm.inkRight - tm.inkLeft);
-    }
-    if (entry.showIcons) {
-      slot.iconsWidth = static_cast<float>(entry.iconPaths.size()) * iconSize
-          + static_cast<float>(entry.iconPaths.size() - 1) * iconGap;
+      slot.textHeight = tm.bottom - tm.top;
     }
   }
 
+  const float baseSize = std::round(pillHeight);
+  const float padding = isMinimal() ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
   float maxLabelHeight = labelFontSize;
 
   for (std::size_t i = 0; i < entries.size(); ++i) {
@@ -448,21 +458,35 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       continue;
     }
 
-    if (m_minimal) {
+    if (isMinimal()) {
       const float minWidth = baseSize;
       if (!entry.showLabel) {
-        const float iconBasedWidth = entry.showIcons ? slot.iconsWidth + padding * 2.0f : 0.0f;
-        slot.inactiveWidth = std::max(minWidth, iconBasedWidth);
-        slot.activeWidth = slot.inactiveWidth;
+        slot.inactiveWidth = minWidth;
+        slot.activeWidth = minWidth;
       } else {
         const float textBasedWidth = slot.textWidth + padding * 2.0f;
         slot.inactiveWidth = std::max(minWidth, textBasedWidth);
         slot.activeWidth = slot.inactiveWidth;
       }
       if (entry.showLabel) {
-        const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, entry.workspace.active);
+        const FontWeight slotFontWeight =
+            workspaceFontWeight(configuredFontWeight, isMinimal(), entry.workspace.active);
         const TextMetrics tm = renderer.measureText(entry.label, labelFontSize, slotFontWeight);
         maxLabelHeight = std::max(maxLabelHeight, tm.bottom - tm.top);
+      }
+      continue;
+    }
+
+    if (isFocusHint()) {
+      const float dotSize = focusedPillDotSize();
+      const bool hasIcon = entry.workspace.active && !activeWindowAppId().empty();
+      if (!entry.workspace.active) {
+        slot.inactiveWidth = dotSize;
+        slot.activeWidth = dotSize;
+      } else {
+        slot.inactiveWidth = dotSize;
+        slot.activeWidth =
+            focusedPillActiveMainAxisSize(slot.textWidth, slot.textHeight, entry.showLabel, hasIcon, baseSize, padding);
       }
       continue;
     }
@@ -471,9 +495,8 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     const float minActiveWidth = workspaceMainAxisMinWidth(baseSize, true);
 
     if (!entry.showLabel) {
-      const float iconBasedWidth = entry.showIcons ? slot.iconsWidth + padding : 0.0f;
-      slot.inactiveWidth = std::max(minWidth, iconBasedWidth);
-      slot.activeWidth = std::max(minActiveWidth, iconBasedWidth);
+      slot.inactiveWidth = minWidth;
+      slot.activeWidth = minActiveWidth;
     } else {
       const float textBasedWidth = slot.textWidth + padding;
       slot.inactiveWidth = std::max(minWidth, textBasedWidth);
@@ -482,7 +505,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   }
 
   m_gap = gap;
-  m_indicatorHeight = m_minimal ? std::round(maxLabelHeight + padding) : pillHeight;
+  m_indicatorHeight = isMinimal() ? std::round(maxLabelHeight + padding) : pillHeight;
 
   for (std::size_t i = 0; i < entries.size(); ++i) {
     const auto& entry = entries[i];
@@ -504,9 +527,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
     item.active = ws.active;
     item.exiting = entry.exiting;
     item.label = entry.label;
-    item.iconPaths = entry.iconPaths;
     item.showLabel = entry.showLabel;
-    item.showIcons = entry.showIcons;
     item.inactiveWidth = slot.inactiveWidth;
     item.activeWidth = slot.activeWidth;
     if (hasSnapshot) {
@@ -516,7 +537,9 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       item.fromOpacity = 0.0f;
     }
 
-    if (!m_minimal) {
+    // Minimal draws labels and nothing else; an unlabeled entry keeps its layout
+    // slot as empty space.
+    if (!isMinimal()) {
       const float indicatorW = m_isVertical ? m_indicatorHeight : w;
       const float indicatorH = m_isVertical ? w : m_indicatorHeight;
       item.indicator = static_cast<Box*>(area->addChild(
@@ -530,12 +553,12 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       ));
     }
 
-    if (entry.showLabel) {
+    if (entry.showLabel && !entry.label.empty()) {
       item.text = static_cast<Label*>(area->addChild(
           ui::label({
               .text = entry.label,
               .fontSize = labelFontSize,
-              .fontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, ws.active),
+              .fontWeight = workspaceFontWeight(configuredFontWeight, isMinimal(), ws.active),
               .fontFamily = labelFontFamily(),
               .color = workspaceTextColor(ws),
               .baselineMode = LabelBaselineMode::Text,
@@ -544,22 +567,17 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       item.text->measure(renderer);
     }
 
-    if (entry.showIcons) {
-      const int iconRequestSize = std::max(32, static_cast<int>(std::round(iconSize * 2.0f)));
-      const auto appIconTint = effectiveShellAppIconColorizationTint(m_configService.config().shell);
-      for (const auto& iconPath : entry.iconPaths) {
-        auto image = ui::image({
-            .fit = ImageFit::Contain,
-            .width = iconSize,
-            .height = iconSize,
-        });
-        image->setAppIconColorization(appIconTint);
-        if (image->setSourceFile(renderer, iconPath, iconRequestSize, true)) {
-          item.icons.push_back(image.get());
-          area->addChild(std::move(image));
-        }
-      }
-      item.showIcons = !item.icons.empty();
+    if (isFocusHint() && ws.active) {
+      item.showIcon = true;
+      item.icon = static_cast<Image*>(area->addChild(
+          ui::image({
+              .fit = ImageFit::Contain,
+              .radius = Style::radiusSm,
+              .width = focusedPillIconSize(),
+              .height = focusedPillIconSize(),
+          })
+      ));
+      syncActiveWindowIcon(renderer, item);
     }
 
     InputArea* areaPtr = area.get();
@@ -567,6 +585,10 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
       setWorkspaceClickHandler(*area, ws);
 
       area->setOnEnter([this, areaPtr](const InputArea::PointerData&) {
+        if (!m_changeColorOnHover) {
+          return;
+        }
+
         const auto itemIt = std::ranges::find(m_items, areaPtr, &Item::area);
         if (itemIt == m_items.end() || itemIt->exiting) {
           return;
@@ -675,7 +697,7 @@ void WorkspacesWidget::rebuild(Renderer& renderer) {
   }
 
   // Only minimal style draws the translucent per-item hover overlay.
-  if (m_minimal && barCapsuleSpec().hoverHighlight) {
+  if (m_changeColorOnHover && isMinimal() && barCapsuleSpec().hoverHighlight) {
     ColorSpec hoverFill = widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface));
     hoverFill.alpha = 0.0f;
     m_hoverOverlay = static_cast<Box*>(m_container->addChild(
@@ -761,19 +783,19 @@ void WorkspacesWidget::updateContainerSize() {
 }
 
 void WorkspacesWidget::ensureItemLabel(Renderer& renderer, Item& item, const Workspace& workspace) {
-  if (!item.showLabel || item.area == nullptr) {
+  if (!item.showLabel || item.area == nullptr || item.label.empty()) {
     return;
   }
   if (item.text != nullptr) {
     return;
   }
 
-  const float labelFontSize = workspaceLabelFontSize(m_minimal) * m_contentScale;
+  const float labelFontSize = workspaceLabelFontSize(isMinimal()) * m_contentScale;
   item.text = static_cast<Label*>(item.area->addChild(
       ui::label({
           .text = item.label,
           .fontSize = labelFontSize,
-          .fontWeight = workspaceFontWeight(labelFontWeight(), m_minimal, workspace.active),
+          .fontWeight = workspaceFontWeight(labelFontWeight(), isMinimal(), workspace.active),
           .fontFamily = labelFontFamily(),
           .color = workspaceTextColor(workspace),
           .baselineMode = LabelBaselineMode::Text,
@@ -786,16 +808,14 @@ void WorkspacesWidget::recalculateItemMetrics(
     Renderer& renderer, Item& item, const Workspace& workspace, std::size_t displayIndex
 ) {
   const std::string label = workspaceLabel(workspace, displayIndex);
-  const float labelFontSize = workspaceLabelFontSize(m_minimal) * m_contentScale;
+  const float labelFontSize = workspaceLabelFontSize(isMinimal()) * m_contentScale;
   const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
   const float baseSize = std::round(pillHeight);
-  const float padding = m_minimal ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
-  const float iconSize = std::max(10.0f, std::round(baseSize * 0.70f));
-  const float iconGap = std::max(1.0f, std::round(Style::spaceXs * m_contentScale * 0.5f));
+  const float padding = isMinimal() ? (Style::spaceXs * m_contentScale) : (baseSize * 0.6f);
   const FontWeight configuredFontWeight = labelFontWeight();
 
   item.label = label;
-  item.showLabel = !item.showIcons && shouldShowWorkspaceLabel(workspace, label);
+  item.showLabel = shouldShowWorkspaceLabel(workspace, label);
 
   if (isWorkspaceHidden(workspace)) {
     item.inactiveWidth = 0.0f;
@@ -803,45 +823,45 @@ void WorkspacesWidget::recalculateItemMetrics(
     if (item.text != nullptr) {
       item.text->setVisible(false);
     }
-    for (Image* icon : item.icons) {
-      if (icon != nullptr) {
-        icon->setVisible(false);
-      }
-    }
     return;
   }
 
   float textWidth = 0.0f;
+  float textHeight = 0.0f;
   if (item.showLabel) {
-    const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, m_minimal, workspace.active);
+    const FontWeight slotFontWeight = workspaceFontWeight(configuredFontWeight, isMinimal(), workspace.active);
     const TextMetrics tm = renderer.measureText(label, labelFontSize, slotFontWeight);
     textWidth = std::max(tm.right - tm.left, tm.inkRight - tm.inkLeft);
+    textHeight = tm.bottom - tm.top;
   }
 
-  if (m_minimal) {
+  if (isMinimal()) {
     const float minWidth = baseSize;
     if (!item.showLabel) {
-      const float iconsWidth = item.showIcons
-          ? static_cast<float>(item.icons.size()) * iconSize + static_cast<float>(item.icons.size() - 1) * iconGap
-          : 0.0f;
-      const float iconBasedWidth = item.showIcons ? iconsWidth + padding * 2.0f : 0.0f;
-      item.inactiveWidth = std::max(minWidth, iconBasedWidth);
-      item.activeWidth = item.inactiveWidth;
+      item.inactiveWidth = minWidth;
+      item.activeWidth = minWidth;
     } else {
       const float textBasedWidth = textWidth + padding * 2.0f;
       item.inactiveWidth = std::max(minWidth, textBasedWidth);
       item.activeWidth = item.inactiveWidth;
     }
+  } else if (isFocusHint()) {
+    const float dotSize = focusedPillDotSize();
+    const bool hasIcon = workspace.active && !activeWindowAppId().empty();
+    if (!workspace.active) {
+      item.inactiveWidth = dotSize;
+      item.activeWidth = dotSize;
+    } else {
+      item.inactiveWidth = dotSize;
+      item.activeWidth =
+          focusedPillActiveMainAxisSize(textWidth, textHeight, item.showLabel, hasIcon, baseSize, padding);
+    }
   } else {
     const float minWidth = workspaceMainAxisMinWidth(baseSize, false);
     const float minActiveWidth = workspaceMainAxisMinWidth(baseSize, true);
     if (!item.showLabel) {
-      const float iconsWidth = item.showIcons
-          ? static_cast<float>(item.icons.size()) * iconSize + static_cast<float>(item.icons.size() - 1) * iconGap
-          : 0.0f;
-      const float iconBasedWidth = item.showIcons ? iconsWidth + padding : 0.0f;
-      item.inactiveWidth = std::max(minWidth, iconBasedWidth);
-      item.activeWidth = std::max(minActiveWidth, iconBasedWidth);
+      item.inactiveWidth = minWidth;
+      item.activeWidth = minActiveWidth;
     } else {
       const float textBasedWidth = textWidth + padding;
       item.inactiveWidth = std::max(minWidth, textBasedWidth);
@@ -850,18 +870,27 @@ void WorkspacesWidget::recalculateItemMetrics(
   }
 
   ensureItemLabel(renderer, item, workspace);
+  if (isFocusHint() && workspace.active && item.icon == nullptr && item.area != nullptr) {
+    item.showIcon = true;
+    item.icon = static_cast<Image*>(item.area->addChild(
+        ui::image({
+            .fit = ImageFit::Contain,
+            .radius = Style::radiusSm,
+            .width = focusedPillIconSize(),
+            .height = focusedPillIconSize(),
+        })
+    ));
+  }
+  syncActiveWindowIcon(renderer, item);
   if (item.text != nullptr) {
     item.text->setVisible(item.showLabel);
     if (item.showLabel) {
       item.text->setText(label);
-      item.text->setFontWeight(workspaceFontWeight(configuredFontWeight, m_minimal, workspace.active));
+      item.text->setFontWeight(
+          workspaceFontWeight(configuredFontWeight, isMinimal() && !isFocusHint(), workspace.active)
+      );
       item.text->setColor(workspaceTextColor(workspace));
       item.text->measure(renderer);
-    }
-  }
-  for (Image* icon : item.icons) {
-    if (icon != nullptr) {
-      icon->setVisible(item.showIcons);
     }
   }
 }
@@ -900,7 +929,7 @@ void WorkspacesWidget::retarget(Renderer& renderer) {
     applyItemVisualStyle(item);
   }
 
-  if (m_minimal) {
+  if (isMinimal()) {
     computeTargets();
     for (auto& it : m_items) {
       it.currentX = it.targetX;
@@ -923,6 +952,7 @@ void WorkspacesWidget::retarget(Renderer& renderer) {
     it.fromOpacity = it.currentOpacity;
   }
   computeTargets();
+  applyItemLayouts();
   startAnimation();
 }
 
@@ -996,7 +1026,7 @@ void WorkspacesWidget::finishAnimation() {
 
 void WorkspacesWidget::snapshotItemsForRebuild() {
   m_rebuildSnapshot.clear();
-  if (m_minimal || m_items.empty()) {
+  if (isMinimal() || m_items.empty()) {
     return;
   }
 
@@ -1010,9 +1040,7 @@ void WorkspacesWidget::snapshotItemsForRebuild() {
             .key = item.key,
             .workspace = item.visualWorkspace,
             .label = item.label,
-            .iconPaths = item.iconPaths,
             .showLabel = item.showLabel,
-            .showIcons = item.showIcons,
             .width = item.currentWidth,
             .opacity = item.currentOpacity,
         }
@@ -1053,48 +1081,84 @@ void WorkspacesWidget::applyItemLayout(Item& it) {
   it.area->setPosition(m_isVertical ? 0.0f : position, m_isVertical ? position : 0.0f);
   it.area->setFrameSize(itemW, itemH);
   if (it.indicator != nullptr) {
-    it.indicator->setFrameSize(itemW, itemH);
-    it.indicator->setRadius(workspacePillRadius(itemW, itemH));
+    if (isFocusHint() && !it.workspace.active) {
+      const float dotSize = focusedPillDotSize();
+      const float dotX = (itemW - dotSize) * 0.5f;
+      const float dotY = (itemH - dotSize) * 0.5f;
+      it.indicator->setPosition(dotX, dotY);
+      it.indicator->setFrameSize(dotSize, dotSize);
+      it.indicator->setRadius(dotSize * 0.5f);
+    } else {
+      it.indicator->setPosition(0.0f, 0.0f);
+      it.indicator->setFrameSize(itemW, itemH);
+      it.indicator->setRadius(workspacePillRadius(itemW, itemH));
+    }
   }
 
   if (m_hoveredArea == it.area) {
     updateHoverOverlay();
   }
 
-  if (!it.icons.empty()) {
-    const float baseSize = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
-    const float iconSize = std::max(10.0f, std::round(baseSize * 0.70f));
-    const float iconGap = std::max(1.0f, std::round(Style::spaceXs * m_contentScale * 0.5f));
-    const float iconsWidth =
-        static_cast<float>(it.icons.size()) * iconSize + static_cast<float>(it.icons.size() - 1) * iconGap;
-    const bool showIcons = it.showIcons && it.currentWidth + 0.5f >= it.inactiveWidth;
-    float x = std::max(0.0f, (itemW - iconsWidth) * 0.5f);
-    const float y = std::max(0.0f, (itemH - iconSize) * 0.5f);
-    for (Image* icon : it.icons) {
-      if (icon == nullptr) {
-        continue;
-      }
-      icon->setVisible(showIcons);
-      icon->setPosition(x, y);
-      x += iconSize + iconGap;
+  if (it.text == nullptr && it.icon == nullptr) {
+    return;
+  }
+
+  const bool showText = it.showLabel
+      && it.text != nullptr
+      && !it.label.empty()
+      && it.currentWidth + 0.5f >= it.inactiveWidth
+      && (!isFocusHint() || it.workspace.active);
+  const bool showIcon =
+      isFocusHint() && it.workspace.active && it.showIcon && it.icon != nullptr && it.icon->hasImage();
+  if (it.text != nullptr) {
+    it.text->setVisible(showText);
+  }
+  if (it.icon != nullptr) {
+    it.icon->setVisible(showIcon);
+  }
+  if (!showText && !showIcon) {
+    return;
+  }
+
+  const float iconSize = focusedPillIconSize();
+  const float iconGap = Style::spaceXs * m_contentScale;
+
+  if (m_isVertical) {
+    const float textHeight = showText ? it.text->height() : 0.0f;
+    const float contentWidth = std::max(showText ? it.text->width() : 0.0f, showIcon ? iconSize : 0.0f);
+    const float contentHeight = textHeight + (showText && showIcon ? iconGap : 0.0f) + (showIcon ? iconSize : 0.0f);
+    const float contentX = (itemW - contentWidth) * 0.5f;
+    float cursorY = (itemH - contentHeight) * 0.5f;
+
+    if (showText) {
+      const float textX = contentX + (contentWidth - it.text->width()) * 0.5f;
+      it.text->setPosition(std::max(0.0f, textX), cursorY);
+      cursorY += textHeight + iconGap;
     }
-  }
-
-  if (it.text == nullptr) {
+    if (showIcon) {
+      it.icon->setSize(iconSize, iconSize);
+      const float iconX = contentX + (contentWidth - iconSize) * 0.5f;
+      it.icon->setPosition(std::max(0.0f, iconX), cursorY);
+    }
     return;
   }
 
-  const bool showText = it.showLabel && it.currentWidth + 0.5f >= it.inactiveWidth;
-  it.text->setVisible(showText);
-  if (!showText) {
-    return;
-  }
+  const float textWidth = showText ? it.text->width() : 0.0f;
+  const float iconWidth = showIcon ? iconSize : 0.0f;
+  const float contentWidth = textWidth + (showText && showIcon ? iconGap : 0.0f) + iconWidth;
+  const float contentHeight = std::max(showText ? it.text->height() : 0.0f, iconWidth);
+  float cursorX = (itemW - contentWidth) * 0.5f;
+  const float contentY = (itemH - contentHeight) * 0.5f;
 
-  // Box-center the (text-only) label, unrounded: the renderer snaps the glyph
-  // quad to the pixel grid, so rounding here would double-round the baseline.
-  const float textX = (itemW - it.text->width()) * 0.5f;
-  const float textY = (itemH - it.text->height()) * 0.5f;
-  it.text->setPosition(std::max(0.0f, textX), textY);
+  if (showText) {
+    const float textY = contentY + (contentHeight - it.text->height()) * 0.5f;
+    it.text->setPosition(std::max(0.0f, cursorX), textY);
+    cursorX += textWidth + iconGap;
+  }
+  if (showIcon) {
+    it.icon->setSize(iconSize, iconSize);
+    it.icon->setPosition(std::max(0.0f, cursorX), contentY + (contentHeight - iconSize) * 0.5f);
+  }
 }
 
 void WorkspacesWidget::updateHoverOverlay() {
@@ -1110,7 +1174,7 @@ void WorkspacesWidget::updateHoverOverlay() {
 
   Item& hoveredItem = *hoveredIt;
 
-  if (!m_minimal) {
+  if (!isMinimal()) {
     for (auto& item : m_items) {
       if (&item == &hoveredItem) {
         if (item.indicator != nullptr) {
@@ -1159,127 +1223,181 @@ WorkspacesWidget::~WorkspacesWidget() {
   }
 }
 
-std::string WorkspacesWidget::workspaceLabel(const Workspace& workspace, std::size_t displayIndex) const {
-  const DisplayMode displayMode = effectiveDisplayMode();
-  if (displayMode == DisplayMode::Id) {
-    if (workspace.index > 0) {
-      return std::to_string(workspace.index);
-    }
-    if (const auto numericId = numericWorkspaceId(workspace); numericId.has_value()) {
-      return std::to_string(*numericId);
-    }
-    return std::to_string(displayIndex + 1);
-  }
-  if (displayMode == DisplayMode::Name) {
-    std::string label = !workspace.name.empty() ? workspace.name : workspace.id;
-    // Only truncate non-numeric labels (words like "VESKTOP" → "VE").
-    // Numeric labels (workspace IDs like "10", "11") stay as-is.
-    if (!isNumericLabel(label) && m_maxLabelChars > 0) {
-      label = StringUtils::truncateUtf8CodePoints(label, m_maxLabelChars);
-    }
-    return label;
-  }
-  return {};
-}
-
-std::string WorkspacesWidget::workspaceKey(const Workspace& workspace, std::size_t displayIndex) const {
-  if (workspace.index > 0) {
-    return std::to_string(workspace.index);
-  }
-  if (const auto numericId = numericWorkspaceId(workspace); numericId.has_value()) {
-    return std::to_string(*numericId);
-  }
-  if (!workspace.id.empty()) {
-    return workspace.id;
-  }
-  if (!workspace.name.empty()) {
-    return workspace.name;
-  }
-  return std::to_string(displayIndex + 1);
-}
-
-bool WorkspacesWidget::hasWorkspaceApps(const Workspace& workspace, std::size_t displayIndex) const {
-  const auto appsIt = m_cachedAppsByWorkspace.find(workspaceKey(workspace, displayIndex));
-  return appsIt != m_cachedAppsByWorkspace.end() && !appsIt->second.empty();
-}
-
-std::vector<std::string> WorkspacesWidget::workspaceAppIcons(const Workspace& workspace, std::size_t displayIndex) {
-  const auto appsIt = m_cachedAppsByWorkspace.find(workspaceKey(workspace, displayIndex));
-  if (appsIt == m_cachedAppsByWorkspace.end() || appsIt->second.empty()) {
+std::string WorkspacesWidget::activeWindowAppId() const {
+  const auto active = m_platform.activeToplevel();
+  if (!active.has_value() || active->appId.empty()) {
     return {};
   }
-
-  std::vector<std::string> icons;
-  icons.reserve(std::min<std::size_t>(appsIt->second.size(), 4));
-  for (const auto& appId : appsIt->second) {
-    if (icons.size() >= 4) {
-      break;
-    }
-    const std::string iconPath = resolveAppIconPath(appId);
-    if (!iconPath.empty()) {
-      icons.push_back(iconPath);
-    }
+  wl_output* const toplevelOutput = m_platform.activeToplevelOutput();
+  if (toplevelOutput != nullptr && m_output != nullptr && toplevelOutput != m_output) {
+    return {};
   }
-  return icons;
+  return active->appId;
+}
+
+float WorkspacesWidget::focusedPillIconSize() const noexcept {
+  return Style::baseGlyphSize * 0.75f * m_contentScale * m_pillScale;
+}
+
+float WorkspacesWidget::focusedPillDotSize() const noexcept {
+  const float pillHeight = std::round(kWorkspacePillDefaultHeight * m_contentScale * m_pillScale);
+  return std::max(4.0f * m_contentScale, std::round(pillHeight * 0.28f));
+}
+
+float WorkspacesWidget::focusedPillActiveMainAxisSize(
+    float textWidth, float textHeight, bool showLabel, bool hasIcon, float baseSize, float padding
+) const noexcept {
+  const float iconGap = Style::spaceXs * m_contentScale;
+  const float iconReserve = hasIcon ? focusedPillIconSize() + iconGap : 0.0f;
+  const float minActive = workspaceMainAxisMinWidth(baseSize, true);
+  if (!showLabel && iconReserve <= 0.0f) {
+    return minActive;
+  }
+  const float textExtent = showLabel ? (m_isVertical ? textHeight : textWidth) : 0.0f;
+  return std::max(minActive, textExtent + iconReserve + padding);
 }
 
 void WorkspacesWidget::buildDesktopIconIndex() {
-  const std::uint64_t version = desktopEntriesVersion();
-  if (m_desktopEntriesVersion == version && !m_appIconsByLower.empty()) {
-    return;
-  }
-
-  m_appIconsByLower.clear();
-  for (const auto& entry : desktopEntries()) {
-    if (entry.icon.empty()) {
-      continue;
+  m_appIcons.clear();
+  auto addIndexKey = [this](std::string_view key, const std::string& icon) {
+    if (key.empty() || icon.empty()) {
+      return;
     }
-    if (!entry.idLower.empty()) {
-      m_appIconsByLower[entry.idLower] = entry.icon;
-    }
-    if (!entry.startupWmClassLower.empty()) {
-      m_appIconsByLower[entry.startupWmClassLower] = entry.icon;
-    }
-    if (!entry.nameLower.empty()) {
-      m_appIconsByLower[entry.nameLower] = entry.icon;
-    }
-  }
-  m_desktopEntriesVersion = version;
-}
-
-std::string WorkspacesWidget::resolveAppIconPath(const std::string& appId) {
-  const int iconTargetSize = static_cast<int>(std::round(48.0f * m_contentScale));
-  auto resolveIconName = [this, iconTargetSize](const std::string& name) -> std::string {
-    if (name.empty()) {
-      return {};
-    }
-    return m_iconResolver.resolve(name, iconTargetSize);
+    m_appIcons.try_emplace(std::string{key}, icon);
+    m_appIcons.try_emplace(StringUtils::toLower(key), icon);
   };
 
-  if (appId.starts_with("steam_app_")) {
-    if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries());
-        entry.has_value() && !entry->icon.empty()) {
-      if (const std::string steamIcon = resolveIconName(entry->icon); !steamIcon.empty()) {
-        return steamIcon;
+  const auto& entries = desktopEntries();
+  for (const auto& entry : entries) {
+    if (entry.id.empty() || entry.icon.empty()) {
+      continue;
+    }
+
+    addIndexKey(entry.id, entry.icon);
+    if (const auto dot = entry.id.rfind('.'); dot != std::string::npos && dot + 1 < entry.id.size()) {
+      addIndexKey(entry.id.substr(dot + 1), entry.icon);
+    }
+    if (const auto dash = entry.id.rfind('-'); dash != std::string::npos && dash + 1 < entry.id.size()) {
+      const std::string suffix = entry.id.substr(dash + 1);
+      if (suffix == "bin" || suffix == "desktop") {
+        addIndexKey(entry.id.substr(0, dash), entry.icon);
       }
     }
+    if (!entry.startupWmClass.empty()) {
+      addIndexKey(entry.startupWmClass, entry.icon);
+    }
+  }
+  m_desktopEntriesVersion = desktopEntriesVersion();
+}
+
+std::string WorkspacesWidget::resolveIconPath(const std::string& appId) {
+  if (appId.empty()) {
+    return {};
   }
 
   if (const auto internal = internal_apps::metadataForAppId(appId); internal.has_value()) {
     return internal->iconPath;
   }
 
-  const std::string appIdLower = StringUtils::toLower(appId);
-  if (const auto it = m_appIconsByLower.find(appIdLower); it != m_appIconsByLower.end()) {
-    if (const std::string desktopIcon = resolveIconName(it->second); !desktopIcon.empty()) {
-      return desktopIcon;
+  if (const auto entry = app_identity::findDesktopEntry(appId, desktopEntries());
+      entry.has_value() && !entry->icon.empty()) {
+    const int iconTargetSize = static_cast<int>(std::round(focusedPillIconSize() * 2.0f));
+    const std::string& resolved = m_iconResolver.resolve(entry->icon, iconTargetSize);
+    if (!resolved.empty()) {
+      return resolved;
     }
   }
 
-  if (const std::string appIcon = resolveIconName(appId); !appIcon.empty()) {
-    return appIcon;
+  const int iconTargetSize = static_cast<int>(std::round(focusedPillIconSize() * 2.0f));
+  auto resolveByName = [this, iconTargetSize](const std::string& name) -> std::string {
+    if (name.empty()) {
+      return {};
+    }
+    return m_iconResolver.resolve(name, iconTargetSize);
+  };
+
+  if (auto it = m_appIcons.find(appId); it != m_appIcons.end()) {
+    const auto path = resolveByName(it->second);
+    if (!path.empty()) {
+      return path;
+    }
   }
-  return resolveIconName("application-x-executable");
+
+  const std::string appIdLower = StringUtils::toLower(appId);
+  if (auto it = m_appIcons.find(appIdLower); it != m_appIcons.end()) {
+    const auto path = resolveByName(it->second);
+    if (!path.empty()) {
+      return path;
+    }
+  }
+
+  if (const auto slash = appId.find_last_of('/'); slash != std::string::npos && slash + 1 < appId.size()) {
+    const std::string tail = appId.substr(slash + 1);
+    if (auto it = m_appIcons.find(tail); it != m_appIcons.end()) {
+      const auto path = resolveByName(it->second);
+      if (!path.empty()) {
+        return path;
+      }
+    }
+  }
+
+  return resolveByName(appId);
+}
+
+void WorkspacesWidget::syncActiveWindowIcon(Renderer& renderer, Item& item) {
+  if (!isFocusHint() || item.icon == nullptr) {
+    return;
+  }
+
+  if (!item.workspace.active) {
+    item.showIcon = false;
+    if (!item.iconPath.empty() || item.icon->hasImage()) {
+      item.iconPath.clear();
+      item.icon->clear(renderer);
+    }
+    item.icon->setVisible(false);
+    return;
+  }
+
+  item.showIcon = true;
+  item.icon->setAppIconColorization(effectiveShellAppIconColorizationTint(m_configService.config().shell));
+
+  const std::string appId = activeWindowAppId();
+  const std::string iconPath = appId.empty() ? std::string{} : resolveIconPath(appId);
+  const bool forceReload = m_iconColorizeRefreshPending;
+  if (!forceReload && iconPath == item.iconPath) {
+    return;
+  }
+
+  item.iconPath = iconPath;
+  if (!iconPath.empty()) {
+    const int iconTargetSize = static_cast<int>(std::round(focusedPillIconSize() * 2.0f));
+    item.icon->setSourceFile(renderer, iconPath, iconTargetSize, true);
+  } else {
+    item.icon->clear(renderer);
+  }
+}
+
+std::string WorkspacesWidget::workspaceLabel(const Workspace& workspace, std::size_t displayIndex) const {
+  std::string label;
+  if (m_labelSource == WorkspacesLabelSource::Id) {
+    if (workspace.index > 0) {
+      label = std::to_string(workspace.index);
+    } else if (const auto numericId = numericWorkspaceId(workspace); numericId.has_value()) {
+      label = std::to_string(*numericId);
+    } else {
+      label = std::to_string(displayIndex + 1);
+    }
+  } else {
+    label = !workspace.name.empty() ? workspace.name : workspace.id;
+    // Only truncate non-numeric labels (words like "VESKTOP" → "VE").
+    // Numeric labels (workspace IDs like "10", "11") stay as-is.
+    if (!isNumericLabel(label) && m_maxLabelChars > 0) {
+      label = StringUtils::truncateUtf8CodePoints(label, m_maxLabelChars);
+    }
+  }
+
+  return label;
 }
 
 std::optional<std::size_t> WorkspacesWidget::numericWorkspaceId(const Workspace& workspace) {
@@ -1328,9 +1446,9 @@ ColorSpec WorkspacesWidget::workspaceFillColor(const Workspace& workspace) const
 
 ColorSpec WorkspacesWidget::workspaceTextColor(const Workspace& workspace) const {
   if (workspace.urgent) {
-    return m_minimal ? m_urgentColor : readableColorForFill(m_urgentColor);
+    return isMinimal() ? m_urgentColor : readableColorForFill(m_urgentColor);
   }
-  if (!m_minimal) {
+  if (!isMinimal()) {
     return readableColorForFill(workspaceFillColor(workspace));
   }
   if (workspace.active) {

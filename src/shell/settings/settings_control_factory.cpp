@@ -173,7 +173,14 @@ namespace settings {
     return makeGroupedResetButton(std::vector<std::vector<std::string>>{path});
   }
 
-  std::unique_ptr<Button> SettingsControlFactory::makeGroupedResetButton(std::vector<std::vector<std::string>> paths) {
+  std::unique_ptr<Button>
+  SettingsControlFactory::makeResetButton(const std::vector<std::string>& path, std::function<void()> onConfirmed) {
+    return makeGroupedResetButton(std::vector<std::vector<std::string>>{path}, std::move(onConfirmed));
+  }
+
+  std::unique_ptr<Button> SettingsControlFactory::makeGroupedResetButton(
+      std::vector<std::vector<std::string>> paths, std::function<void()> onConfirmed
+  ) {
     auto& ctx = m_ctx;
     const float scale = m_scale;
     const bool pendingConfirmation = ctx.isResetConfirmationPending && ctx.isResetConfirmationPending(paths);
@@ -186,10 +193,15 @@ namespace settings {
         .paddingH = Style::spaceSm * scale,
         .radius = Style::scaledRadiusMd(scale),
         .onClick = [clearOverrides = ctx.clearOverrides, requestConfirmation = ctx.requestResetConfirmation,
-                    requestRebuild = ctx.requestRebuild, paths = std::move(paths), pendingConfirmation]() mutable {
+                    requestRebuild = ctx.requestRebuild, paths = std::move(paths), onConfirmed = std::move(onConfirmed),
+                    pendingConfirmation]() mutable {
           if (!pendingConfirmation) {
             requestConfirmation(paths);
             requestRebuild();
+            return;
+          }
+          if (onConfirmed) {
+            onConfirmed();
             return;
           }
           clearOverrides(std::move(paths));
@@ -721,7 +733,7 @@ namespace settings {
     // that needs one would store a binding that silently does nothing.
     const bool pending = ctx.pendingGestureKey == setting.gestureKey;
     std::string selected;
-    std::string argument;
+    std::string argument = !pending && parsed.has_value() ? parsed->args : std::string{};
     if (pending) {
       selected = ctx.pendingGestureVerb;
     } else if (!isOverridden) {
@@ -730,12 +742,21 @@ namespace settings {
       selected = std::string(noctalia::bar::kNoneVerb);
     } else if (parsed->kind == noctalia::bar::WidgetAction::Kind::Exec) {
       selected = std::string(kActionExecOption);
-      argument = parsed->args;
     } else {
       selected = parsed->verb;
-      argument = parsed->args;
     }
-    const bool execMode = selected == kActionExecOption;
+
+    // Keep the picker on "Default" for an inherited binding, but derive the argument editor from
+    // the effective action so optional arguments such as volume/brightness step remain editable.
+    std::string actionVerb = selected;
+    if (!pending && parsed.has_value()) {
+      if (parsed->kind == noctalia::bar::WidgetAction::Kind::Exec) {
+        actionVerb = std::string(kActionExecOption);
+      } else if (parsed->kind == noctalia::bar::WidgetAction::Kind::Ipc) {
+        actionVerb = parsed->verb;
+      }
+    }
+    const bool execMode = actionVerb == kActionExecOption;
 
     std::vector<SelectOption> options;
     options.reserve(ctx.actionCatalog.size() + 3);
@@ -789,8 +810,8 @@ namespace settings {
       }
     };
 
-    const std::string argsSpec = execMode ? std::string{} : specFor(selected);
-    const bool wantsArgument = execMode || (!selected.empty() && specTakesArguments(argsSpec));
+    const std::string argsSpec = execMode ? std::string{} : specFor(actionVerb);
+    const bool wantsArgument = execMode || (!actionVerb.empty() && specTakesArguments(argsSpec));
 
     auto control = ui::row({.align = FlexAlign::Center, .gap = Style::spaceSm * scale});
     control->addChild(makeSearchPicker(picker, title, path));
@@ -807,20 +828,27 @@ namespace settings {
               .onSubmit =
                   [setOverride = ctx.setOverride, clearOverride = ctx.clearOverride,
                    requestRebuild = ctx.requestRebuild, pendingKey = &ctx.pendingGestureKey,
-                   pendingVerb = &ctx.pendingGestureVerb, specFor, path, verb = selected,
-                   execMode](const std::string& text) {
+                   pendingVerb = &ctx.pendingGestureVerb, specFor, path, verb = actionVerb,
+                   defaultAction = setting.defaultAction, execMode](const std::string& text) {
                     const std::string trimmed = StringUtils::trim(text);
-                    if (trimmed.empty()) {
-                      // Clearing the argument drops a binding that needs one.
-                      if (execMode || specRequiresArgument(specFor(verb))) {
+                    if (trimmed.empty() && (execMode || specRequiresArgument(specFor(verb)))) {
+                      // A required argument cannot produce a valid binding.
+                      clearOverride(path);
+                    } else {
+                      std::string commandLine;
+                      if (execMode) {
+                        commandLine = std::string(noctalia::bar::kExecVerb) + " " + trimmed;
+                      } else {
+                        commandLine = verb;
+                        if (!trimmed.empty()) {
+                          commandLine += " " + trimmed;
+                        }
+                      }
+                      if (commandLine == defaultAction) {
                         clearOverride(path);
                       } else {
-                        setOverride(path, verb);
+                        setOverride(path, commandLine);
                       }
-                    } else if (execMode) {
-                      setOverride(path, std::string(noctalia::bar::kExecVerb) + " " + trimmed);
-                    } else {
-                      setOverride(path, verb + " " + trimmed);
                     }
                     pendingKey->clear();
                     pendingVerb->clear();
