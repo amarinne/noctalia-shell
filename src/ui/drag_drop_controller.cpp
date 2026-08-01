@@ -128,14 +128,23 @@ bool DragDropController::release(DragSource& source, float localX, float localY)
   std::string callback;
   std::string payload;
   std::string targetValue;
+  DropZone::DropHandler dropHandler;
+  DragSource::DropHandler sourceDropHandler;
   if (m_target != nullptr) {
     callback = m_target->onDrop();
     payload = m_payload;
     targetValue = m_targetValue;
+    dropHandler = m_target->dropHandler();
+    sourceDropHandler = m_source->dropHandler();
   }
   clearState(true);
-  if (!callback.empty() && m_dropCallback) {
-    m_dropCallback(std::move(callback), std::move(payload), std::move(targetValue), sceneX, sceneY);
+  if (!callback.empty() && dropHandler) {
+    dropHandler(callback, payload, targetValue, sceneX, sceneY);
+  } else if (!callback.empty() && m_dropCallback) {
+    m_dropCallback(callback, payload, targetValue, sceneX, sceneY);
+  }
+  if (!callback.empty() && sourceDropHandler) {
+    sourceDropHandler(std::move(payload), std::move(targetValue), sceneX, sceneY);
   }
   return false;
 }

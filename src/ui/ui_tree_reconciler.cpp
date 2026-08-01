@@ -500,7 +500,8 @@ namespace ui {
           "width",   "height",   "flexGrow",    "opacity",         "visible",       "gap",
           "padding", "paddingH", "paddingV",    "align",           "justify",       "fill",
           "radius",  "border",   "borderWidth", "minWidth",        "minHeight",     "dragType",
-          "payload", "enabled",  "tooltip",     "previewAncestor", "liftFromLayout", "onClick"
+          "payload", "enabled",  "tooltip",     "previewAncestor", "liftFromLayout", "onClick",
+          "onHover", "onDragEnd"
       };
       static const std::unordered_set<std::string> kDropZone = {
           "width",     "height",  "flexGrow", "opacity", "visible",   "gap",     "padding",      "paddingH",
@@ -570,7 +571,7 @@ namespace ui {
     Node* node = nullptr;
     std::string callbackName;        // last-wired button onClick / control onChange target
     std::string rightCallbackName;   // last-wired button onRightClick target
-    std::string hoverCallbackName;   // last-wired onHover target (button/box/image/row/column)
+    std::string hoverCallbackName;   // last-wired onHover target
     std::string submitCallbackName;  // last-wired input onSubmit target
     std::string dragEndCallbackName; // last-wired slider onDragEnd target
     std::string imagePath;           // last-applied resolved image source
@@ -585,15 +586,14 @@ namespace ui {
     std::vector<Slot> children;
   };
 
-  UiTreeReconciler::UiTreeReconciler()
-      : m_defaultFontWeight(FontWeight::Normal), m_dragDropController(std::make_unique<DragDropController>()) {
-    m_dragDropController->setDropCallback(
-        [this](std::string callback, std::string payload, std::string target, float sceneX, float sceneY) {
-          if (m_sink) {
-            m_sink(ControlCallback{std::move(callback), std::move(payload), std::move(target), false,
-                                   std::format("{}", sceneX), std::format("{}", sceneY)});
-          }
-        });
+  UiTreeReconciler::UiTreeReconciler(DragDropController* sharedDragDropController)
+      : m_defaultFontWeight(FontWeight::Normal) {
+    if (sharedDragDropController != nullptr) {
+      m_dragDropController = sharedDragDropController;
+    } else {
+      m_ownedDragDropController = std::make_unique<DragDropController>();
+      m_dragDropController = m_ownedDragDropController.get();
+    }
   }
 
   UiTreeReconciler::~UiTreeReconciler() { reset(); }
@@ -657,13 +657,21 @@ namespace ui {
       return flex;
     }
     if (desired.type == "drag_source") {
-      auto source = std::make_unique<DragSource>(m_dragDropController.get());
+      auto source = std::make_unique<DragSource>(m_dragDropController);
       source->setDirection(FlexDirection::Horizontal);
       source->setAlign(FlexAlign::Stretch);
       return source;
     }
     if (desired.type == "drop_zone") {
-      auto zone = std::make_unique<DropZone>(m_dragDropController.get());
+      auto zone = std::make_unique<DropZone>(m_dragDropController);
+      zone->setDropHandler(
+          [this](std::string callback, std::string payload, std::string target, float sceneX, float sceneY) {
+            if (m_sink) {
+              m_sink(ControlCallback{std::move(callback), std::move(payload), std::move(target), false,
+                                     std::format("{}", sceneX), std::format("{}", sceneY)});
+            }
+          }
+      );
       zone->setDirection(FlexDirection::Vertical);
       zone->setAlign(FlexAlign::Stretch);
       return zone;
@@ -963,6 +971,26 @@ namespace ui {
 
     if (desired.type == "drag_source") {
       auto* source = static_cast<DragSource*>(node);
+      InputArea* const sourceArea = source->inputArea();
+      if (const std::string* onHover = callbackProp(desired, "onHover"); onHover != nullptr) {
+        if (*onHover != slot.hoverCallbackName) {
+          releaseHover(sourceArea);
+          slot.hoverCallbackName = *onHover;
+          if (sourceArea != nullptr) {
+            sourceArea->setOnEnter([this, name = slot.hoverCallbackName, key = desired.key, sourceArea](
+                                       const InputArea::PointerData&
+                                   ) { openHover(name, key, sourceArea); });
+            sourceArea->setOnLeave([this, sourceArea]() { releaseHover(sourceArea); });
+          }
+        }
+      } else if (!slot.hoverCallbackName.empty()) {
+        releaseHover(sourceArea);
+        slot.hoverCallbackName.clear();
+        if (sourceArea != nullptr) {
+          sourceArea->setOnEnter(nullptr);
+          sourceArea->setOnLeave(nullptr);
+        }
+      }
       if (const std::string* onClick = callbackProp(desired, "onClick"); onClick != nullptr) {
         if (*onClick != slot.callbackName) {
           slot.callbackName = *onClick;
@@ -975,6 +1003,24 @@ namespace ui {
       } else if (!slot.callbackName.empty()) {
         slot.callbackName.clear();
         source->setOnClick(nullptr);
+      }
+      if (const std::string* onDragEnd = callbackProp(desired, "onDragEnd"); onDragEnd != nullptr) {
+        if (*onDragEnd != slot.dragEndCallbackName) {
+          slot.dragEndCallbackName = *onDragEnd;
+          source->setDropHandler(
+              [this, name = slot.dragEndCallbackName](
+                  std::string payload, std::string target, float sceneX, float sceneY
+              ) {
+                if (m_sink) {
+                  m_sink(ControlCallback{name, std::move(payload), std::move(target), false,
+                                         std::format("{}", sceneX), std::format("{}", sceneY)});
+                }
+              }
+          );
+        }
+      } else if (!slot.dragEndCallbackName.empty()) {
+        slot.dragEndCallbackName.clear();
+        source->setDropHandler(nullptr);
       }
       if (auto error = validateDragDropProps(desired)) {
         kLog.warn(

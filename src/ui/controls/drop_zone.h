@@ -3,14 +3,19 @@
 #include "ui/controls/flex.h"
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 class DragDropController;
 
 class DropZone : public Flex {
 public:
+  using DropHandler =
+      std::function<void(std::string callback, std::string payload, std::string target, float sceneX, float sceneY)>;
+
   explicit DropZone(DragDropController* controller);
   ~DropZone() override;
 
@@ -25,6 +30,7 @@ public:
   void setExpandOnDrag(bool enabled);
   void setCollapsedHeight(float height);
   void setHitSlop(float hitSlop);
+  void setDropHandler(DropHandler handler) { m_dropHandler = std::move(handler); }
   void setZoneRadius(float radius);
   void clearZoneRadius(float dragRadius);
 
@@ -39,6 +45,7 @@ public:
   [[nodiscard]] bool enabled() const noexcept { return m_enabled; }
   [[nodiscard]] bool dragOver() const noexcept { return m_dragOver; }
   [[nodiscard]] float hitSlop() const noexcept { return m_hitSlop; }
+  [[nodiscard]] const DropHandler& dropHandler() const noexcept { return m_dropHandler; }
   [[nodiscard]] DragDropController* controller() const noexcept { return m_controller; }
   void detachController(DragDropController* controller) noexcept;
 
@@ -51,6 +58,7 @@ private:
   std::vector<std::string> m_accepts;
   std::string m_value;
   std::string m_onDrop;
+  DropHandler m_dropHandler;
   ColorSpec m_zoneFill = clearColorSpec();
   ColorSpec m_zoneBorder = clearColorSpec();
   float m_zoneBorderWidth = 0.0f;

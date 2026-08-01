@@ -117,7 +117,7 @@ WidgetFactory::~WidgetFactory() = default;
 
 std::unique_ptr<Widget> WidgetFactory::create(
     const std::string& name, wl_output* output, float contentScale, const std::string& barPosition,
-    const std::string& barName, float widgetSpacing
+    const std::string& barName, float widgetSpacing, DragDropController* sharedDragDropController
 ) const {
   // Resolve: if name matches a [widget.<name>] entry, use its type + settings.
   // Otherwise treat the name itself as the widget type with default settings.
@@ -298,7 +298,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
             .audioSpectrum = m_audioSpectrum,
             .mpris = m_mpris,
         },
-        barName, outputName, wc != nullptr ? wc->getBool("enable_scroll", true) : true
+        barName, outputName, sharedDragDropController, wc != nullptr ? wc->getBool("enable_scroll", true) : true
     );
     widget->setContentScale(contentScale);
     return widget;

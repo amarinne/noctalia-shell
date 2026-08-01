@@ -1289,6 +1289,48 @@ int main() {
         && ok;
   }
 
+  // Drag sources expose hover state without replacing their press and motion
+  // handlers. Plugins use this state to match native task tile feedback.
+  {
+    ui::UiTreeReconciler reconciler;
+    reconciler.setDragDropEnabled(true);
+    Flex host;
+    std::string callbackName;
+    std::string callbackState;
+    reconciler.setCallbackSink([&](const ui::UiTreeReconciler::ControlCallback& cb) {
+      callbackName = cb.fn;
+      callbackState = cb.arg1;
+    });
+
+    ui::UiTreeNode tree = makeNode("row");
+    ui::UiTreeNode sourceNode = makeDragSource();
+    sourceNode.props.emplace("onHover", std::string("onSourceHover"));
+    tree.children.push_back(sourceNode);
+    (void)reconciler.reconcile(host, tree, renderer);
+
+    auto* row = dynamic_cast<Flex*>(host.children().front().get());
+    auto* source = row != nullptr ? dynamic_cast<DragSource*>(row->children().front().get()) : nullptr;
+    ok = expect(source != nullptr && source->inputArea() != nullptr, "hoverable DragSource built") && ok;
+    if (source != nullptr && source->inputArea() != nullptr) {
+      source->inputArea()->dispatchEnter(2.0f, 3.0f);
+      ok = expect(
+               callbackName == "onSourceHover" && callbackState == "true",
+               "DragSource hover enter reaches plugin callback"
+           )
+          && ok;
+      source->inputArea()->dispatchLeave();
+      ok = expect(callbackState == "false", "DragSource hover leave reaches plugin callback") && ok;
+
+      callbackName.clear();
+      callbackState.clear();
+      tree.children[0].props.erase("onHover");
+      (void)reconciler.reconcile(host, tree, renderer);
+      source->inputArea()->dispatchEnter(2.0f, 3.0f);
+      source->inputArea()->dispatchLeave();
+      ok = expect(callbackName.empty(), "removed DragSource hover callback stays removed") && ok;
+    }
+  }
+
   // The retained controls drive the full drag lifecycle: threshold arming,
   // accepted/rejected hit testing, callback payloads, and pre-callback cleanup.
   {
@@ -1409,6 +1451,71 @@ int main() {
                "rejected release restores source and controller"
            )
           && ok;
+    }
+  }
+
+  // Plugin widget instances on one bar can share a controller. The target
+  // reconciler must receive the drop callback across separate host trees.
+  {
+    DragDropController sharedController;
+    ui::UiTreeReconciler sourceReconciler(&sharedController);
+    ui::UiTreeReconciler targetReconciler(&sharedController);
+    sourceReconciler.setDragDropEnabled(true);
+    targetReconciler.setDragDropEnabled(true);
+
+    Flex root;
+    root.setDirection(FlexDirection::Horizontal);
+    root.setGap(24.0f);
+    auto sourceHostNode = std::make_unique<Flex>();
+    auto targetHostNode = std::make_unique<Flex>();
+    auto* sourceHost = static_cast<Flex*>(root.addChild(std::move(sourceHostNode)));
+    auto* targetHost = static_cast<Flex*>(root.addChild(std::move(targetHostNode)));
+
+    int sourceCallbacks = 0;
+    std::vector<ui::UiTreeReconciler::ControlCallback> targetCallbacks;
+    sourceReconciler.setCallbackSink(
+        [&](const ui::UiTreeReconciler::ControlCallback&) { ++sourceCallbacks; }
+    );
+    targetReconciler.setCallbackSink(
+        [&](const ui::UiTreeReconciler::ControlCallback& callback) { targetCallbacks.push_back(callback); }
+    );
+
+    (void)sourceReconciler.reconcile(
+        *sourceHost,
+        [&]() {
+          auto source = makeDragSource("cross-source", "niri-window", "window:42");
+          source.props.emplace("onDragEnd", std::string("onCrossSourceDrop"));
+          return source;
+        }(),
+        renderer
+    );
+    (void)targetReconciler.reconcile(
+        *targetHost, makeDropZone("cross-target", {"niri-window"}, "workspace:8", "onCrossDrop"), renderer
+    );
+    root.setSize(240.0f, 80.0f);
+    root.layout(renderer);
+
+    auto* source = findFirst<DragSource>(*sourceHost);
+    auto* target = findFirst<DropZone>(*targetHost);
+    ok = expect(
+             source != nullptr && target != nullptr && source->controller() == target->controller(),
+             "separate plugin hosts share one drag controller"
+         )
+        && ok;
+    if (source != nullptr && target != nullptr && source->inputArea() != nullptr) {
+      float targetX = 0.0f;
+      float targetY = 0.0f;
+      sourceLocalPointFor(*source, *target, targetX, targetY);
+      source->inputArea()->dispatchPress(2.0f, 2.0f, BTN_LEFT, true);
+      source->inputArea()->dispatchMotion(targetX, targetY);
+      source->inputArea()->dispatchPress(targetX, targetY, BTN_LEFT, false);
+      ok = expect(sourceCallbacks == 1, "cross-host drop dispatches once to source runtime") && ok;
+      ok = expect(targetCallbacks.size() == 1, "cross-host drop dispatches once to target runtime") && ok;
+      if (targetCallbacks.size() == 1) {
+        ok = expect(targetCallbacks[0].fn == "onCrossDrop", "cross-host target callback name preserved") && ok;
+        ok = expect(targetCallbacks[0].arg1 == "window:42", "cross-host source payload preserved") && ok;
+        ok = expect(targetCallbacks[0].arg2 == "workspace:8", "cross-host target value preserved") && ok;
+      }
     }
   }
 

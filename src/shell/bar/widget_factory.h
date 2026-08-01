@@ -26,6 +26,7 @@ class INetworkService;
 class PipeWireService;
 class PipeWireSpectrum;
 class PowerProfilesService;
+class DragDropController;
 class TrayService;
 class SystemMonitorService;
 class UPowerService;
@@ -46,7 +47,8 @@ public:
 
   [[nodiscard]] std::unique_ptr<Widget> create(
       const std::string& name, wl_output* output, float contentScale = 1.0f, const std::string& barPosition = "top",
-      const std::string& barName = "default", float widgetSpacing = 6.0f
+      const std::string& barName = "default", float widgetSpacing = 6.0f,
+      DragDropController* sharedDragDropController = nullptr
   ) const;
 
 private:

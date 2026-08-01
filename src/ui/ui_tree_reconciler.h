@@ -57,7 +57,7 @@ namespace ui {
     // is true. The host decides how (and whether) to grant keyboard focus.
     using FocusRequestSink = std::function<void(InputArea* area)>;
 
-    UiTreeReconciler();
+    explicit UiTreeReconciler(DragDropController* sharedDragDropController = nullptr);
     ~UiTreeReconciler();
 
     UiTreeReconciler(const UiTreeReconciler&) = delete;
@@ -125,7 +125,8 @@ namespace ui {
     std::string m_hoveredCallback;
     std::string m_hoveredKey;
     const Node* m_hoveredOwner = nullptr;
-    std::unique_ptr<DragDropController> m_dragDropController;
+    std::unique_ptr<DragDropController> m_ownedDragDropController;
+    DragDropController* m_dragDropController = nullptr;
     std::vector<Slot> m_rootSlots;
   };
 

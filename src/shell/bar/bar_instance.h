@@ -8,6 +8,7 @@
 #include "shell/bar/widget.h"
 #include "shell/panel/attached_panel_context.h"
 #include "ui/signal.h"
+#include "ui/drag_drop_controller.h"
 #include "wayland/layer_surface.h"
 
 #include <cstdint>
@@ -87,6 +88,10 @@ struct BarInstance {
   Flex* startSection = nullptr;
   Flex* centerSection = nullptr;
   Flex* endSection = nullptr;
+
+  // Plugin widgets on one bar share drag state. This permits a source in one
+  // widget instance to target a drop zone in another widget instance.
+  std::unique_ptr<DragDropController> pluginDragDropController;
 
   std::vector<std::unique_ptr<Widget>> startWidgets;
   std::vector<std::unique_ptr<Widget>> centerWidgets;

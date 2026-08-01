@@ -12,6 +12,8 @@ class InputArea;
 
 class DragSource : public Flex {
 public:
+  using DropHandler = std::function<void(std::string payload, std::string target, float sceneX, float sceneY)>;
+
   explicit DragSource(DragDropController* controller);
   ~DragSource() override;
 
@@ -23,6 +25,7 @@ public:
   void setEnabled(bool enabled);
   void setTooltip(std::string_view text);
   void setOnClick(std::function<void()> callback);
+  void setDropHandler(DropHandler handler) { m_dropHandler = std::move(handler); }
   void setSourceOpacity(float opacity);
   void setPreviewAncestor(std::size_t levels);
   void setLiftFromLayout(bool enabled);
@@ -36,6 +39,7 @@ public:
   [[nodiscard]] bool liftFromLayout() const noexcept { return m_liftFromLayout; }
   [[nodiscard]] InputArea* inputArea() const noexcept { return m_inputArea; }
   [[nodiscard]] DragDropController* controller() const noexcept { return m_controller; }
+  [[nodiscard]] const DropHandler& dropHandler() const noexcept { return m_dropHandler; }
   [[nodiscard]] Node* previewTarget() noexcept;
   void detachController(DragDropController* controller) noexcept;
 
@@ -53,6 +57,7 @@ private:
   std::string m_payload;
   std::string m_tooltip;
   std::function<void()> m_onClick;
+  DropHandler m_dropHandler;
   float m_sourceOpacity = 1.0f;
   std::size_t m_previewAncestor = 0;
   bool m_enabled = true;

@@ -2204,6 +2204,7 @@ void Bar::createInstance(const WaylandOutput& output, std::size_t barIndex, cons
   instance->scale = output.scale;
   instance->barConfig = barConfig;
   instance->barIndex = barIndex;
+  instance->pluginDragDropController = std::make_unique<DragDropController>();
 
   const auto anchor = positionToAnchor(barConfig.position);
   const auto surfaceSpec = computeBarSurfaceSpec(barConfig, m_config->config().shell.shadow);
@@ -2311,7 +2312,7 @@ void Bar::populateWidgets(BarInstance& instance) {
     const float contentScale = resolveWidgetContentScale(instance.barConfig.scale, wcPtr, "widget." + name + ".scale");
     auto widget = m_widgetFactory->create(
         name, instance.output, contentScale, instance.barConfig.position, instance.barConfig.name,
-        static_cast<float>(instance.barConfig.widgetSpacing)
+        static_cast<float>(instance.barConfig.widgetSpacing), instance.pluginDragDropController.get()
     );
     if (widget == nullptr) {
       return;
@@ -3075,6 +3076,9 @@ void Bar::buildScene(BarInstance& instance, std::uint32_t width, std::uint32_t h
     instance.sceneRoot = ui::node({});
     instance.sceneRoot->setAnimationManager(&instance.animations);
     instance.sceneRoot->setSize(w, h);
+    if (instance.pluginDragDropController != nullptr) {
+      instance.pluginDragDropController->setOverlayRoot(instance.sceneRoot.get());
+    }
 
     auto slide = ui::node({});
     slide->setParticipatesInLayout(false);

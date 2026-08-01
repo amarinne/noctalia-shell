@@ -31,6 +31,7 @@ class ClipboardService;
 class HttpClient;
 class PipeWireSpectrum;
 class MprisService;
+class DragDropController;
 namespace scripting {
   class ScriptApiContext;
 }
@@ -41,7 +42,8 @@ namespace scripting {
 class PluginWidget : public Widget, public scripting::PluginIpcEndpoint {
 public:
   PluginWidget(
-      scripting::PluginRuntimeContext context, std::string barName, std::string outputName, bool enableScroll = true
+      scripting::PluginRuntimeContext context, std::string barName, std::string outputName,
+      DragDropController* sharedDragDropController = nullptr, bool enableScroll = true
   );
   ~PluginWidget() override;
 
