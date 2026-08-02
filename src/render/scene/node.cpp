@@ -499,13 +499,23 @@ void Node::mapToScene(const Node* node, float localX, float localY, float& outSc
 }
 
 bool Node::mapFromScene(const Node* node, float sceneX, float sceneY, float& outLocalX, float& outLocalY) {
+  if (!mapFromSceneUnbounded(node, sceneX, sceneY, outLocalX, outLocalY)) {
+    return false;
+  }
+  return node->containsLocalPoint(outLocalX, outLocalY, false);
+}
+
+bool Node::mapFromSceneUnbounded(const Node* node, float sceneX, float sceneY, float& outLocalX, float& outLocalY) {
   if (node == nullptr) {
     outLocalX = 0.0f;
     outLocalY = 0.0f;
     return false;
   }
 
-  return pointInsideNode(node, sceneX, sceneY, outLocalX, outLocalY, false);
+  const Vec2 local = computeWorldTransform(node).inverse().transformPoint(sceneX, sceneY);
+  outLocalX = local.x;
+  outLocalY = local.y;
+  return true;
 }
 
 void Node::transformedBounds(

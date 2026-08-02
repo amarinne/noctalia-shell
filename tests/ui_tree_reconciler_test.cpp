@@ -1726,6 +1726,9 @@ int main() {
     (void)reconciler.reconcile(host, tree, renderer);
     host.setSize(400.0f, 160.0f);
     host.layout(renderer);
+    // Put the retained content partly above the overlay. Drag previews must
+    // still start at the source position instead of staying at overlay (0,0).
+    host.setPosition(24.0f, -6.0f);
 
     auto* rootRow = dynamic_cast<Flex*>(host.children().front().get());
     auto* row = rootRow != nullptr ? dynamic_cast<Flex*>(rootRow->children()[0].get()) : nullptr;
@@ -1751,7 +1754,8 @@ int main() {
       source->inputArea()->dispatchMotion(2.0f + Style::dragStartThreshold - 0.5f, 2.0f);
       ok = expect(overlay.children().empty(), "preview is absent below drag threshold") && ok;
 
-      source->inputArea()->dispatchMotion(localX, localY);
+      const float firstDragDelta = Style::dragStartThreshold + 0.5f;
+      source->inputArea()->dispatchMotion(2.0f + firstDragDelta, 2.0f);
       auto* proxy =
           overlay.children().empty() ? nullptr : dynamic_cast<RenderProxyNode*>(overlay.children().front().get());
       ok = expect(
@@ -1759,6 +1763,22 @@ int main() {
                "drag threshold creates one ancestor render proxy"
            )
           && ok;
+      float rowSceneX = 0.0f;
+      float rowSceneY = 0.0f;
+      float expectedProxyX = 0.0f;
+      float expectedProxyY = 0.0f;
+      Node::mapToScene(row, 0.0f, 0.0f, rowSceneX, rowSceneY);
+      (void)Node::mapFromSceneUnbounded(
+          &overlay, rowSceneX + firstDragDelta, rowSceneY, expectedProxyX, expectedProxyY
+      );
+      ok = expect(
+               proxy != nullptr
+                   && std::abs(proxy->x() - expectedProxyX) < 0.01f
+                   && std::abs(proxy->y() - expectedProxyY) < 0.01f,
+               "drag preview follows the first drag frame when content extends outside overlay bounds"
+           )
+          && ok;
+      source->inputArea()->dispatchMotion(localX, localY);
       ok = expect(
                row->opacity() == 0.0f && !row->participatesInLayout(),
                "liftFromLayout removes and hides the original row"

@@ -346,7 +346,9 @@ void DragDropController::updatePreview(float sceneX, float sceneY) {
   }
   float localX = 0.0f;
   float localY = 0.0f;
-  if (Node::mapFromScene(m_overlayRoot, sceneX - m_pointerOffsetX, sceneY - m_pointerOffsetY, localX, localY)) {
+  if (Node::mapFromSceneUnbounded(
+          m_overlayRoot, sceneX - m_pointerOffsetX, sceneY - m_pointerOffsetY, localX, localY
+      )) {
     m_preview->setPosition(localX, localY);
   }
 }
