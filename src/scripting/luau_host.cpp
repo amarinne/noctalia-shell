@@ -577,9 +577,9 @@ namespace {
 
     std::string iconName;
     const auto entries = desktopEntriesSnapshot();
-    if (const auto entry = app_identity::findDesktopEntry(std::string_view(appId, len), *entries);
-        entry.has_value() && !entry->icon.empty()) {
-      iconName = entry->icon;
+    const DesktopEntry entry = app_identity::resolveRunningDesktopEntry(std::string_view(appId, len), *entries);
+    if (!entry.icon.empty()) {
+      iconName = entry.icon;
     } else {
       iconName.assign(appId, len);
     }

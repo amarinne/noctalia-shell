@@ -36,7 +36,17 @@ int main() {
   setenv("XDG_DATA_DIRS", tempDir, 1);
 
   bool ok = true;
+  const fs::path flatpakIconDir = root / ".local/share/flatpak/exports/share/icons/hicolor/scalable/apps";
+  fs::create_directories(flatpakIconDir);
+  const fs::path flatpakIcon = flatpakIconDir / "flatpak-export-icon.svg";
+  std::ofstream(flatpakIcon) << "<svg/>";
+
   IconResolver resolver(true);
+  ok = expect(
+           resolver.resolve("flatpak-export-icon", 32) == flatpakIcon.string(),
+           "user Flatpak export icon should resolve without XDG_DATA_DIRS containing the export root"
+       )
+      && ok;
 
   const fs::path invalidatedIcon = iconDir / "invalidated-icon.svg";
   ok = expect(resolver.resolve("invalidated-icon", 32).empty(), "initial missing icon should not resolve") && ok;

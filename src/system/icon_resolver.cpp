@@ -97,11 +97,17 @@ namespace {
   std::vector<std::string> xdgDataDirs() {
     std::vector<std::string> dirs;
 
+    const char* home = std::getenv("HOME");
+
     const char* dataHome = std::getenv("XDG_DATA_HOME");
     if (dataHome != nullptr && dataHome[0] != '\0') {
       pushUnique(dirs, dataHome);
-    } else if (const char* home = std::getenv("HOME"); home != nullptr && home[0] != '\0') {
+    } else if (home != nullptr && home[0] != '\0') {
       pushUnique(dirs, std::string(home) + "/.local/share");
+    }
+
+    if (home != nullptr && home[0] != '\0') {
+      pushUnique(dirs, std::string(home) + "/.local/share/flatpak/exports/share");
     }
 
     const char* dataDirs = std::getenv("XDG_DATA_DIRS");
@@ -109,10 +115,14 @@ namespace {
       for (auto dir : splitList(dataDirs, ':')) {
         pushUnique(dirs, std::move(dir));
       }
-    } else {
-      pushUnique(dirs, "/usr/local/share");
-      pushUnique(dirs, "/usr/share");
     }
+
+    pushUnique(dirs, "/var/lib/flatpak/exports/share");
+
+    // Keep canonical system directories when the session has a partial XDG
+    // environment. Duplicate paths are removed by pushUnique().
+    pushUnique(dirs, "/usr/local/share");
+    pushUnique(dirs, "/usr/share");
 
     return dirs;
   }

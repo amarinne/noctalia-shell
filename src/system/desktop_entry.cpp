@@ -348,14 +348,21 @@ namespace {
       }
     };
 
-    const char* home = std::getenv("XDG_DATA_HOME");
-    if (home != nullptr && home[0] != '\0') {
-      appendDir(home);
+    const char* userHome = std::getenv("HOME");
+    const char* dataHome = std::getenv("XDG_DATA_HOME");
+    if (dataHome != nullptr && dataHome[0] != '\0') {
+      appendDir(dataHome);
     } else {
-      const char* userHome = std::getenv("HOME");
       if (userHome != nullptr) {
         appendDir(std::string(userHome) + "/.local/share");
       }
+    }
+
+    // Flatpak exports desktop files outside the default XDG search path on
+    // sessions that do not set XDG_DATA_DIRS. Include both export roots so
+    // window app IDs still resolve to desktop entries and application icons.
+    if (userHome != nullptr && userHome[0] != '\0') {
+      appendDir(std::string(userHome) + "/.local/share/flatpak/exports/share");
     }
 
     const char* dataDirs = std::getenv("XDG_DATA_DIRS");
@@ -372,6 +379,8 @@ namespace {
         start = colon + 1;
       }
     }
+
+    appendDir("/var/lib/flatpak/exports/share");
 
     // Keep canonical system directories as a safety net for partial env setups.
     appendDir("/usr/local/share");
