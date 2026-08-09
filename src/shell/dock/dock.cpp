@@ -68,7 +68,7 @@ namespace {
 
   template <typename T> void appendOptionalStackPart(std::string& out, const std::optional<T>& value) {
     out += value.has_value() ? std::format("{}", *value) : "-";
-    out.push_back('\x1f');
+    out.push_back('\x1F');
   }
 
   std::vector<std::string> barLayerStackSignature(const Config& config) {
@@ -77,14 +77,14 @@ namespace {
 
     for (const auto& bar : config.bars) {
       std::string item = std::format(
-          "{}\x1f{}\x1f{}\x1f{}\x1f{}\x1f{}\x1f{}\x1f{}\x1f{}\x1f{}", bar.name, bar.position, bar.enabled, bar.autoHide,
+          "{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}", bar.name, bar.position, bar.enabled, bar.autoHide,
           bar.reserveSpace, bar.layer, bar.thickness, bar.marginEnds, bar.marginEdge, bar.shadow
       );
 
       item.push_back('\x1e');
       for (const auto& override : bar.monitorOverrides) {
         item += override.match;
-        item.push_back('\x1f');
+        item.push_back('\x1F');
         appendOptionalStackPart(item, override.enabled);
         appendOptionalStackPart(item, override.autoHide);
         appendOptionalStackPart(item, override.reserveSpace);
@@ -716,12 +716,12 @@ void Dock::reevaluateSmartAutoHide() {
 
     bool needsRedraw = pinnedChanged;
     if (wantsPinned) {
-      if (instance->hideOpacity < 1.0f || pinnedChanged) {
+      if (instance->hideOpacity < 1.0F || pinnedChanged) {
         shell::dock::revealAutoHideDock(*instance, *m_config);
         needsRedraw = true;
       }
     } else if (!instance->pointerInside && m_popupOwnerInstance == nullptr) {
-      if (instance->hideOpacity > 0.0f || pinnedChanged) {
+      if (instance->hideOpacity > 0.0F || pinnedChanged) {
         shell::dock::startHideFadeOut(*instance, *m_config);
         needsRedraw = true;
       }
@@ -1056,7 +1056,7 @@ void Dock::closeItemMenu() {
 
   if (owner->pointerInside
       || m_config == nullptr
-      || owner->hideOpacity <= 0.0f
+      || owner->hideOpacity <= 0.0F
       || !dockPointerHideAllowed(m_config->config().dock, *owner)) {
     return;
   }

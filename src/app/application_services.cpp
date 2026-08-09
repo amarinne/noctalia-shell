@@ -458,7 +458,7 @@ void Application::initStyleThemeAndWayland() {
   auto applyStyleConfig = [this, lastCornerRadiusScale = std::numeric_limits<float>::quiet_NaN()]() mutable {
     const float corner = m_configService.config().shell.cornerRadiusScale;
     const bool cornerChanged =
-        std::isfinite(lastCornerRadiusScale) && std::abs(corner - lastCornerRadiusScale) > 1.0e-4f;
+        std::isfinite(lastCornerRadiusScale) && std::abs(corner - lastCornerRadiusScale) > 1.0e-4F;
     Style::setCornerRadiusScale(corner);
     Style::setButtonBordersEnabled(m_configService.config().shell.buttonBorders);
     Style::setInputBordersEnabled(m_configService.config().shell.inputBorders);
@@ -587,6 +587,7 @@ void Application::initStyleThemeAndWayland() {
   });
 
   m_themeService.setResolvedCallback([this, lastResolvedThemeMode = std::optional<std::string>{},
+                                      lastGeneratedPalette = std::optional<noctalia::theme::GeneratedPalette>{},
                                       syncScriptApiWallpaperDirectory](
                                          const noctalia::theme::GeneratedPalette& generated, std::string_view mode
                                      ) mutable {
@@ -596,7 +597,11 @@ void Application::initStyleThemeAndWayland() {
     syncScriptApiWallpaperDirectory();
     const std::optional<std::string> previousMode = lastResolvedThemeMode;
     lastResolvedThemeMode = resolvedMode;
-    m_templateApplyService.setAfterApplyCallback([this]() { m_hookManager.fire(HookKind::ColorsChanged); });
+    const bool colorsChanged = !lastGeneratedPalette.has_value() || *lastGeneratedPalette != generated;
+    lastGeneratedPalette = generated;
+    if (colorsChanged) {
+      m_templateApplyService.setAfterApplyCallback([this]() { m_hookManager.fire(HookKind::ColorsChanged); });
+    }
     m_templateApplyService.apply(generated, mode);
     if (previousMode.has_value() && *previousMode != resolvedMode) {
       m_hookManager.fire(
@@ -636,7 +641,7 @@ void Application::initStyleThemeAndWayland() {
   m_screenTimeService.initialize(&m_wayland);
   syncScreenTimeService();
   m_screenTimeService.setChangeCallback([this]() {
-    if (m_panelManager.isOpenPanel("control-center")) {
+    if (m_panelManager.isOpenPanel("control-center") && m_panelManager.isActivePanelContext("screen-time")) {
       m_panelManager.refresh();
     }
   });
@@ -973,9 +978,18 @@ void Application::initSystemBusServices() {
           // fade-complete cleanup races with process freeze.
           m_idleGraceOverlay.hide();
           if (sleeping) {
-            // Delay inhibit (acquired while lockscreen is enabled) holds sleep until we lock.
+            // Delay inhibit (when lock_before_suspend is on) holds sleep until we lock.
             // Do not use runAfterSessionLocked here — that slot belongs to lock-and-suspend.
-            if (!m_configService.isLockScreenEnabled()) {
+            if (m_skipLockOnNextSleep) {
+              // Noctalia-initiated suspend: skip lock-before-sleep (plain Suspend or already locked).
+              m_skipLockOnNextSleep = false;
+              m_releaseSleepDelayWhenLocked = false;
+              if (m_logindService != nullptr) {
+                m_logindService->releaseSleepDelayInhibit();
+              }
+              return;
+            }
+            if (!m_configService.shouldLockBeforeSuspend()) {
               m_releaseSleepDelayWhenLocked = false;
               if (m_logindService != nullptr) {
                 m_logindService->releaseSleepDelayInhibit();
@@ -1009,8 +1023,9 @@ void Application::initSystemBusServices() {
             }
             return;
           }
+          m_skipLockOnNextSleep = false;
           m_releaseSleepDelayWhenLocked = false;
-          if (m_configService.isLockScreenEnabled() && m_logindService != nullptr) {
+          if (m_configService.shouldLockBeforeSuspend() && m_logindService != nullptr) {
             (void)m_logindService->acquireSleepDelayInhibit();
           }
           kLog.info("system resumed; rechecking night light and auto theme schedules");
@@ -1317,7 +1332,7 @@ void Application::initBrightnessAndPipewire() {
       }
 
       const auto& audio = m_configService.config().audio;
-      m_soundPlayer->setVolume(audio.enableSounds ? audio.soundVolume : 0.0f);
+      m_soundPlayer->setVolume(audio.enableSounds ? audio.soundVolume : 0.0F);
 
       auto resolveSoundPath = [](const std::string& configured, std::string_view bundledRelative) {
         if (configured.empty()) {
