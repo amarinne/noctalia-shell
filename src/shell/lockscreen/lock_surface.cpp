@@ -1179,6 +1179,7 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
   }
 
   m_passwordField->setSurfaceOpacity(loginStyle.inputOpacity);
+  m_passwordField->setCursorVisible(false);
   m_passwordField->setFrameRadius(loginStyle.inputRadius);
   m_passwordField->setTextAlign(loginStyle.centerPasswordText ? TextAlign::Center : TextAlign::Start);
   m_passwordField->setControlHeight(controlHeight);
