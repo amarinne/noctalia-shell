@@ -38,6 +38,10 @@ namespace {
   }
 
   void normalizeLockscreenWidgetSettings(DesktopWidgetState& widget) {
+    if (widget.type == "login_box") {
+      lockscreen_login_box::applyAllDefaultSettings(widget.settings);
+      return;
+    }
     clampOpacitySetting(widget, "background_opacity", 0.8);
 
     if (widget.type == "sticker") {
@@ -379,7 +383,7 @@ void LockscreenWidgetsController::normalizeSnapshot() {
   std::unordered_set<std::string> seenIds;
   for (auto& widget : m_snapshot.widgets) {
     if (lockscreen_login_box::isLoginBoxWidget(widget)) {
-      lockscreen_login_box::normalizeSettings(widget.settings);
+      lockscreen_login_box::applyAllDefaultSettings(widget.settings);
       seenIds.insert(widget.id);
       continue;
     }

@@ -189,7 +189,7 @@ namespace lockscreen_login_box {
   float minPanelHeight(LayoutMode layout, bool showSessionButtons, bool showInfoExtras) {
     const float pad = Style::spaceLg * 2.0F;
     if (layout != LayoutMode::Regular) {
-      return pad + Style::controlHeight;
+      return pad + kCompactInputHeight;
     }
 
     int gapCount = 0;
@@ -250,6 +250,11 @@ namespace lockscreen_login_box {
       float screenWidth, float& boxWidth, float& boxHeight, LayoutMode layout, bool showSessionButtons,
       bool showInfoExtras
   ) {
+    if (layout == LayoutMode::Compact) {
+      boxWidth = defaultPanelWidth(screenWidth, layout);
+      boxHeight = defaultPanelHeight(layout, showSessionButtons, showInfoExtras);
+      return;
+    }
     boxWidth = resolvePanelWidth(screenWidth, boxWidth, layout);
     boxHeight = resolvePanelHeight(boxHeight, layout, showSessionButtons, showInfoExtras);
   }
@@ -258,7 +263,7 @@ namespace lockscreen_login_box {
     PanelContentLayout layout;
     layout.contentLeft = Style::spaceLg;
     // Center the input row vertically so the free space above and below the input is equal.
-    layout.controlHeight = std::min(Style::controlHeight, panelHeight - Style::spaceLg * 2.0F);
+    layout.controlHeight = std::min(kCompactInputHeight, panelHeight - Style::spaceLg * 2.0F);
     layout.contentTop = std::max(Style::spaceLg, (panelHeight - layout.controlHeight) * 0.5F);
     // Match the left inset so the padding left of the first control equals the padding right of the last.
     const float rightInset = Style::spaceLg;
@@ -331,22 +336,22 @@ namespace lockscreen_login_box {
       std::unordered_map<std::string, WidgetSettingValue>& settings, desktop_settings::DesktopWidgetSettingsScope scope
   ) {
     if (scope == desktop_settings::DesktopWidgetSettingsScope::Widget) {
-      settings.insert_or_assign(std::string(kLayoutKey), std::string(kLayoutRegular));
-      settings.insert_or_assign(std::string(kShowSessionButtonsKey), true);
-      settings.insert_or_assign(std::string(kShowMediaKey), true);
-      settings.insert_or_assign(std::string(kShowWeatherKey), true);
-      settings.insert_or_assign(std::string(kShowLoginButtonKey), true);
-      settings.insert_or_assign(std::string(kShowCapsLockKey), true);
-      settings.insert_or_assign(std::string(kShowKeyboardLayoutKey), true);
-      settings.insert_or_assign(std::string(kShowUnlockHintKey), true);
-      settings.insert_or_assign(std::string(kInputOpacityKey), 1.0);
-      settings.insert_or_assign(std::string(kInputRadiusKey), 6.0);
-      settings.insert_or_assign(std::string(kCenterPasswordTextKey), false);
+      settings.insert_or_assign(std::string(kLayoutKey), std::string(kLayoutCompact));
+      settings.insert_or_assign(std::string(kShowSessionButtonsKey), false);
+      settings.insert_or_assign(std::string(kShowMediaKey), false);
+      settings.insert_or_assign(std::string(kShowWeatherKey), false);
+      settings.insert_or_assign(std::string(kShowLoginButtonKey), false);
+      settings.insert_or_assign(std::string(kShowCapsLockKey), false);
+      settings.insert_or_assign(std::string(kShowKeyboardLayoutKey), false);
+      settings.insert_or_assign(std::string(kShowUnlockHintKey), false);
+      settings.insert_or_assign(std::string(kInputOpacityKey), 0.10);
+      settings.insert_or_assign(std::string(kInputRadiusKey), 24.0);
+      settings.insert_or_assign(std::string(kCenterPasswordTextKey), true);
     }
     if (scope == desktop_settings::DesktopWidgetSettingsScope::Background) {
-      settings.insert_or_assign("background_color", std::string("surface_variant"));
-      settings.insert_or_assign("background_opacity", 0.88);
-      settings.insert_or_assign("background_radius", 12.0);
+      settings.insert_or_assign("background_color", std::string("surface"));
+      settings.insert_or_assign("background_opacity", 0.0);
+      settings.insert_or_assign("background_radius", 0.0);
     }
   }
 

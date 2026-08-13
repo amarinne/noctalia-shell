@@ -39,6 +39,7 @@ public:
   void setHorizontalPadding(float padding);
   void setClearButtonEnabled(bool enabled);
   void setPasswordMode(bool enabled);
+  void setCursorVisible(bool visible);
   /// Multi-line editing: Enter inserts '\n' (Ctrl+Enter submits), the text wraps
   /// at the viewport width and scrolls vertically. The control keeps whatever
   /// height layout assigns (explicit height or flex-grown) instead of forcing
@@ -215,6 +216,7 @@ private:
   // Sticky caret column for Up/Down runs; negative = unset.
   float m_goalCaretX = -1.0F;
   bool m_cursorBlinkVisible = true;
+  bool m_cursorEnabled = true;
   Timer m_cursorBlinkTimer;
 
   std::function<void(const std::string&)> m_onChange;

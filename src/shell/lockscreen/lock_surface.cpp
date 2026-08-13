@@ -477,7 +477,7 @@ LockSurface::LockSurface(WaylandConnection& connection, ConfigService* config) :
   m_loginContentRow->addChild(
       ui::input({
           .out = &m_passwordField,
-          .placeholder = i18n::tr("lockscreen.password-placeholder"),
+          .placeholder = "",
           .passwordMode = true,
           .onChange =
               [this](const std::string& value) {
@@ -1020,7 +1020,7 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
   const lockscreen_login_box::RegularRowHeights rows = regular
       ? lockscreen_login_box::regularRowHeights(panelHeight, showSession, showInfoExtras)
       : lockscreen_login_box::RegularRowHeights{};
-  const float contentScale = regular ? rows.scale : 1.0F;
+  const float contentScale = regular ? rows.scale : 2.0F;
   m_regularContentScale = contentScale;
   const float captionSize = Style::fontSizeCaption * contentScale;
   const float bodySize = Style::fontSizeBody * contentScale;
@@ -1137,7 +1137,7 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
     m_infoRow->setJustify((mediaAlone || weatherAlone) ? FlexJustify::Center : FlexJustify::Start);
   }
 
-  const float controlHeight = regular ? rows.password : Style::controlHeight;
+  const float controlHeight = regular ? rows.password : lockscreen_login_box::kCompactInputHeight;
   m_loginContentRow->setMinHeight(controlHeight);
   m_loginContentRow->setMaxHeight(controlHeight);
   m_loginContentRow->setMaxWidth(contentWidth);
@@ -1179,7 +1179,8 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
   }
 
   m_passwordField->setSurfaceOpacity(loginStyle.inputOpacity);
-  m_passwordField->setFrameRadius(loginStyle.inputRadius);
+  m_passwordField->setCursorVisible(false);
+  m_passwordField->setFrameRadius(loginStyle.inputRadius * (regular ? 1.0F : 2.0F));
   m_passwordField->setTextAlign(loginStyle.centerPasswordText ? TextAlign::Center : TextAlign::Start);
   m_passwordField->setControlHeight(controlHeight);
   m_passwordField->setFontSize(bodySize);
@@ -1570,23 +1571,13 @@ bool LockSurface::isLoginBoxEnabled() const {
 
 std::string LockSurface::resolveStatusText(const lockscreen_login_box::LoginBoxStyle& style, bool& isError) const {
   isError = false;
-  // Errors always show. Caps Lock has its own toggle. Everything else (idle hint,
-  // authenticating, PAM prompts) is gated by showUnlockHint.
+  // Keep the minimal lock screen quiet. Only real authentication errors remain visible.
   if (m_error) {
     isError = true;
     return m_status;
   }
-  if (m_capsLock && style.showCapsLock) {
-    isError = true;
-    return i18n::tr("lockscreen.caps-lock-on");
-  }
-  if (!style.showUnlockHint) {
-    return {};
-  }
-  if (m_authenticating || !m_status.empty()) {
-    return m_status;
-  }
-  return i18n::tr("lockscreen.ready");
+  (void)style;
+  return {};
 }
 
 void LockSurface::releaseWallpaperTextureRef(const std::string& path) {

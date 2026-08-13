@@ -1768,7 +1768,12 @@ LayoutSize Input::doMeasure(Renderer& renderer, const LayoutConstraints& constra
 
 void Input::updateCursorVisibility() {
   const bool focused = m_inputArea != nullptr && m_inputArea->focused();
-  m_cursor->setVisible(focused && m_cursorBlinkVisible);
+  m_cursor->setVisible(m_cursorEnabled && focused && m_cursorBlinkVisible);
+}
+
+void Input::setCursorVisible(bool visible) {
+  m_cursorEnabled = visible;
+  updateCursorVisibility();
 }
 
 void Input::revealCursor() {
