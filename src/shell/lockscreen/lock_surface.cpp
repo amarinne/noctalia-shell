@@ -1020,7 +1020,7 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
   const lockscreen_login_box::RegularRowHeights rows = regular
       ? lockscreen_login_box::regularRowHeights(panelHeight, showSession, showInfoExtras)
       : lockscreen_login_box::RegularRowHeights{};
-  const float contentScale = regular ? rows.scale : 1.0F;
+  const float contentScale = regular ? rows.scale : 2.0F;
   m_regularContentScale = contentScale;
   const float captionSize = Style::fontSizeCaption * contentScale;
   const float bodySize = Style::fontSizeBody * contentScale;
@@ -1137,7 +1137,7 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
     m_infoRow->setJustify((mediaAlone || weatherAlone) ? FlexJustify::Center : FlexJustify::Start);
   }
 
-  const float controlHeight = regular ? rows.password : Style::controlHeight;
+  const float controlHeight = regular ? rows.password : Style::controlHeight * 2.0F;
   m_loginContentRow->setMinHeight(controlHeight);
   m_loginContentRow->setMaxHeight(controlHeight);
   m_loginContentRow->setMaxWidth(contentWidth);
@@ -1180,7 +1180,7 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
 
   m_passwordField->setSurfaceOpacity(loginStyle.inputOpacity);
   m_passwordField->setCursorVisible(false);
-  m_passwordField->setFrameRadius(loginStyle.inputRadius);
+  m_passwordField->setFrameRadius(loginStyle.inputRadius * (regular ? 1.0F : 2.0F));
   m_passwordField->setTextAlign(loginStyle.centerPasswordText ? TextAlign::Center : TextAlign::Start);
   m_passwordField->setControlHeight(controlHeight);
   m_passwordField->setFontSize(bodySize);
