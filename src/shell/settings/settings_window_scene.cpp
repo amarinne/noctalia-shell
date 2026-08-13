@@ -2090,7 +2090,7 @@ void SettingsWindow::buildScene(std::uint32_t width, std::uint32_t height) {
       .configure = [bgOpacity](Box& box) {
         box.setPanelStyle();
         box.setRadius(0.0F);
-        box.setBorder(clearColor(), 0);
+        box.setBorder(colorSpecFromRole(ColorRole::Outline), Style::borderWidth);
         box.setPosition(0.0F, 0.0F);
         box.setFill(colorSpecFromRole(ColorRole::Surface, bgOpacity));
       },
