@@ -38,6 +38,10 @@ namespace {
   }
 
   void normalizeLockscreenWidgetSettings(DesktopWidgetState& widget) {
+    if (widget.type == "login_box") {
+      lockscreen_login_box::applyAllDefaultSettings(widget.settings);
+      return;
+    }
     clampOpacitySetting(widget, "background_opacity", 0.8);
 
     if (widget.type == "sticker") {
