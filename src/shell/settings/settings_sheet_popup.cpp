@@ -109,6 +109,12 @@ namespace settings {
   }
 
   void SettingsSheetPopup::close() { destroyPopup(); }
+  void SettingsSheetPopup::requestClose() {
+    if (m_onCloseRequested && m_onCloseRequested()) {
+      return;
+    }
+    close();
+  }
 
   void SettingsSheetPopup::setSheetTitle(std::string title) {
     m_sheetTitle = std::move(title);
@@ -280,10 +286,7 @@ namespace settings {
                 if (aliveGuard.expired()) {
                   return;
                 }
-                if (m_onCloseRequested && m_onCloseRequested()) {
-                  return;
-                }
-                close();
+                requestClose();
               });
             },
         })
@@ -366,7 +369,7 @@ namespace settings {
       return;
     }
 
-    Renderer& renderer = *renderContext();
+    Renderer& renderer = m_surface->renderTarget().renderer();
     const float pad = computePadding(uiScale());
     const float popupPadding = Style::spaceSm * m_scale;
     const float popupGap = Style::spaceSm * m_scale;

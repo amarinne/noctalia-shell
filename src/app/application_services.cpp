@@ -2,6 +2,7 @@
 #include "application.h"
 #include "application_internal.h"
 #include "compositors/compositor_detect.h"
+#include "config/config_export.h"
 #include "config/config_types.h"
 #include "core/build_info.h"
 #include "core/deferred_call.h"
@@ -106,6 +107,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 
 namespace {
@@ -117,6 +119,24 @@ namespace {
     if (signum == SIGTERM || signum == SIGINT) {
       scripting::ScriptRuntime::setShutdownSignal(signum);
       Application::s_shutdownRequested = true;
+    }
+  }
+
+  void syncGSettingsColorScheme(std::string_view mode) {
+    if (mode.empty()) {
+      return;
+    }
+    const std::string pref = mode == "light" ? "prefer-light" : "prefer-dark";
+    if (process::commandExists("gsettings")) {
+      std::string cmd = "gsettings set org.gnome.desktop.interface color-scheme \"";
+      cmd += pref;
+      cmd += "\"";
+      (void)process::runAsync(cmd);
+    } else if (process::commandExists("dconf")) {
+      std::string cmd = "dconf write /org/gnome/desktop/interface/color-scheme \"'";
+      cmd += pref;
+      cmd += "'\"";
+      (void)process::runAsync(cmd);
     }
   }
 } // namespace
@@ -278,8 +298,11 @@ void Application::retrySecretServiceConsumers() {
     kLog.info("secret service is running; reopening encrypted storage");
     DeferredCall::callLater([this]() { m_storageKeyProvider.retry(); });
   }
-  if (!m_calendarCredentialAutoRetried
-      && m_calendarService.credentialState() == calendar::CredentialState::Unavailable) {
+  const calendar::CredentialState calendarCredentialState = m_calendarService.credentialState();
+  const bool calendarRetryNeeded = calendarCredentialState == calendar::CredentialState::Unavailable
+      || calendarCredentialState == calendar::CredentialState::DeniedOrLocked
+      || m_calendarService.hasMissingRefreshTokens();
+  if (!m_calendarCredentialAutoRetried && calendarRetryNeeded) {
     m_calendarCredentialAutoRetried = true;
     kLog.info("secret service is running; reopening calendar credentials");
     DeferredCall::callLater([this]() { m_calendarService.retryCredentialMigration(); });
@@ -481,11 +504,17 @@ void Application::initStyleThemeAndWayland() {
   applyStyleConfig();
   applyPasswordMaskStyle();
   m_httpClient.setOfflineMode(m_configService.config().shell.offlineMode);
+  m_scriptApi.setConfigSnapshot(
+      std::make_shared<const toml::table>(config_export::serialize(m_configService.config()))
+  );
   m_configService.addReloadCallback(applyMotionConfig);
   m_configService.addReloadCallback(applyStyleConfig);
   m_configService.addReloadCallback(applyPasswordMaskStyle);
   m_configService.addReloadCallback([this]() {
     m_httpClient.setOfflineMode(m_configService.config().shell.offlineMode);
+    m_scriptApi.setConfigSnapshot(
+        std::make_shared<const toml::table>(config_export::serialize(m_configService.config()))
+    );
   });
   m_configService.addReloadCallback([this]() { syncClipboardService(); });
   m_configService.addReloadCallback([this]() { syncScreenTimeService(); });
@@ -544,6 +573,7 @@ void Application::initStyleThemeAndWayland() {
   // output change so the worker-thread binding reads a race-free copy.
   m_syncScriptApiOutputs = [this]() {
     std::vector<scripting::ScriptOutputInfo> infos;
+    std::unordered_map<std::string, std::string> wallpaperPaths;
     wl_output* const focused = m_compositorPlatform.preferredInteractiveOutput();
     for (const auto& out : m_wayland.outputs()) {
       if (!out.done || out.connectorName.empty()) {
@@ -559,8 +589,10 @@ void Application::initStyleThemeAndWayland() {
           .scale = out.scale,
           .focused = out.output == focused,
       });
+      wallpaperPaths.insert_or_assign(out.connectorName, m_configService.getWallpaperPath(out.connectorName));
     }
     m_scriptApi.setOutputs(std::move(infos));
+    m_scriptApi.setWallpaperPaths(std::move(wallpaperPaths));
   };
   m_syncScriptApiOutputs();
 
@@ -575,6 +607,22 @@ void Application::initStyleThemeAndWayland() {
     if (!m_wallpaper.applyWallpaperImage(target, path)) {
       kLog.warn("plugin setWallpaper failed for \"{}\"", path);
     }
+  });
+
+  m_scriptApi.setWallpaperMaskHook([this](
+                                       std::uint64_t ownerId, const std::string& outputName, const std::string& path,
+                                       const std::string& wallpaperPath
+                                   ) {
+    if (path.empty()) {
+      m_desktopWidgetsController.setWallpaperMask(ownerId, outputName, std::nullopt);
+      return;
+    }
+    m_desktopWidgetsController.setWallpaperMask(
+        ownerId, outputName, OutputWallpaperMask{.ownerId = ownerId, .path = path, .wallpaperPath = wallpaperPath}
+    );
+  });
+  m_scriptApi.setClearWallpaperMasksHook([this](std::uint64_t ownerId) {
+    m_desktopWidgetsController.clearWallpaperMasks(ownerId);
   });
 
   // Let a plugin toggle one of its own panels.
@@ -611,8 +659,10 @@ void Application::initStyleThemeAndWayland() {
            {"NOCTALIA_THEME_MODE_CONFIGURED", configuredMode}}
       );
     }
+    syncGSettingsColorScheme(resolvedMode);
   });
   m_themeService.apply();
+  syncGSettingsColorScheme(m_themeService.resolvedMode());
   syncScriptApiWallpaperDirectory();
   syncScriptApiShellTimeFormats();
   m_configService.addReloadCallback([this]() { m_themeService.onConfigReload(); }, "theme");
@@ -852,6 +902,9 @@ void Application::initAuxServicesAndHooks() {
   // Register all wallpaper consumers in the single-callback slot.
   m_configService.setWallpaperChangeCallback([this]() {
     const auto wallpaperChanges = m_wallpaper.onStateChange();
+    if (m_syncScriptApiOutputs) {
+      m_syncScriptApiOutputs();
+    }
     m_backdrop.onStateChange();
     m_lockScreen.onWallpaperChanged();
     m_themeService.onWallpaperChange();
@@ -1029,6 +1082,7 @@ void Application::initSystemBusServices() {
             (void)m_logindService->acquireSleepDelayInhibit();
           }
           kLog.info("system resumed; rechecking night light and auto theme schedules");
+          m_weatherService.requestRefresh();
           m_gammaService.reevaluateSchedule();
           // Auto theme mode schedules with steady_clock timers, which do not advance while
           // suspended. Re-resolve so a day/night boundary crossed during sleep is applied.

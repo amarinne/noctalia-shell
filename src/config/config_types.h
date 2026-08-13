@@ -268,6 +268,8 @@ struct IdleBehaviorConfig {
   std::string resumeCommand;
   /// When `action` is `suspend`, lock the session before running suspend so lock surfaces are ready (recommended).
   bool lockBeforeSuspend = true;
+  /// Shorter timeout (seconds) applied only while the session is locked; 0 = always use timeoutSeconds.
+  double lockedTimeoutSeconds = 0.0;
 
   bool operator==(const IdleBehaviorConfig&) const = default;
 };
@@ -986,6 +988,8 @@ struct ShellConfig {
     bool compact = false;
     bool appGrid = false;
     bool sortByUsage = true;
+    // Desktop entry IDs shown first in the launcher when it opens without a query.
+    std::vector<std::string> pinned;
     /// When true, refresh currency exchange rates from libqalculate's online sources.
     bool fetchExchangeRates = true;
     std::string providerPrefix = "/";
@@ -1130,7 +1134,7 @@ struct CalendarConfig {
   // are not stored here. id must be [a-z0-9_] because it identifies durable credential records.
   struct Account {
     std::string id;
-    std::string type; // "google" | "caldav"
+    std::string type; // "google" | "caldav" | "ics"
     std::string displayName;
     std::string color;                  // optional "#rrggbb" override
     std::string provider;               // "icloud" | "custom" (caldav only)

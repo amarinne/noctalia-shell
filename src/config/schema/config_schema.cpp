@@ -2,6 +2,7 @@
 
 #include "config/config_types.h"
 #include "config/schema/config_sections.h"
+#include "config/schema/diagnostics.h"
 #include "config/schema/engine.h"
 #include "config/schema/ranges.h"
 #include "core/input/key_chord.h"
@@ -590,6 +591,24 @@ namespace noctalia::config::schema {
           pathStringField(&CalendarConfig::Account::passwordFile, "password_file"),
           finalize<CalendarConfig::Account>([](CalendarConfig::Account& out, std::string_view parentPath,
                                                Diagnostics& diag) {
+            if (out.type == "ics") {
+              if (out.serverUrl.empty()) {
+                diag.error(joinPath(parentPath, "server_url"), "ics accounts require server_url (.ics file URL)");
+              }
+              if (out.credentialSource != CalendarCredentialSource::SecretService) {
+                diag.error(joinPath(parentPath, "credential_source"), "credential_source is only valid for caldav");
+              }
+              if (!out.passwordFile.empty()) {
+                diag.error(joinPath(parentPath, "password_file"), "password_file is only valid for caldav");
+              }
+              if (!out.username.empty()) {
+                diag.error(joinPath(parentPath, "username"), "username is only valid for caldav");
+              }
+              if (!out.provider.empty()) {
+                diag.error(joinPath(parentPath, "provider"), "provider is only valid for caldav");
+              }
+              return;
+            }
             if (out.type != "caldav") {
               if (out.credentialSource != CalendarCredentialSource::SecretService) {
                 diag.error(joinPath(parentPath, "credential_source"), "credential_source is only valid for caldav");
@@ -844,6 +863,7 @@ namespace noctalia::config::schema {
       static const Schema<IdleBehaviorConfig> s = {
           field(&IdleBehaviorConfig::enabled, "enabled"),
           field(&IdleBehaviorConfig::timeoutSeconds, "timeout"),
+          field(&IdleBehaviorConfig::lockedTimeoutSeconds, "locked_timeout"),
           // action is trimmed on read.
           custom<IdleBehaviorConfig>(
               "action",
@@ -1305,6 +1325,7 @@ namespace noctalia::config::schema {
           field(&ShellConfig::LauncherConfig::compact, "compact"),
           field(&ShellConfig::LauncherConfig::appGrid, "app_grid"),
           field(&ShellConfig::LauncherConfig::sortByUsage, "sort_by_usage"),
+          field(&ShellConfig::LauncherConfig::pinned, "pinned"),
           field(&ShellConfig::LauncherConfig::fetchExchangeRates, "fetch_exchange_rates"),
           field(&ShellConfig::LauncherConfig::providerPrefix, "provider_prefix"),
           enumField(&ShellConfig::LauncherConfig::autoPaste, "auto_paste", kClipboardAutoPasteModes),

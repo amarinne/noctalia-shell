@@ -4,7 +4,7 @@
 
 - Source: `/home/ez/Projects/noctalia-shell`
 - Fork branch: `main`
-- Upstream baseline: `73e498510`
+- Upstream baseline: `ea13b7606`
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
 - Active launcher: `/home/ez/.local/bin/noctalia-v5`
 - Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
@@ -18,12 +18,19 @@ Do not start the old `qs -c noctalia-shell` process with v5.
 ## Fedora build dependencies
 
 ```sh
-sudo dnf install md4c-devel json-devel tomlplusplus-devel stb-devel \
-  libical-devel libsndfile-devel
+sudo dnf install meson gcc-c++ just \
+  wayland-devel wayland-protocols-devel \
+  libEGL-devel mesa-libGLES-devel \
+  freetype-devel fontconfig-devel cairo-devel pango-devel harfbuzz-devel \
+  libxkbcommon-devel glib2-devel libsecret-devel libsodium-devel \
+  sdbus-cpp-devel pipewire-devel wireplumber-devel pam-devel polkit-devel \
+  libcurl-devel libwebp-devel libjxl-devel libsndfile-devel librsvg2-devel \
+  libqalculate-devel libxml2-devel md4c-devel tomlplusplus-devel \
+  libical-devel json-devel stb_image_resize2-devel stb_image_write-devel \
+  jemalloc-devel
 ```
 
 Fedora package name is `json-devel`, not `nlohmann-json-devel`.
-Upstream requires system md4c, nlohmann/json, toml++, stb, libical, and libsndfile.
 
 ## Build and test
 
@@ -36,7 +43,7 @@ meson compile -C build-release
 meson test -C build-release --print-errorlogs
 ```
 
-All 66 tests must pass. Run the build on the desktop. Do not compile Noctalia
+All 80 tests must pass. Run the build on the desktop. Do not compile Noctalia
 on the laptop.
 
 The desktop package bundles private libraries in `lib/`. The installed binary
