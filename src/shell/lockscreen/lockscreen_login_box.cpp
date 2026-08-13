@@ -189,7 +189,7 @@ namespace lockscreen_login_box {
   float minPanelHeight(LayoutMode layout, bool showSessionButtons, bool showInfoExtras) {
     const float pad = Style::spaceLg * 2.0F;
     if (layout != LayoutMode::Regular) {
-      return pad * 2.0F + Style::controlHeight * 2.0F;
+      return pad + kCompactInputHeight;
     }
 
     int gapCount = 0;
@@ -263,7 +263,7 @@ namespace lockscreen_login_box {
     PanelContentLayout layout;
     layout.contentLeft = Style::spaceLg;
     // Center the input row vertically so the free space above and below the input is equal.
-    layout.controlHeight = std::min(Style::controlHeight * 2.0F, panelHeight - Style::spaceLg * 4.0F);
+    layout.controlHeight = std::min(kCompactInputHeight, panelHeight - Style::spaceLg * 2.0F);
     layout.contentTop = std::max(Style::spaceLg, (panelHeight - layout.controlHeight) * 0.5F);
     // Match the left inset so the padding left of the first control equals the padding right of the last.
     const float rightInset = Style::spaceLg;

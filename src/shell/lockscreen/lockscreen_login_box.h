@@ -74,12 +74,14 @@ namespace lockscreen_login_box {
   [[nodiscard]] LayoutMode resolveLayout(const std::unordered_map<std::string, WidgetSettingValue>& settings);
   [[nodiscard]] LayoutMode resolveLayout(std::string_view layout);
 
-  constexpr float kCompactDefaultWidthCap = 648.0F;
+  constexpr float kCompactInputWidth = 300.0F;
+  constexpr float kCompactInputHeight = 120.0F;
+  constexpr float kCompactDefaultWidthCap = kCompactInputWidth + 2.0F * Style::spaceLg;
   constexpr float kRegularDefaultWidthCap = 810.0F;
-  constexpr float kCompactMinPanelWidth = 648.0F;
+  constexpr float kCompactMinPanelWidth = kCompactDefaultWidthCap;
   // Min width for media + weather; forecast needs more.
   constexpr float kRegularMinPanelWidth = 720.0F;
-  constexpr float kCompactMaxPanelHeight = 168.0F;
+  constexpr float kCompactMaxPanelHeight = kCompactInputHeight + 4.0F * Style::spaceLg;
   constexpr float kRegularMaxPanelHeight = 320.0F;
 
   // Matches lock-surface media art / forecast glyph sizes used in Regular layout.

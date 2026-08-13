@@ -1137,7 +1137,7 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
     m_infoRow->setJustify((mediaAlone || weatherAlone) ? FlexJustify::Center : FlexJustify::Start);
   }
 
-  const float controlHeight = regular ? rows.password : Style::controlHeight * 2.0F;
+  const float controlHeight = regular ? rows.password : lockscreen_login_box::kCompactInputHeight;
   m_loginContentRow->setMinHeight(controlHeight);
   m_loginContentRow->setMaxHeight(controlHeight);
   m_loginContentRow->setMaxWidth(contentWidth);
