@@ -2083,12 +2083,13 @@ void SettingsWindow::buildScene(std::uint32_t width, std::uint32_t height) {
   }
 
   const float bgOpacity = cfg.shell.settingsWindowTranslucent ? 0.75F : 1.0F;
-  const float borderInset = Style::borderWidth;
+  const float settingsBorderWidth = Style::borderWidth * 2.0F;
+  const float borderInset = settingsBorderWidth;
 
   auto bg = ui::box({
       .width = w,
       .height = h,
-      .configure = [bgOpacity, borderInset, scale](Box& box) {
+      .configure = [bgOpacity, borderInset, scale, settingsBorderWidth](Box& box) {
         box.setPanelStyle();
         box.setRadius(std::max(0.0F, Style::scaledRadiusXl(scale) - borderInset));
         box.setLogicalInset(RectInsets{
@@ -2097,7 +2098,7 @@ void SettingsWindow::buildScene(std::uint32_t width, std::uint32_t height) {
             .right = borderInset,
             .bottom = borderInset,
         });
-        box.setBorder(colorSpecFromRole(ColorRole::Outline), Style::borderWidth);
+        box.setBorder(colorSpecFromRole(ColorRole::Outline), settingsBorderWidth);
         box.setPosition(0.0F, 0.0F);
         box.setFill(colorSpecFromRole(ColorRole::Surface, bgOpacity));
       },
