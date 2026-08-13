@@ -4,7 +4,7 @@
 
 - Source: `/home/ez/Projects/noctalia-shell`
 - Fork branch: `main`
-- Upstream baseline: `ea13b7606`
+- Upstream baseline: `97ea97d28`
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
 - Active launcher: `/home/ez/.local/bin/noctalia-v5`
 - Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
