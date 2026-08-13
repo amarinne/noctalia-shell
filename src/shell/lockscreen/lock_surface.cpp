@@ -1570,23 +1570,13 @@ bool LockSurface::isLoginBoxEnabled() const {
 
 std::string LockSurface::resolveStatusText(const lockscreen_login_box::LoginBoxStyle& style, bool& isError) const {
   isError = false;
-  // Errors always show. Caps Lock has its own toggle. Everything else (idle hint,
-  // authenticating, PAM prompts) is gated by showUnlockHint.
+  // Keep the minimal lock screen quiet. Only real authentication errors remain visible.
   if (m_error) {
     isError = true;
     return m_status;
   }
-  if (m_capsLock && style.showCapsLock) {
-    isError = true;
-    return i18n::tr("lockscreen.caps-lock-on");
-  }
-  if (!style.showUnlockHint) {
-    return {};
-  }
-  if (m_authenticating || !m_status.empty()) {
-    return m_status;
-  }
-  return i18n::tr("lockscreen.ready");
+  (void)style;
+  return {};
 }
 
 void LockSurface::releaseWallpaperTextureRef(const std::string& path) {
