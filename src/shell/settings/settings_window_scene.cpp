@@ -2083,15 +2083,16 @@ void SettingsWindow::buildScene(std::uint32_t width, std::uint32_t height) {
   }
 
   const float bgOpacity = cfg.shell.settingsWindowTranslucent ? 0.75F : 1.0F;
+  const float borderInset = Style::borderWidth;
 
   auto bg = ui::box({
-      .width = w,
-      .height = h,
-      .configure = [bgOpacity](Box& box) {
+      .width = std::max(0.0F, w - borderInset * 2.0F),
+      .height = std::max(0.0F, h - borderInset * 2.0F),
+      .configure = [bgOpacity, borderInset, scale](Box& box) {
         box.setPanelStyle();
-        box.setRadius(0.0F);
+        box.setRadius(Style::scaledRadiusXl(scale));
         box.setBorder(colorSpecFromRole(ColorRole::Outline), Style::borderWidth);
-        box.setPosition(0.0F, 0.0F);
+        box.setPosition(borderInset, borderInset);
         box.setFill(colorSpecFromRole(ColorRole::Surface, bgOpacity));
       },
   });
