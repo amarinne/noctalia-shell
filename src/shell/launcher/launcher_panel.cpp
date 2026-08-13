@@ -36,7 +36,7 @@ namespace {
   constexpr std::size_t kRowOverscan = 3;
   // Minimum trimmed query length before prefixed opt-in providers join the global search.
   constexpr std::size_t kGlobalOptInMinChars = 2;
-  constexpr float kIconSizeDefault = 40.0F;
+  constexpr float kIconSizeDefault = 52.0F;
   constexpr float kIconSizeCompact = 28.0F;
   constexpr std::size_t kAppGridColumns = 5;
   constexpr std::string_view kApplicationsProviderId = "Applications";
@@ -633,28 +633,28 @@ namespace {
   private:
     void applyVisualState() {
       if (m_selected) {
-        m_col->setFill(colorSpecFromRole(ColorRole::Primary));
+        m_col->setFill(colorSpecFromRole(ColorRole::Primary, 0.15F));
+        m_col->setBorder(colorSpecFromRole(ColorRole::Primary, 0.55F), Style::borderWidth);
       } else if (m_hovered) {
-        m_col->setFill(colorSpecFromRole(ColorRole::Hover));
+        m_col->setFill(colorSpecFromRole(ColorRole::Primary, 0.08F));
+        m_col->setBorder(colorSpecFromRole(ColorRole::Primary, 0.28F), Style::borderWidth);
       } else {
         m_col->setFill(m_style.listItemBackground.value_or(clearColorSpec()));
+        m_col->clearBorder();
       }
       if (m_reorderTarget) {
         m_col->setBorder(colorSpecFromRole(ColorRole::Primary), Style::focusRingWidth);
-      } else {
-        m_col->clearBorder();
       }
 
-      const auto activeRole = m_selected ? ColorRole::OnPrimary : ColorRole::OnHover;
       const bool active = m_selected || m_hovered;
-      const ColorSpec foreground = colorSpecFromRole(active ? activeRole : ColorRole::OnSurface);
+      const ColorSpec foreground = colorSpecFromRole(ColorRole::OnSurface);
       m_glyph->setColor(foreground);
       m_title->setColor(foreground);
       m_pinnedGlyph->setColor(
-          active ? colorSpecFromRole(activeRole, 0.7F) : colorSpecFromRole(ColorRole::OnSurfaceVariant)
+          active ? colorSpecFromRole(ColorRole::Primary, 0.9F) : colorSpecFromRole(ColorRole::OnSurfaceVariant)
       );
       m_originGlyph->setColor(
-          active ? colorSpecFromRole(activeRole, 0.7F) : colorSpecFromRole(ColorRole::OnSurfaceVariant)
+          active ? colorSpecFromRole(ColorRole::Primary, 0.9F) : colorSpecFromRole(ColorRole::OnSurfaceVariant)
       );
     }
 

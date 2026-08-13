@@ -40,20 +40,20 @@ namespace lockscreen_login_box {
   };
 
   struct LoginBoxStyle {
-    LayoutMode layout = LayoutMode::Regular;
-    ColorSpec panelFill = colorSpecFromRole(ColorRole::SurfaceVariant, 0.88F);
-    float panelOpacity = 0.88F;
-    float panelRadius = 12.0F;
-    float inputOpacity = 1.0F;
-    float inputRadius = 6.0F;
-    bool centerPasswordText = false;
-    bool showLoginButton = true;
-    bool showCapsLock = true;
-    bool showKeyboardLayout = true;
-    bool showSessionButtons = true;
-    bool showMedia = true;
-    bool showWeather = true;
-    bool showUnlockHint = true;
+    LayoutMode layout = LayoutMode::Compact;
+    ColorSpec panelFill = colorSpecFromRole(ColorRole::Surface, 0.0F);
+    float panelOpacity = 0.0F;
+    float panelRadius = 0.0F;
+    float inputOpacity = 0.10F;
+    float inputRadius = 24.0F;
+    bool centerPasswordText = true;
+    bool showLoginButton = false;
+    bool showCapsLock = false;
+    bool showKeyboardLayout = false;
+    bool showSessionButtons = false;
+    bool showMedia = false;
+    bool showWeather = false;
+    bool showUnlockHint = false;
   };
 
   // Regular info row media/weather visibility (both may be off).
@@ -74,7 +74,7 @@ namespace lockscreen_login_box {
   [[nodiscard]] LayoutMode resolveLayout(const std::unordered_map<std::string, WidgetSettingValue>& settings);
   [[nodiscard]] LayoutMode resolveLayout(std::string_view layout);
 
-  constexpr float kCompactDefaultWidthCap = 400.0F;
+  constexpr float kCompactDefaultWidthCap = 320.0F;
   constexpr float kRegularDefaultWidthCap = 810.0F;
   constexpr float kCompactMinPanelWidth = 240.0F;
   // Min width for media + weather; forecast needs more.

@@ -331,22 +331,22 @@ namespace lockscreen_login_box {
       std::unordered_map<std::string, WidgetSettingValue>& settings, desktop_settings::DesktopWidgetSettingsScope scope
   ) {
     if (scope == desktop_settings::DesktopWidgetSettingsScope::Widget) {
-      settings.insert_or_assign(std::string(kLayoutKey), std::string(kLayoutRegular));
-      settings.insert_or_assign(std::string(kShowSessionButtonsKey), true);
-      settings.insert_or_assign(std::string(kShowMediaKey), true);
-      settings.insert_or_assign(std::string(kShowWeatherKey), true);
-      settings.insert_or_assign(std::string(kShowLoginButtonKey), true);
-      settings.insert_or_assign(std::string(kShowCapsLockKey), true);
-      settings.insert_or_assign(std::string(kShowKeyboardLayoutKey), true);
-      settings.insert_or_assign(std::string(kShowUnlockHintKey), true);
-      settings.insert_or_assign(std::string(kInputOpacityKey), 1.0);
-      settings.insert_or_assign(std::string(kInputRadiusKey), 6.0);
-      settings.insert_or_assign(std::string(kCenterPasswordTextKey), false);
+      settings.insert_or_assign(std::string(kLayoutKey), std::string(kLayoutCompact));
+      settings.insert_or_assign(std::string(kShowSessionButtonsKey), false);
+      settings.insert_or_assign(std::string(kShowMediaKey), false);
+      settings.insert_or_assign(std::string(kShowWeatherKey), false);
+      settings.insert_or_assign(std::string(kShowLoginButtonKey), false);
+      settings.insert_or_assign(std::string(kShowCapsLockKey), false);
+      settings.insert_or_assign(std::string(kShowKeyboardLayoutKey), false);
+      settings.insert_or_assign(std::string(kShowUnlockHintKey), false);
+      settings.insert_or_assign(std::string(kInputOpacityKey), 0.10);
+      settings.insert_or_assign(std::string(kInputRadiusKey), 24.0);
+      settings.insert_or_assign(std::string(kCenterPasswordTextKey), true);
     }
     if (scope == desktop_settings::DesktopWidgetSettingsScope::Background) {
-      settings.insert_or_assign("background_color", std::string("surface_variant"));
-      settings.insert_or_assign("background_opacity", 0.88);
-      settings.insert_or_assign("background_radius", 12.0);
+      settings.insert_or_assign("background_color", std::string("surface"));
+      settings.insert_or_assign("background_opacity", 0.0);
+      settings.insert_or_assign("background_radius", 0.0);
     }
   }
 

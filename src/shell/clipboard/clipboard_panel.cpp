@@ -33,7 +33,7 @@
 
 namespace {
 
-  constexpr float kRowHeightEstimate = 46.0F;
+  constexpr float kRowHeightEstimate = 64.0F;
   constexpr float kPreviewImageHeight = 280.0F;
   constexpr float kListGlyphSize = 24.0F;
   constexpr float kListThumbSize = 40.0F;
@@ -49,7 +49,7 @@ namespace {
     const TextMetrics title = renderer.measureFont(Style::fontSizeBody * scale, FontWeight::SemiBold);
     const TextMetrics meta = renderer.measureFont(Style::fontSizeCaption * scale, FontWeight::Normal);
     const float textHeight = std::round(title.bottom - title.top) + std::round(meta.bottom - meta.top);
-    return std::ceil(std::max(kListThumbSize * scale, textHeight) + Style::spaceXs * scale * 2.0F);
+    return std::ceil(std::max(kListThumbSize * scale, textHeight) + Style::spaceSm * scale * 2.0F);
   }
 
   [[nodiscard]] bool isDescendantOf(const Node* node, const Node* ancestor) {
@@ -415,25 +415,27 @@ namespace {
       }
 
       if (m_selected) {
-        m_background->setFill(colorSpecFromRole(ColorRole::Primary));
+        m_background->setFill(colorSpecFromRole(ColorRole::Primary, 0.15F));
+        m_background->setBorder(colorSpecFromRole(ColorRole::Primary, 0.55F), Style::borderWidth);
       } else if (m_hovered) {
-        m_background->setFill(colorSpecFromRole(ColorRole::Hover));
+        m_background->setFill(colorSpecFromRole(ColorRole::Primary, 0.08F));
+        m_background->setBorder(colorSpecFromRole(ColorRole::Primary, 0.28F), Style::borderWidth);
       } else {
         m_background->setFill(m_listItemBackground.value_or(clearColorSpec()));
+        m_background->setBorder(colorSpecFromRole(ColorRole::Outline, 0.32F), Style::borderWidth);
       }
 
-      const auto activeRole = m_selected ? ColorRole::OnPrimary : ColorRole::OnHover;
       const bool active = m_selected || m_hovered;
       m_glyph->setColor(
-          active ? colorSpecFromRole(activeRole)
+          active ? colorSpecFromRole(ColorRole::Primary)
                  : colorSpecFromRole(m_isImage ? ColorRole::Secondary : ColorRole::Primary)
       );
-      m_title->setColor(colorSpecFromRole(active ? activeRole : ColorRole::OnSurface));
-      m_meta->setColor(active ? colorSpecFromRole(activeRole, 0.7F) : colorSpecFromRole(ColorRole::OnSurfaceVariant));
+      m_title->setColor(colorSpecFromRole(ColorRole::OnSurface));
+      m_meta->setColor(colorSpecFromRole(ColorRole::OnSurfaceVariant));
       if (m_pinGlyph != nullptr) {
         m_pinGlyph->setVisible(m_pinned);
         m_pinGlyph->setParticipatesInLayout(m_pinned);
-        m_pinGlyph->setColor(colorSpecFromRole(active ? activeRole : ColorRole::Primary));
+        m_pinGlyph->setColor(colorSpecFromRole(ColorRole::Primary));
       }
     }
 
@@ -561,8 +563,8 @@ void ClipboardPanel::create() {
       .out = &m_sidebar,
       .align = FlexAlign::Stretch,
       .gap = Style::spaceSm * scale,
-      .padding = Style::spaceSm * scale,
-      .flexGrow = 2.0F,
+      .padding = 0.0F,
+      .flexGrow = 1.0F,
   });
 
   auto sidebarHeader = ui::row(
@@ -585,6 +587,8 @@ void ClipboardPanel::create() {
       })
   );
   sidebar->addChild(std::move(sidebarHeader));
+  m_sidebarHeaderRow->setVisible(false);
+  m_sidebarHeaderRow->setParticipatesInLayout(false);
 
   auto clearConfirmPanel = makeInlineConfirmPanel(&m_clearConfirmPanel, scale);
   clearConfirmPanel->addChild(
@@ -784,6 +788,8 @@ void ClipboardPanel::create() {
   preview->addChild(std::move(previewScroll));
 
   contentRow->addChild(std::move(preview));
+  m_previewCard->setVisible(false);
+  m_previewCard->setParticipatesInLayout(false);
   rootLayout->addChild(std::move(contentRow));
 
   setRoot(std::move(rootLayout));
