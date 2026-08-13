@@ -21,6 +21,7 @@ namespace {
   constexpr Logger kLog("app-provider");
   constexpr std::size_t kMaxSearchResults = 50;
   constexpr std::string_view kDefaultAppIcon = "application-x-executable";
+  constexpr double kNameMatchPriority = 3'000.0;
 
   double scoreEntry(std::string_view pattern, const DesktopEntry& entry) {
     if (pattern.empty()) {
@@ -35,7 +36,7 @@ namespace {
 
     // Keep the application name as the primary match field.
     if (FuzzyMatch::isMatch(nameScore)) {
-      return nameScore;
+      return nameScore + kNameMatchPriority;
     }
 
     auto scoreList = [&](std::string_view list, double weight) {
@@ -127,6 +128,8 @@ namespace {
       return i18n::tr("launcher.origins.snap");
     case DesktopEntryOrigin::Nix:
       return i18n::tr("launcher.origins.nix");
+    case DesktopEntryOrigin::AppImage:
+      return i18n::tr("launcher.origins.appimage");
     case DesktopEntryOrigin::Unknown:
       return {};
     }
@@ -137,6 +140,7 @@ namespace {
     switch (origin) {
     case DesktopEntryOrigin::Flatpak:
     case DesktopEntryOrigin::Snap:
+    case DesktopEntryOrigin::AppImage:
       return "package";
     case DesktopEntryOrigin::Unknown:
     case DesktopEntryOrigin::User:

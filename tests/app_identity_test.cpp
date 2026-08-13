@@ -3,9 +3,13 @@
 #include "tests/test_check.h"
 #include "util/string_utils.h"
 
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unistd.h>
 #include <vector>
 
 namespace internal_apps {
@@ -86,6 +90,68 @@ namespace {
     return entry;
   }
 
+  void testAppImageOriginDetection() {
+    namespace fs = std::filesystem;
+
+    const fs::path root = fs::temp_directory_path() / ("noctalia-appimage-origin-" + std::to_string(getpid()));
+    const fs::path applications = root / "data/applications";
+    const fs::path executable = root / "PortableApp";
+    fs::create_directories(applications);
+    {
+      std::ofstream binary(executable, std::ios::binary);
+      binary.write(
+          "\x7F"
+          "ELF\x02\x01\x01\0"
+          "AI",
+          10
+      );
+    }
+    {
+      std::ofstream entry(applications / "metadata.desktop");
+      entry
+          << "[Desktop Entry]\nType=Application\nName=Metadata AppImage\nExec=metadata-app\n"
+          << "X-AppImage-Version=1.0\n";
+    }
+    {
+      std::ofstream entry(applications / "portable.desktop");
+      entry << "[Desktop Entry]\nType=Application\nName=Portable AppImage\nExec=" << executable.string() << "\n";
+    }
+    {
+      std::ofstream entry(applications / "suffix.desktop");
+      entry << "[Desktop Entry]\nType=Application\nName=Suffixed AppImage\nExec=/opt/Suffixed.AppImage\n";
+    }
+
+    const char* oldDataHome = std::getenv("XDG_DATA_HOME");
+    const char* oldDataDirs = std::getenv("XDG_DATA_DIRS");
+    const std::optional<std::string> savedDataHome =
+        oldDataHome == nullptr ? std::nullopt : std::optional<std::string>(oldDataHome);
+    const std::optional<std::string> savedDataDirs =
+        oldDataDirs == nullptr ? std::nullopt : std::optional<std::string>(oldDataDirs);
+    setenv("XDG_DATA_HOME", (root / "data").c_str(), 1);
+    setenv("XDG_DATA_DIRS", (root / "empty").c_str(), 1);
+
+    const auto entries = scanDesktopEntries();
+    const auto findOrigin = [&](std::string_view id) {
+      const auto it = std::ranges::find(entries, id, &DesktopEntry::id);
+      return it == entries.end() ? DesktopEntryOrigin::Unknown : it->origin;
+    };
+    TEST_CHECK(findOrigin("metadata") == DesktopEntryOrigin::AppImage);
+    TEST_CHECK(findOrigin("portable") == DesktopEntryOrigin::AppImage);
+    TEST_CHECK(findOrigin("suffix") == DesktopEntryOrigin::AppImage);
+
+    if (savedDataHome.has_value()) {
+      setenv("XDG_DATA_HOME", savedDataHome->c_str(), 1);
+    } else {
+      unsetenv("XDG_DATA_HOME");
+    }
+    if (savedDataDirs.has_value()) {
+      setenv("XDG_DATA_DIRS", savedDataDirs->c_str(), 1);
+    } else {
+      unsetenv("XDG_DATA_DIRS");
+    }
+    fs::remove_all(root);
+  }
+
 } // namespace
 
 int main() {
@@ -123,26 +189,35 @@ int main() {
   // production and does not re-filter them. If one is present it resolves like any other entry.
   DesktopEntry hidden = sampleChatEntry();
   hidden.hidden = true;
-  TEST_CHECK(app_identity::resolveRunningDesktopEntry("Sample.ChatDesktop", {hidden}).id == "sample-chat-desktop");
+  TEST_CHECK(
+      app_identity::resolveRunningDesktopEntry("Sample.ChatDesktop", std::array<DesktopEntry, 1>{hidden}).id
+      == "sample-chat-desktop"
+  );
 
   DesktopEntry noDisplay = sampleChatEntry();
   noDisplay.noDisplay = true;
-  TEST_CHECK(app_identity::resolveRunningDesktopEntry("Sample.ChatDesktop", {noDisplay}).id == "sample-chat-desktop");
+  TEST_CHECK(
+      app_identity::resolveRunningDesktopEntry("Sample.ChatDesktop", std::array<DesktopEntry, 1>{noDisplay}).id
+      == "sample-chat-desktop"
+  );
 
   const std::vector<DesktopEntry> multipleEntries = {sampleChatEntry(), sampleMailEntry()};
-  const auto resolvedApps =
-      app_identity::resolveRunningApps({"Sample.ChatDesktop", "sample-chat-desktop", "SampleMail"}, multipleEntries);
+  const auto resolvedApps = app_identity::resolveRunningApps(
+      std::array<std::string, 3>{"Sample.ChatDesktop", "sample-chat-desktop", "SampleMail"}, multipleEntries
+  );
   TEST_CHECK(resolvedApps.size() == 2);
   TEST_CHECK(resolvedApps[0].entry.id == "sample-chat-desktop");
   TEST_CHECK(resolvedApps[1].entry.id == "sample-mail");
 
-  const auto unknownApps = app_identity::resolveRunningApps({"Unknown.App", "unknown-app"}, multipleEntries);
+  const auto unknownApps =
+      app_identity::resolveRunningApps(std::array<std::string, 2>{"Unknown.App", "unknown-app"}, multipleEntries);
   TEST_CHECK(unknownApps.size() == 2);
   TEST_CHECK(unknownApps[0].entry.id == "Unknown.App");
   TEST_CHECK(unknownApps[1].entry.id == "unknown-app");
 
   const DesktopEntry easyEffects = easyEffectsEntry();
-  const DesktopEntry kdeResolved = app_identity::resolveRunningDesktopEntry("org.kde.easyeffects", {easyEffects});
+  const DesktopEntry kdeResolved =
+      app_identity::resolveRunningDesktopEntry("org.kde.easyeffects", std::array<DesktopEntry, 1>{easyEffects});
   TEST_CHECK(kdeResolved.id == "com.github.wwmm.easyeffects");
   TEST_CHECK(kdeResolved.name == "Easy Effects");
   TEST_CHECK(kdeResolved.icon == "easyeffects");
@@ -153,6 +228,8 @@ int main() {
   };
   const DesktopEntry ambiguousResolved = app_identity::resolveRunningDesktopEntry("org.kde.easyeffects", ambiguousTail);
   TEST_CHECK(ambiguousResolved.id == "org.kde.easyeffects");
+
+  testAppImageOriginDetection();
 
   return 0;
 }
