@@ -2086,13 +2086,19 @@ void SettingsWindow::buildScene(std::uint32_t width, std::uint32_t height) {
   const float borderInset = Style::borderWidth;
 
   auto bg = ui::box({
-      .width = std::max(0.0F, w - borderInset * 2.0F),
-      .height = std::max(0.0F, h - borderInset * 2.0F),
+      .width = w,
+      .height = h,
       .configure = [bgOpacity, borderInset, scale](Box& box) {
         box.setPanelStyle();
-        box.setRadius(Style::scaledRadiusXl(scale));
+        box.setRadius(std::max(0.0F, Style::scaledRadiusXl(scale) - borderInset));
+        box.setLogicalInset(RectInsets{
+            .left = borderInset,
+            .top = borderInset,
+            .right = borderInset,
+            .bottom = borderInset,
+        });
         box.setBorder(colorSpecFromRole(ColorRole::Outline), Style::borderWidth);
-        box.setPosition(borderInset, borderInset);
+        box.setPosition(0.0F, 0.0F);
         box.setFill(colorSpecFromRole(ColorRole::Surface, bgOpacity));
       },
   });
