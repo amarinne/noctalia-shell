@@ -477,7 +477,7 @@ LockSurface::LockSurface(WaylandConnection& connection, ConfigService* config) :
   m_loginContentRow->addChild(
       ui::input({
           .out = &m_passwordField,
-          .placeholder = i18n::tr("lockscreen.password-placeholder"),
+          .placeholder = "",
           .passwordMode = true,
           .onChange =
               [this](const std::string& value) {
