@@ -1091,6 +1091,7 @@ noctalia_exe = executable('noctalia',
   include_directories: _noctalia_inc,
   cpp_args: _noctalia_cpp_args,
   objects: noctalia_core_lib.extract_all_objects(recursive: false),
+  install_rpath: '$ORIGIN/../lib',
   install: true,
 )
 
