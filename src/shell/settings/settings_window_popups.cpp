@@ -376,27 +376,17 @@ void SettingsWindow::openActionsMenu() {
 }
 
 void SettingsWindow::openConfigExportDialog() {
-  if (m_wayland == nullptr
-      || m_renderContext == nullptr
-      || m_surface == nullptr
-      || m_surface->xdgSurface() == nullptr
-      || m_config == nullptr) {
+  if (m_surface == nullptr || m_config == nullptr) {
     return;
   }
 
-  if (m_configExportDialogPopup == nullptr) {
-    m_configExportDialogPopup = std::make_unique<settings::ConfigExportDialogPopup>();
-    m_configExportDialogPopup->initialize(*m_wayland, *m_config, *m_renderContext);
+  if (m_configExportDialogModal == nullptr) {
+    m_configExportDialogModal = std::make_unique<settings::ConfigExportDialogModal>();
+    m_configExportDialogModal->initialize(m_modalHost, [this]() { dismissOpenSelectDropdown(); });
   }
 
-  wl_output* output = m_wayland->lastPointerOutput();
-  if (output == nullptr) {
-    output = m_output;
-  }
-
-  m_configExportDialogPopup->open(
-      settings::ConfigExportDialogPopupRequest{
-          .parent = popupParentFor(*m_surface, output, m_wayland->lastInputSerial()),
+  m_configExportDialogModal->open(
+      settings::ConfigExportDialogRequest{
           .scale = uiScale(),
           .callback = [this](settings::ConfigExportMode mode) { saveConfigExport(mode); },
       }
@@ -963,6 +953,7 @@ void SettingsWindow::openNotificationFilterCreateEditor() {
       .showToast = true,
       .saveHistory = true,
       .playSound = true,
+      .bypassDnd = false,
       .allowPermanent = true,
       .allowedUrgencies = {},
   });
@@ -2100,6 +2091,22 @@ void SettingsWindow::openPluginStore() {
           settings::SettingsSheetRequest{
               .sheetTitle = i18n::tr("settings.plugins.store.title"),
               .removeAction = nullptr,
+              .createLeadingAction = [storeContent, scale]() -> std::unique_ptr<Node> {
+                if (!storeContent->isDetailView()) {
+                  return nullptr;
+                }
+                return ui::button({
+                    .glyph = Style::rtl() ? "chevron-right" : "chevron-left",
+                    .glyphSize = Style::fontSizeBody * scale,
+                    .variant = ButtonVariant::Ghost,
+                    .tooltip = i18n::tr("settings.plugins.store.back-to-catalog"),
+                    .minWidth = Style::controlHeightSm * scale,
+                    .minHeight = Style::controlHeightSm * scale,
+                    .padding = Style::spaceXs * scale,
+                    .radius = Style::scaledRadiusMd(scale),
+                    .onClick = [storeContent]() { storeContent->closeDetail(); },
+                });
+              },
               .createHeaderAction = [storeContent, scale]() -> std::unique_ptr<Node> {
                 const auto pageUrl = storeContent->detailPageUrl();
                 const auto sourceUrl = storeContent->detailSourceUrl();

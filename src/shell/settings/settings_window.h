@@ -6,7 +6,7 @@
 #include "render/scene/node.h"
 #include "scripting/plugin_file_cache.h"
 #include "scripting/plugin_manager.h"
-#include "shell/settings/config_export_dialog_popup.h"
+#include "shell/settings/config_export_dialog_modal.h"
 #include "shell/settings/search_picker_popup.h"
 #include "shell/settings/settings_control_factory.h"
 #include "shell/settings/settings_modal_host.h"
@@ -76,6 +76,10 @@ public:
   // Returns false when the plugin is unknown, disabled, or exposes no settings.
   [[nodiscard]] bool openToPlugin(std::string pluginId);
   void close();
+  // Closes the window for a widget editor while preserving the active section for its return.
+  void closeForWidgetEditor();
+  // Reopens the section saved by closeForWidgetEditor(), if any.
+  void reopenAfterWidgetEditor();
   [[nodiscard]] bool isOpen() const noexcept { return m_surface != nullptr && m_surface->isRunning(); }
   [[nodiscard]] wl_surface* wlSurface() const noexcept {
     return m_surface != nullptr ? m_surface->wlSurface() : nullptr;
@@ -261,7 +265,7 @@ private:
   RovingListNavHost* m_sidebarNav = nullptr;
   std::unique_ptr<ContextMenuPopup> m_actionsMenuPopup;
   std::unique_ptr<settings::WidgetAddPopup> m_widgetAddPopup;
-  std::unique_ptr<settings::ConfigExportDialogPopup> m_configExportDialogPopup;
+  std::unique_ptr<settings::ConfigExportDialogModal> m_configExportDialogModal;
   std::unique_ptr<settings::SearchPickerPopup> m_searchPickerPopup;
   InputDispatcher m_inputDispatcher;
   settings::SettingsModalHost m_modalHost;
@@ -272,6 +276,8 @@ private:
   std::unique_ptr<SelectDropdownPopup> m_selectPopup;
   bool m_pointerInside = false;
   wl_output* m_output = nullptr;
+  std::uint32_t m_minWidthHint = 0;
+  std::uint32_t m_minHeightHint = 0;
 
   std::uint32_t m_lastSceneWidth = 0;
   std::uint32_t m_lastSceneHeight = 0;
@@ -326,6 +332,7 @@ private:
   std::string m_selectedBarName;
   std::string m_selectedMonitorOverride;
   std::string m_selectedSection;
+  std::string m_reopenAfterWidgetEditorSection;
   std::string m_statusMessage;
   std::string m_pendingResetPageScope;
   std::vector<std::vector<std::string>> m_pendingResetSettingPaths;

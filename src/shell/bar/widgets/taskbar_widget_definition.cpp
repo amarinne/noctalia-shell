@@ -79,6 +79,20 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                   .step = 0.01,
                   .presentation = presentation("taskbar.windows"),
               }),
+              field<&Options::iconScale>({
+                  .key = "icon_scale",
+                  .minValue = 0.1,
+                  .maxValue = 2.0,
+                  .step = 0.05,
+                  .presentation = presentation("taskbar.windows"),
+              }),
+              field<&Options::itemSpacing>({
+                  .key = "item_spacing",
+                  .minValue = 0.0,
+                  .maxValue = 48.0,
+                  .step = 1.0,
+                  .presentation = presentation("taskbar.windows", matches("group_by_workspace", {"false"})),
+              }),
               field<&Options::pinned>({
                   .key = "pinned",
                   .presentation = presentation(

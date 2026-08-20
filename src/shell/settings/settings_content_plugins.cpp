@@ -720,7 +720,7 @@ namespace settings {
       return s.kind == PluginSourceKind::Git && s.enabled;
     });
     if (hasGitSource && ctx.setAutoUpdate) {
-      // Separate from the source list so the toggle doesn't read as another source.
+      // Separate from the source list so the dropdown doesn't read as another source.
       section->addChild(ui::separator({.spacing = Style::spaceSm * scale}));
       auto autoRow = ui::row({.align = FlexAlign::Center, .gap = Style::spaceSm * scale, .fillWidth = true});
       auto autoInfo = ui::column({.align = FlexAlign::Start, .gap = 2.0F * scale, .flexGrow = 1.0F});
@@ -732,14 +732,23 @@ namespace settings {
           i18n::tr("settings.plugins.sources.auto-update-desc"), Style::fontSizeCaption * scale,
           ColorRole::OnSurfaceVariant
       ));
+      std::vector<SelectOption> modeOptions;
+      modeOptions.reserve(std::size(kPluginAutoUpdateModes));
+      for (const auto& opt : kPluginAutoUpdateModes) {
+        modeOptions.push_back(SelectOption{std::string(opt.key), i18n::tr(opt.labelKey)});
+      }
+      const auto selectedModeIndex = optionIndex(modeOptions, enumToKey(kPluginAutoUpdateModes, ctx.autoUpdateMode));
       autoRow->addChild(std::move(autoInfo));
       autoRow->addChild(
-          ui::toggle({
-              .checked = ctx.autoUpdateEnabled,
-              .scale = scale,
-              .onChange = [cb = ctx.setAutoUpdate](bool on) {
-                if (cb) {
-                  cb(on);
+          ui::select({
+              .options = optionLabels(modeOptions),
+              .selectedIndex = selectedModeIndex,
+              .fontSize = Style::fontSizeBody * scale,
+              .controlHeight = Style::controlHeight * scale,
+              .glyphSize = Style::fontSizeBody * scale,
+              .onSelectionChanged = [cb = ctx.setAutoUpdate](std::size_t index, std::string_view /*label*/) {
+                if (cb && index < std::size(kPluginAutoUpdateModes)) {
+                  cb(kPluginAutoUpdateModes[index].value);
                 }
               },
           })
@@ -754,6 +763,14 @@ namespace settings {
     pluginsHeader->addChild(makeLabel(
         i18n::tr("settings.plugins.plugins.title"), Style::fontSizeBody * scale, ColorRole::Secondary, FontWeight::Bold
     ));
+    if (ctx.pluginsLoading) {
+      pluginsHeader->addChild(
+          ui::spinner({
+              .spinnerSize = Style::fontSizeBody * scale,
+              .spinning = true,
+          })
+      );
+    }
     pluginsHeader->addChild(ui::spacer());
     const int updatesAvailable = static_cast<int>(
         std::ranges::count_if(ctx.plugins, [](const scripting::PluginStatus& p) { return p.updateAvailable; })
@@ -791,13 +808,7 @@ namespace settings {
       );
     }
     section->addChild(std::move(pluginsHeader));
-    if (ctx.pluginsLoading) {
-      section->addChild(makeLabel(
-          ctx.plugins.empty() ? i18n::tr("settings.plugins.plugins.loading")
-                              : i18n::tr("settings.plugins.plugins.refreshing"),
-          Style::fontSizeCaption * scale, ColorRole::OnSurfaceVariant
-      ));
-    } else if (ctx.plugins.empty()) {
+    if (!ctx.pluginsLoading && ctx.plugins.empty()) {
       section->addChild(makeLabel(
           i18n::tr("settings.plugins.plugins.empty"), Style::fontSizeCaption * scale, ColorRole::OnSurfaceVariant
       ));

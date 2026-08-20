@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -36,6 +38,13 @@ namespace ui {
     // is set for high-frequency streams (slider drag, input typing) where only the
     // latest value matters.
     struct ControlCallback {
+      struct PointerContext {
+        float x = 0.0F;
+        float y = 0.0F;
+        std::uint32_t serial = 0;
+        std::uint32_t time = 0;
+      };
+
       explicit ControlCallback(
           std::string fnName, std::string firstArg = {}, std::string secondArg = {}, bool coalesceStream = false,
           std::string thirdArg = {}, std::string fourthArg = {}
@@ -49,6 +58,7 @@ namespace ui {
       std::string arg3;
       std::string arg4;
       bool coalesce = false;
+      std::optional<PointerContext> pointerContext;
     };
     using CallbackSink = std::function<void(const ControlCallback& callback)>;
     // Resolves a tree-supplied path (e.g. image source) to an absolute path.

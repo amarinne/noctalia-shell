@@ -305,6 +305,22 @@
     },
     "power": {
       "battery": "Battery",
+      "charging": {
+        "configured": "Configured: {limits}",
+        "display-only": "Display only",
+        "error-denied": "Authorization was denied. Charge thresholds were not changed.",
+        "error-failed": "Charge thresholds could not be changed.",
+        "externally-managed": "Set by another tool. Configure UPower to manage charge thresholds.",
+        "firmware-managed": "Charging is managed by system firmware",
+        "full-charge": "Can charge to 100%",
+        "starts": "Starts below {start}%",
+        "starts-stops": "Starts below {start}% · Stops at {end}%",
+        "stops": "Stops at {end}%",
+        "title": "Battery charging",
+        "unreadable": "Unavailable",
+        "unsupported": "Charge thresholds are not supported",
+        "use-thresholds": "Use charge thresholds"
+      },
       "design-capacity": "Of design capacity",
       "health": "Battery Health",
       "performance-inhibited": "Performance unavailable",
@@ -548,6 +564,7 @@
         "stat-gpu-temp": "GPU Temp",
         "stat-gpu-usage": "GPU Usage",
         "stat-gpu-vram": "GPU VRAM",
+        "stat-gpu-vram-used": "GPU VRAM Used",
         "stat-net-rx": "Net Rx",
         "stat-net-tx": "Net Tx",
         "stat-none": "None",
@@ -578,6 +595,7 @@
         "grid": "Grid"
       },
       "title": "Desktop Widgets",
+      "title-lockscreen": "Lockscreen Widgets",
       "types": {
         "audio-visualizer": "Audio Visualizer",
         "button": "Button",
@@ -658,6 +676,14 @@
       "no-results": "No results found",
       "type-to-search": "Type to search…"
     },
+    "origins": {
+      "appimage": "AppImage",
+      "flatpak": "Flatpak",
+      "nix": "Nix",
+      "snap": "Snap",
+      "system": "System",
+      "user": "User"
+    },
     "providers": {
       "applications": {
         "title": "Applications"
@@ -679,14 +705,6 @@
       "window": {
         "title": "Windows"
       }
-    },
-    "origins": {
-      "appimage": "AppImage",
-      "flatpak": "Flatpak",
-      "nix": "Nix",
-      "snap": "Snap",
-      "system": "System",
-      "user": "User"
     },
     "search-placeholder": "Search applications…"
   },
@@ -1273,7 +1291,9 @@
         "add-title": "Add Notification Filter",
         "allow-permanent": "Allow permanent",
         "allowed-urgencies-label": "Allowed urgencies",
+        "bypass-dnd": "Bypass Do Not Disturb",
         "flag": {
+          "dnd-bypass": "DND bypass",
           "history": "history",
           "permanent": "permanent",
           "sound": "sound",
@@ -1372,6 +1392,13 @@
       },
       "panel-position": {
         "auto": "Follow Bar"
+      },
+      "plugins": {
+        "auto-update": {
+          "all": "All sources",
+          "official": "Official only",
+          "none": "None"
+        }
       },
       "screen-position": {
         "bottom-center": "Bottom Center",
@@ -1481,8 +1508,6 @@
         "held-back": "older version",
         "held-back-hint": "v{version} needs plugin API {required}; this Noctalia supports up to {current}. Upgrade Noctalia to get it.",
         "incompatible-plugin-api": "incompatible plugin API",
-        "loading": "Loading plugins…",
-        "refreshing": "Refreshing plugins…",
         "remove": "Remove plugin",
         "requires": "Requires: {dependencies}",
         "title": "Plugins",
@@ -1497,7 +1522,7 @@
         "add": "Add Source",
         "add-title": "Add Plugin Source",
         "auto-update": "Auto-Update Plugins",
-        "auto-update-desc": "Check enabled sources for new versions in the background and keep installed plugins current",
+        "auto-update-desc": "Check selected sources for new versions in the background and keep installed plugins current",
         "edit": "Edit source",
         "edit-title": "Edit plugin source",
         "empty": "No sources configured.",
@@ -1524,6 +1549,7 @@
       },
       "store": {
         "add": "Add to Noctalia",
+        "back-to-catalog": "Back to the plugin catalog",
         "categories": "Categories",
         "category-all": "All",
         "empty": "No plugins found",
@@ -2306,9 +2332,17 @@
           "description": "Display text labels under shortcut icons in the home tab",
           "label": "Show Shortcut Labels"
         },
+        "launcher-app-actions": {
+          "description": "Show application action entries alongside applications in results",
+          "label": "Show App Actions"
+        },
         "launcher-app-grid": {
           "description": "Show a grid of application icons with labels underneath when results are apps only",
           "label": "App Grid View"
+        },
+        "launcher-app-origin-indicator": {
+          "description": "Show package origin indicators on application results",
+          "label": "Show App Origin Indicators"
         },
         "launcher-auto-paste": {
           "description": "After calculator, emoji, and other copy activations, paste into the focused window (same shortcuts as clipboard auto-paste)",
@@ -3251,6 +3285,7 @@
         "gpu-temp": "GPU Temperature",
         "gpu-usage": "GPU Usage",
         "gpu-vram": "GPU VRAM",
+        "gpu-vram-used": "GPU VRAM Used",
         "graph": "Graph",
         "graphic": "Graphic",
         "hidden": "Hidden",
@@ -3497,6 +3532,10 @@
           "description": "Hide inactive privacy icons and hide the widget when nothing is active",
           "label": "Hide Inactive"
         },
+        "hide-passive": {
+          "description": "Hide tray items whose StatusNotifierItem status is Passive",
+          "label": "Hide Passive Items"
+        },
         "hide-when-empty": {
           "description": "Hide workspace pills when there are no open windows",
           "label": "Hide When Empty",
@@ -3505,6 +3544,10 @@
         "hide-when-full": {
           "description": "Hide the battery widget when fully charged",
           "label": "Hide When Full"
+        },
+        "hide-when-inactive": {
+          "description": "Hide the microphone widget while no application is capturing audio",
+          "label": "Hide When Inactive"
         },
         "hide-when-no-connected-device": {
           "description": "Hide the Bluetooth widget when no device is connected",
@@ -3542,6 +3585,10 @@
           "description": "Overrides the widget color for icons only; fixed hex colors are also supported",
           "label": "Icon Color"
         },
+        "icon-scale": {
+          "description": "Scale of taskbar application icons relative to their default size",
+          "label": "Icon Scale"
+        },
         "icon-size": {
           "description": "Icon size in pixels",
           "label": "Icon Size"
@@ -3570,6 +3617,10 @@
         "interface": {
           "description": "Network interface to monitor; leave empty to use the total across all interfaces",
           "label": "Interface"
+        },
+        "item-spacing": {
+          "description": "Space between taskbar items when workspace grouping is off",
+          "label": "Item Spacing"
         },
         "label": {
           "description": "Optional static text shown on this button",
@@ -3607,7 +3658,7 @@
         "max-label-chars": {
           "description": "Maximum number of characters to show for workspace names",
           "label": "Max Label Characters",
-          "workspaces-description": "Maximum characters for workspace name labels"
+          "workspaces-description": "Maximum characters for non-numeric workspace labels"
         },
         "max-length": {
           "description": "Maximum widget length in pixels",

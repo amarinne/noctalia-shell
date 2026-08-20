@@ -552,8 +552,10 @@ void Application::initStyleThemeAndWayland() {
   // i18n has no dependencies on other services and must be ready before any
   // UI construction reads a translated string.
   i18n::Service::instance().init(m_configService.config().shell.lang);
+  setDesktopEntryLanguage(i18n::Service::instance().requestedLanguage());
   m_configService.addReloadCallback([this]() {
     i18n::Service::instance().setLanguage(m_configService.config().shell.lang);
+    setDesktopEntryLanguage(i18n::Service::instance().requestedLanguage());
   });
 
   // Apply theme before any UI constructs palette-dependent scene nodes.
@@ -1031,6 +1033,8 @@ void Application::initSystemBusServices() {
           // fade-complete cleanup races with process freeze.
           m_idleGraceOverlay.hide();
           if (sleeping) {
+            // Screen time must not accumulate across suspend even when lock-before-suspend is off.
+            m_screenTimeService.setSuspendPaused(true);
             // Delay inhibit (when lock_before_suspend is on) holds sleep until we lock.
             // Do not use runAfterSessionLocked here — that slot belongs to lock-and-suspend.
             if (m_skipLockOnNextSleep) {
@@ -1078,6 +1082,7 @@ void Application::initSystemBusServices() {
           }
           m_skipLockOnNextSleep = false;
           m_releaseSleepDelayWhenLocked = false;
+          m_screenTimeService.setSuspendPaused(false);
           if (m_configService.shouldLockBeforeSuspend() && m_logindService != nullptr) {
             (void)m_logindService->acquireSleepDelayInhibit();
           }
@@ -1085,6 +1090,14 @@ void Application::initSystemBusServices() {
           // Drivers may discard glyph textures while suspended without reporting a
           // full graphics reset. Re-rasterize them before the resumed surfaces paint.
           m_renderContext.invalidateGlyphTexturesNextFrame();
+          // The lock surface's Wayland frame callback can go stale across suspend
+          // (the compositor stops presenting the locked surface, so the callback
+          // registered before the stall never fires). That leaves kickFrameLoop()
+          // blocked forever and the password field never repaints. Drop the stale
+          // callback and force an immediate repaint of the lock surfaces.
+          if (m_lockScreen.isActive()) {
+            m_lockScreen.forceRepaintAfterResume();
+          }
           m_weatherService.requestRefresh();
           m_gammaService.reevaluateSchedule();
           // Auto theme mode schedules with steady_clock timers, which do not advance while
@@ -1158,14 +1171,22 @@ void Application::initSystemBusServices() {
       m_upowerService = std::make_unique<UPowerService>(*m_systemBus);
       m_batteryHookState.reset(m_upowerService->state());
       m_batteryWarningMonitor.evaluate(m_configService.config().battery, *m_upowerService, m_notificationManager);
-      m_upowerService->setChangeCallback([this, shouldRefreshControlCenter]() {
+      m_upowerService->setChangeCallback([this, shouldRefreshControlCenter](const UPowerChange& change) {
+        if (change.origin != UPowerService::ChangeOrigin::DeviceState) {
+          if (shouldRefreshControlCenter()) {
+            m_panelManager.refresh();
+          }
+          return;
+        }
         onUpowerStateChangedForHooks();
         m_batteryWarningMonitor.evaluate(m_configService.config().battery, *m_upowerService, m_notificationManager);
         if (m_bluetoothService != nullptr) {
           m_bluetoothService->refreshBatteryFromUPower();
         }
         m_bar.refresh();
-        m_settingsWindow.onExternalOptionsChanged();
+        if (change.deviceCatalogChanged) {
+          m_settingsWindow.onExternalOptionsChanged();
+        }
         if (shouldRefreshControlCenter()) {
           m_panelManager.refresh();
         }

@@ -57,6 +57,22 @@ namespace {
   constexpr float kWindowMinWidth = 1020.0F;
   constexpr float kWindowMinHeight = 500.0F;
 
+  // min_size hints are orientation-aware: portrait outputs constrain width, so the hint
+  // follows the same 66% short-edge budget as the default open size instead of 1020.
+  [[nodiscard]] std::pair<float, float> settingsWindowMinSize(float outputW, float outputH, float scale) {
+    float minW = kWindowMinWidth * scale;
+    float minH = kWindowMinHeight * scale;
+    if (outputW <= 0.0F || outputH <= 0.0F) {
+      return {minW, minH};
+    }
+    if (outputW < outputH) {
+      minW = std::min(minW, outputW * kWindowOutputFraction);
+    }
+    minW = std::min(minW, outputW);
+    minH = std::min(minH, outputH);
+    return {minW, minH};
+  }
+
   // Build the {"bar", name, <lane>} path the widget inspector expects, resolving which lane the widget
   // currently lives in (the inspector keys off the bar name at index 1 and the lane at the tail).
   std::vector<std::string>
@@ -251,9 +267,6 @@ bool SettingsWindow::ownsKeyboardSurface(wl_surface* surface) const noexcept {
   if (m_widgetAddPopup != nullptr && m_widgetAddPopup->wlSurface() == surface) {
     return true;
   }
-  if (m_configExportDialogPopup != nullptr && m_configExportDialogPopup->wlSurface() == surface) {
-    return true;
-  }
   if (m_searchPickerPopup != nullptr && m_searchPickerPopup->wlSurface() == surface) {
     return true;
   }
@@ -302,12 +315,6 @@ std::optional<LayerPopupParentContext> SettingsWindow::topmostPopupParentContext
     return makeContext(
         m_searchPickerPopup->wlSurface(), m_searchPickerPopup->xdgSurface(), m_searchPickerPopup->width(),
         m_searchPickerPopup->height()
-    );
-  }
-  if (m_configExportDialogPopup != nullptr && m_configExportDialogPopup->isOpen()) {
-    return makeContext(
-        m_configExportDialogPopup->wlSurface(), m_configExportDialogPopup->xdgSurface(),
-        m_configExportDialogPopup->width(), m_configExportDialogPopup->height()
     );
   }
   if (m_widgetAddPopup != nullptr && m_widgetAddPopup->isOpen()) {
@@ -359,12 +366,6 @@ std::optional<LayerPopupParentContext> SettingsWindow::popupParentContextForSurf
     return makeContext(
         m_widgetAddPopup->wlSurface(), m_widgetAddPopup->xdgSurface(), m_widgetAddPopup->width(),
         m_widgetAddPopup->height()
-    );
-  }
-  if (m_configExportDialogPopup != nullptr && surface == m_configExportDialogPopup->wlSurface()) {
-    return makeContext(
-        m_configExportDialogPopup->wlSurface(), m_configExportDialogPopup->xdgSurface(),
-        m_configExportDialogPopup->width(), m_configExportDialogPopup->height()
     );
   }
   if (m_searchPickerPopup != nullptr && surface == m_searchPickerPopup->wlSurface()) {
@@ -425,6 +426,13 @@ void SettingsWindow::open(std::string context) {
 
   m_surface->setClosedCallback([this]() { destroyWindow(); });
 
+  m_surface->setOutputChangedCallback([this](wl_output* currentOutput) {
+    m_output = currentOutput;
+    if (currentOutput != nullptr && m_surface != nullptr) {
+      m_surface->requestLayout();
+    }
+  });
+
   m_surface->setConfigureCallback([this](std::uint32_t /*width*/, std::uint32_t /*height*/) {
     if (m_surface != nullptr) {
       m_surface->requestLayout();
@@ -438,13 +446,14 @@ void SettingsWindow::open(std::string context) {
   m_surface->setUpdateCallback([]() {});
 
   const float scale = uiScale();
-  const float minWidthF = kWindowMinWidth * scale;
-  const float minHeightF = kWindowMinHeight * scale;
   float desiredWidth = kWindowWidth * scale;
   float desiredHeight = kWindowHeight * scale;
+  float minWidthF = kWindowMinWidth * scale;
+  float minHeightF = kWindowMinHeight * scale;
   if (const WaylandOutput* info = m_wayland->findOutputByWl(output); info != nullptr && info->hasUsableGeometry()) {
     const auto outputW = static_cast<float>(info->effectiveLogicalWidth());
     const auto outputH = static_cast<float>(info->effectiveLogicalHeight());
+    std::tie(minWidthF, minHeightF) = settingsWindowMinSize(outputW, outputH, scale);
     if (outputW >= outputH) {
       desiredHeight = util::clampOrdered(outputH * kWindowOutputFraction, std::min(minHeightF, outputH), outputH);
       desiredWidth = util::clampOrdered(desiredHeight * kGoldenRatio, std::min(minWidthF, outputW), outputW);
@@ -472,6 +481,8 @@ void SettingsWindow::open(std::string context) {
     m_surface.reset();
     return;
   }
+  m_minWidthHint = minWidth;
+  m_minHeightHint = minHeight;
   m_pointerInside = false;
   m_lastSceneWidth = 0;
   m_lastSceneHeight = 0;
@@ -524,6 +535,21 @@ void SettingsWindow::close() {
   destroyWindow();
 }
 
+void SettingsWindow::closeForWidgetEditor() {
+  if (!isOpen()) {
+    return;
+  }
+  m_reopenAfterWidgetEditorSection = m_selectedSection;
+  DeferredCall::callLater([this]() { close(); });
+}
+
+void SettingsWindow::reopenAfterWidgetEditor() {
+  if (m_reopenAfterWidgetEditorSection.empty()) {
+    return;
+  }
+  open(std::exchange(m_reopenAfterWidgetEditorSection, {}));
+}
+
 void SettingsWindow::dismissOpenSelectDropdown() {
   if (m_selectPopup != nullptr && m_selectPopup->isSelectDropdownOpen()) {
     m_selectPopup->closeSelectDropdown();
@@ -532,6 +558,7 @@ void SettingsWindow::dismissOpenSelectDropdown() {
 
 void SettingsWindow::destroyWindow() {
   m_modalHost.closeAll();
+  m_configExportDialogModal.reset();
   m_editorSheetModal.reset();
   m_modalHost.detach();
   if (m_surface != nullptr) {
@@ -558,10 +585,6 @@ void SettingsWindow::destroyWindow() {
     m_widgetAddPopup->close();
     m_widgetAddPopup.reset();
   }
-  if (m_configExportDialogPopup != nullptr) {
-    m_configExportDialogPopup->close();
-    m_configExportDialogPopup.reset();
-  }
   if (m_searchPickerPopup != nullptr) {
     m_searchPickerPopup->close();
     m_searchPickerPopup.reset();
@@ -573,6 +596,8 @@ void SettingsWindow::destroyWindow() {
   m_surface.reset();
   m_pointerInside = false;
   m_output = nullptr;
+  m_minWidthHint = 0;
+  m_minHeightHint = 0;
   m_lastSceneWidth = 0;
   m_lastSceneHeight = 0;
   m_settingsRegistry.clear();
@@ -650,6 +675,32 @@ void SettingsWindow::prepareFrame(bool needsUpdate, bool needsLayout) {
   const bool sizeChanged = !firstBuild && (m_lastSceneWidth != width || m_lastSceneHeight != height);
   const bool needRebuild = firstBuild || m_rebuildRequested;
 
+  const float scale = uiScale();
+  float minWidthF = kWindowMinWidth * scale;
+  float minHeightF = kWindowMinHeight * scale;
+  wl_output* currentOutput = nullptr;
+  if (m_wayland != nullptr && m_surface != nullptr) {
+    currentOutput = m_wayland->outputForSurface(m_surface->wlSurface());
+  }
+  if (currentOutput == nullptr) {
+    currentOutput = m_output;
+  }
+  if (const WaylandOutput* info = m_wayland->findOutputByWl(currentOutput);
+      info != nullptr && info->hasUsableGeometry()) {
+    std::tie(minWidthF, minHeightF) = settingsWindowMinSize(
+        static_cast<float>(info->effectiveLogicalWidth()), static_cast<float>(info->effectiveLogicalHeight()), scale
+    );
+  }
+  const auto newMinW = static_cast<std::uint32_t>(std::round(minWidthF));
+  const auto newMinH = static_cast<std::uint32_t>(std::round(minHeightF));
+  if (newMinW != m_minWidthHint || newMinH != m_minHeightHint) {
+    phaseProfileWatch.reset();
+    m_surface->setMinSize(newMinW, newMinH);
+    m_minWidthHint = newMinW;
+    m_minHeightHint = newMinH;
+    logSettingsProfile("prepareFrame updateMinSize", phaseProfileWatch);
+  }
+
   if (needRebuild) {
     phaseProfileWatch.reset();
     UiPhaseScope layoutPhase(UiPhase::Layout);
@@ -669,13 +720,6 @@ void SettingsWindow::prepareFrame(bool needsUpdate, bool needsLayout) {
     m_contentRebuildRequested = false;
     m_settingsRegistryRefreshRequested = false;
     m_filterRowRefreshRequested = false;
-    phaseProfileWatch.reset();
-    const float scale = uiScale();
-    const auto newMinW = static_cast<std::uint32_t>(std::round(kWindowMinWidth * scale));
-    const auto newMinH = static_cast<std::uint32_t>(std::round(kWindowMinHeight * scale));
-    m_surface->setMinSize(newMinW, newMinH);
-    m_surface->clampToMinSize(newMinW, newMinH);
-    logSettingsProfile("prepareFrame updateMinSize", phaseProfileWatch);
   } else if ((m_contentRebuildRequested || sizeChanged || needsLayout) && m_sceneRoot != nullptr) {
     phaseProfileWatch.reset();
     UiPhaseScope layoutPhase(UiPhase::Layout);
@@ -862,8 +906,8 @@ void SettingsWindow::clearTransientSettingsState() {
   if (m_widgetAddPopup != nullptr && m_widgetAddPopup->isOpen()) {
     m_widgetAddPopup->close();
   }
-  if (m_configExportDialogPopup != nullptr && m_configExportDialogPopup->isOpen()) {
-    m_configExportDialogPopup->close();
+  if (m_configExportDialogModal != nullptr && m_configExportDialogModal->isOpen()) {
+    m_configExportDialogModal->close();
   }
   if (m_searchPickerPopup != nullptr && m_searchPickerPopup->isOpen()) {
     m_searchPickerPopup->close();
@@ -884,25 +928,6 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
       && event.type == PointerEvent::Type::Button
       && event.pressed) {
     m_widgetAddPopup->close();
-    return true;
-  }
-  if (m_configExportDialogPopup != nullptr && m_configExportDialogPopup->onPointerEvent(event)) {
-    return true;
-  }
-  // Dialog: block settings-parent input while open; dismiss only via Escape / close.
-  // Events for other shell surfaces must not be swallowed here — Application still
-  // needs to forward them to the bar, dock, notifications, etc.
-  if (m_configExportDialogPopup != nullptr
-      && m_configExportDialogPopup->isOpen()
-      && !m_configExportDialogPopup->isInitializing()) {
-    if (!ownsKeyboardSurface(event.surface)) {
-      return false;
-    }
-    // Keep m_pointerInside honest while the parent is inert behind the dialog.
-    if (event.type == PointerEvent::Type::Leave && event.surface == m_surface->wlSurface()) {
-      m_pointerInside = false;
-      m_inputDispatcher.pointerLeave();
-    }
     return true;
   }
   if (m_searchPickerPopup != nullptr && m_searchPickerPopup->onPointerEvent(event)) {
@@ -980,7 +1005,8 @@ bool SettingsWindow::onPointerEvent(const PointerEvent& event) {
         break;
       }
       m_inputDispatcher.pointerButton(
-          static_cast<float>(event.sx), static_cast<float>(event.sy), event.button, pressed
+          static_cast<float>(event.sx), static_cast<float>(event.sy), event.button, pressed, event.serial, event.time,
+          event.touch
       );
       consumed = m_pointerInside;
     }
@@ -1019,17 +1045,6 @@ void SettingsWindow::onKeyboardEvent(const KeyboardEvent& event) {
       return;
     }
     m_widgetAddPopup->onKeyboardEvent(event);
-    return;
-  }
-
-  if (m_configExportDialogPopup != nullptr
-      && m_configExportDialogPopup->isOpen()
-      && !m_configExportDialogPopup->isInitializing()) {
-    if (event.pressed && KeybindMatcher::matches(KeybindAction::Cancel, event.sym, event.modifiers)) {
-      m_configExportDialogPopup->close();
-      return;
-    }
-    m_configExportDialogPopup->onKeyboardEvent(event);
     return;
   }
 
@@ -1161,8 +1176,8 @@ void SettingsWindow::requestRedraw() {
     if (m_widgetAddPopup != nullptr && m_widgetAddPopup->isOpen()) {
       m_widgetAddPopup->requestRedraw();
     }
-    if (m_configExportDialogPopup != nullptr && m_configExportDialogPopup->isOpen()) {
-      m_configExportDialogPopup->requestRedraw();
+    if (m_configExportDialogModal != nullptr && m_configExportDialogModal->isOpen()) {
+      m_configExportDialogModal->requestRedraw();
     }
     if (m_editorSheetModal != nullptr && m_editorSheetModal->isOpen()) {
       m_editorSheetModal->requestRedraw();
@@ -1177,8 +1192,8 @@ void SettingsWindow::onFontChanged() {
     if (m_widgetAddPopup != nullptr && m_widgetAddPopup->isOpen()) {
       m_widgetAddPopup->requestLayout();
     }
-    if (m_configExportDialogPopup != nullptr && m_configExportDialogPopup->isOpen()) {
-      m_configExportDialogPopup->requestLayout();
+    if (m_configExportDialogModal != nullptr && m_configExportDialogModal->isOpen()) {
+      m_configExportDialogModal->requestLayout();
     }
     if (m_editorSheetModal != nullptr && m_editorSheetModal->isOpen()) {
       m_editorSheetModal->requestLayout();

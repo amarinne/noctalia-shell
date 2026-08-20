@@ -4,7 +4,7 @@
 
 - Source: `/home/ez/Projects/noctalia-shell`
 - Fork branch: `main`
-- Upstream baseline: `97ea97d28`
+- Upstream baseline: `a064c063f`
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
 - Active launcher: `/home/ez/.local/bin/noctalia-v5`
 - Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
@@ -43,7 +43,7 @@ meson compile -C build-release
 meson test -C build-release --print-errorlogs
 ```
 
-All 80 tests must pass. Run the build on the desktop. Do not compile Noctalia
+All 90 tests must pass. Run the build on the desktop. Do not compile Noctalia
 on the laptop.
 
 The desktop package bundles private libraries in `lib/`. The installed binary

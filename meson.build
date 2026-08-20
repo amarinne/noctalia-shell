@@ -485,6 +485,7 @@ _noctalia_sources = files(
   'src/dbus/system_bus.cpp',
   'src/dbus/tray/fcitx_status.cpp',
   'src/dbus/tray/tray_service.cpp',
+  'src/dbus/upower/upower_charge_limit_support.cpp',
   'src/dbus/upower/upower_service.cpp',
   'src/debug/debug_service.cpp',
   'src/i18n/i18n.cpp',
@@ -689,7 +690,7 @@ _noctalia_sources = files(
   'src/system/telemetry_service.cpp',
   'src/shell/settings/bar_widget_editor.cpp',
   'src/shell/settings/color_spec_picker.cpp',
-  'src/shell/settings/config_export_dialog_popup.cpp',
+  'src/shell/settings/config_export_dialog_modal.cpp',
   'src/shell/settings/settings_content.cpp',
   'src/shell/settings/settings_content_common.cpp',
   'src/shell/settings/settings_content_plugins.cpp',
@@ -728,6 +729,7 @@ _noctalia_sources = files(
   'src/system/app_identity.cpp',
   'src/shell/wallpaper/wallpaper_paths.cpp',
   'src/shell/wallpaper/wallpaper_geometry.cpp',
+  'src/shell/wallpaper/wallpaper_shuffle_state.cpp',
   'src/shell/wallpaper/wallpaper.cpp',
   'src/shell/wallpaper/panel/wallpaper_panel.cpp',
   'src/shell/wallpaper/panel/wallpaper_scanner.cpp',
@@ -928,6 +930,10 @@ _noctalia_sources = files(
   'src/compositors/triad/triad_output_backend.cpp',
   'src/compositors/triad/triad_keyboard_backend.cpp',
   'src/compositors/triad/triad_workspace_backend.cpp',
+  'src/compositors/umbriel/umbriel_runtime.cpp',
+  'src/compositors/umbriel/umbriel_event_handler.cpp',
+  'src/compositors/umbriel/umbriel_workspace_backend.cpp',
+  'src/compositors/umbriel/umbriel_keyboard_backend.cpp',
   'src/compositors/sway/sway_runtime.cpp',
   'src/compositors/sway/sway_keyboard_backend.cpp',
   'src/compositors/sway/sway_output_backend.cpp',
@@ -1060,7 +1066,6 @@ _noctalia_test_dependencies = _noctalia_system_dependencies + [
 ]
 
 _noctalia_compile_definitions = [
-  '-DNOCTALIA_SOURCE_ASSETS_DIR="' + meson.project_source_root() / 'assets' + '"',
   '-DNOCTALIA_INSTALL_PREFIX="' + get_option('prefix') + '"',
   '-DNOCTALIA_INSTALL_DATADIR="' + get_option('datadir') + '"',
   '-DNOCTALIA_VERSION="' + meson.project_version() + '"',
@@ -1135,16 +1140,19 @@ if build_tests
     'config_path_resolution',
     'config_schema_roundtrip',
     'config_widget',
+    'context_menu_popup',
     'cpu_freq',
     'cpu_stat',
     'cpu_temp_sensor',
     'desktop_entry_launch',
+    'desktop_entry_localization',
     'disk_mounts',
     'dock_pinned_apps',
     'event_link',
     'fcitx_status',
     'google_client_calendar_list',
     'hook_manager',
+    'hyprland_workspace_backend',
     'i18n_language_tag',
     'i18n_supported_languages',
     'ical_parser',
@@ -1154,6 +1162,7 @@ if build_tests
     'image_source_log',
     'input_area',
     'input_dispatcher',
+    'input_readline_shortcuts',
     'input_password_mode',
     'inotify',
     'ipc_service',
@@ -1164,6 +1173,8 @@ if build_tests
     'location_service',
     'math_provider',
     'monitor_selector',
+    'network_manager_security',
+    'notification_dnd',
     'notification_filter',
     'notification_history_utf8',
     'niri_workspace_backend',
@@ -1189,10 +1200,13 @@ if build_tests
     'tray_identifier',
     'triad_workspace_backend',
     'ui_tree_reconciler',
+    'upower_charge_limit',
+    'upower_device_catalog',
     'wayland_output_scale',
     'wayland_toplevels_identity',
     'widget_action',
     'widget_definition',
+    'wallpaper_shuffle_state',
     'workspace_alert_service',
   ]
 
@@ -1202,8 +1216,32 @@ if build_tests
       dependencies: noctalia_core_dep,
       override_options: ['b_ndebug=false'],
     )
-    test(test_name, test_exe)
+    test_args = []
+    if test_name == 'desktop_entry_localization'
+      test_args = [meson.project_source_root() / 'assets']
+    elif test_name == 'i18n_supported_languages'
+      test_args = [meson.project_source_root() / 'assets' / 'translations']
+    endif
+    test(test_name, test_exe, args: test_args)
   endforeach
+
+  upower_integration_exe = executable('upower_charge_limit_integration_test',
+    sources: files('tests/upower_charge_limit_integration_test.cpp'),
+    dependencies: noctalia_core_dep,
+    override_options: ['b_ndebug=false'],
+  )
+  dbus_run_session = find_program('dbus-run-session', required: false)
+  if dbus_run_session.found()
+    test('upower_charge_limit_integration',
+      dbus_run_session,
+      args: [
+        '--', 'sh', '-c',
+        'export DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"; exec "$1"',
+        'sh', upower_integration_exe.full_path(),
+      ],
+      depends: upower_integration_exe,
+    )
+  endif
 
   config_validate_env = environment()
   config_validate_env.set('NOCTALIA_CONFIG_HOME', meson.current_source_dir() / 'tests/config_validate/config-home')
