@@ -1,5 +1,19 @@
 # Local Noctalia v5 deployment
 
+## Deployment source of truth
+
+Read `/home/ez/dotfiles/README.md` before a deployment. Use these dotfiles
+files as the source of truth for machine paths and deployment steps:
+
+- `/home/ez/dotfiles/scripts/deploy/deploy-laptop`: full laptop deployment.
+- `/home/ez/dotfiles/scripts/deploy/deploy-v5-runtime-to-laptop`: runtime-only laptop deployment.
+- `/home/ez/dotfiles/scripts/deploy/install-v5-runtime-bundle`: laptop runtime installer and rollback logic.
+- `/home/ez/dotfiles/hosts/laptop/sync.json`: laptop host, paths, and profile settings.
+- `/home/ez/dotfiles/docs/noctalia-v5-laptop-migration.md`: migration history and recovery notes.
+
+Do not start with manual file copies. Preview the dotfiles deployment first.
+Use manual commands only when the dotfiles scripts cannot run.
+
 ## Desktop deployment
 
 - Source: `/home/ez/Projects/noctalia-shell`
@@ -14,6 +28,59 @@
 
 Niri starts the local launcher. The desktop does not use `/usr/bin/noctalia`.
 Do not start the old `qs -c noctalia-shell` process with v5.
+
+## Laptop deployment
+
+- Host: `eza@192.168.1.221`
+- Build host: desktop
+- Active prefix: `/home/eza/.local/opt/noctalia-v5-patched`
+- Active launcher: `/home/eza/.local/bin/noctalia-v5`
+- Active message client: `/home/eza/.local/bin/noctalia-v5-msg`
+
+Do not compile Noctalia on the laptop. Build and test Noctalia on the desktop.
+Copy the verified installation from the desktop to the laptop.
+
+For a complete laptop deployment, including the machine profile, run:
+
+```sh
+cd /home/ez/dotfiles
+scripts/deploy/deploy-laptop --dry-run
+scripts/deploy/deploy-laptop
+```
+
+For a runtime-only deployment, run:
+
+```sh
+cd /home/ez/dotfiles
+scripts/deploy/deploy-v5-runtime-to-laptop --dry-run --no-source-sync
+scripts/deploy/deploy-v5-runtime-to-laptop --no-source-sync
+```
+
+The runtime script creates a versioned artifact. The installer verifies file
+hashes, architecture, Fedora version, glibc version, and RPATH. The installer
+also creates a rollback backup before it replaces the active runtime.
+
+Use this manual restart only for recovery:
+
+```sh
+pid="$(pgrep -o -f '(^|/)noctalia( |$)')"
+niri_socket="$(tr '\0' '\n' <"/proc/$pid/environ" | sed -n 's/^NIRI_SOCKET=//p')"
+kill -TERM "$pid"
+NIRI_SOCKET="$niri_socket" niri msg action spawn -- \
+  "$HOME/.local/bin/noctalia-v5" --daemon
+```
+
+Verify the laptop deployment:
+
+```sh
+pgrep -a -f '(^|/)noctalia( |$)'
+$HOME/.local/opt/noctalia-v5-patched/bin/noctalia --version
+WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 \
+  $HOME/.local/bin/noctalia-v5-msg status
+ldd $HOME/.local/opt/noctalia-v5-patched/bin/noctalia | rg 'not found'
+```
+
+The `ldd` command must produce no output.
 
 ## Fedora build dependencies
 
@@ -43,8 +110,8 @@ meson compile -C build-release
 meson test -C build-release --print-errorlogs
 ```
 
-All 90 tests must pass. Run the build on the desktop. Do not compile Noctalia
-on the laptop.
+All 90 tests must pass. Run the build on the desktop. Deploy the verified
+installation to both machines. Do not compile Noctalia on the laptop.
 
 The desktop package bundles private libraries in `lib/`. The installed binary
 must have this RPATH:
