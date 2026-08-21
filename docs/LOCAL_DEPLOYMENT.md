@@ -2,21 +2,22 @@
 
 ## Deployment source of truth
 
-Read `/home/ez/dotfiles/README.md` before a deployment. Use these dotfiles
-files as the source of truth for machine paths and deployment steps:
+Read the desktop-shell
+[`README.md`](/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/README.md)
+before a deployment. Use these operations files as the source of truth:
 
-- `/home/ez/dotfiles/scripts/deploy/deploy-laptop`: full laptop deployment.
-- `/home/ez/dotfiles/scripts/deploy/deploy-v5-runtime-to-laptop`: runtime-only laptop deployment.
-- `/home/ez/dotfiles/scripts/deploy/install-v5-runtime-bundle`: laptop runtime installer and rollback logic.
-- `/home/ez/dotfiles/hosts/laptop/sync.json`: laptop host, paths, and profile settings.
-- `/home/ez/dotfiles/docs/noctalia-v5-laptop-migration.md`: migration history and recovery notes.
+- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/scripts/deploy/deploy-laptop`: full laptop deployment.
+- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/scripts/deploy/deploy-v5-runtime-to-laptop`: runtime-only laptop deployment.
+- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/scripts/deploy/install-v5-runtime-bundle`: laptop runtime installer and rollback logic.
+- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/inventory.json`: host and repository paths.
+- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/hosts/laptop/sync.json`: laptop profile settings.
 
-Do not start with manual file copies. Preview the dotfiles deployment first.
+Do not start with manual file copies. Preview the operations deployment first.
 Use manual commands only when the dotfiles scripts cannot run.
 
 ## Desktop deployment
 
-- Source: `/home/ez/Projects/noctalia-shell`
+- Source: `/home/ez/Projects/desktop-stack/sources/noctalia-shell`
 - Fork branch: `main`
 - Upstream baseline: `a064c063f`
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
@@ -43,17 +44,17 @@ Copy the verified installation from the desktop to the laptop.
 For a complete laptop deployment, including the machine profile, run:
 
 ```sh
-cd /home/ez/dotfiles
-scripts/deploy/deploy-laptop --dry-run
-scripts/deploy/deploy-laptop
+cd /home/ez/Projects/desktop-stack/ops
+stacks/desktop-shell/scripts/deploy/deploy-laptop --dry-run
+stacks/desktop-shell/scripts/deploy/deploy-laptop
 ```
 
 For a runtime-only deployment, run:
 
 ```sh
-cd /home/ez/dotfiles
-scripts/deploy/deploy-v5-runtime-to-laptop --dry-run --no-source-sync
-scripts/deploy/deploy-v5-runtime-to-laptop --no-source-sync
+cd /home/ez/Projects/desktop-stack/ops
+stacks/desktop-shell/scripts/deploy/deploy-v5-runtime-to-laptop --dry-run --no-source-sync
+stacks/desktop-shell/scripts/deploy/deploy-v5-runtime-to-laptop --no-source-sync
 ```
 
 The runtime script creates a versioned artifact. The installer verifies file
@@ -102,7 +103,7 @@ Fedora package name is `json-devel`, not `nlohmann-json-devel`.
 ## Build and test
 
 ```sh
-cd /home/ez/Projects/noctalia-shell
+cd /home/ez/Projects/desktop-stack/sources/noctalia-shell
 meson setup build-release --buildtype=release -Dcpp_std=c++23 \
   -Dtests=enabled -Db_lto=true \
   --prefix="$HOME/.local/opt/noctalia-v5-patched"
