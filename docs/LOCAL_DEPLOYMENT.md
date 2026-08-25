@@ -3,14 +3,14 @@
 ## Deployment source of truth
 
 Read the desktop-shell
-[`README.md`](/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/README.md)
+[`README.md`](/home/ez/Projects/desktop-stack/dotfiles/stacks/desktop-shell/README.md)
 before a deployment. Use these operations files as the source of truth:
 
-- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/scripts/deploy/deploy-laptop`: full laptop deployment.
-- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/scripts/deploy/deploy-v5-runtime-to-laptop`: runtime-only laptop deployment.
-- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/scripts/deploy/install-v5-runtime-bundle`: laptop runtime installer and rollback logic.
-- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/inventory.json`: host and repository paths.
-- `/home/ez/Projects/desktop-stack/ops/stacks/desktop-shell/hosts/laptop/sync.json`: laptop profile settings.
+- `/home/ez/Projects/desktop-stack/dotfiles/stacks/desktop-shell/scripts/deploy/deploy-laptop`: full laptop deployment.
+- `/home/ez/Projects/desktop-stack/dotfiles/stacks/desktop-shell/scripts/deploy/deploy-v5-runtime-to-laptop`: runtime-only laptop deployment.
+- `/home/ez/Projects/desktop-stack/dotfiles/stacks/desktop-shell/scripts/deploy/install-v5-runtime-bundle`: laptop runtime installer and rollback logic.
+- `/home/ez/Projects/desktop-stack/dotfiles/stacks/desktop-shell/inventory.json`: host and repository paths.
+- `/home/ez/Projects/desktop-stack/dotfiles/stacks/desktop-shell/hosts/laptop/sync.json`: laptop profile settings.
 
 Do not start with manual file copies. Preview the operations deployment first.
 Use manual commands only when the dotfiles scripts cannot run.
@@ -19,7 +19,7 @@ Use manual commands only when the dotfiles scripts cannot run.
 
 - Source: `/home/ez/Projects/desktop-stack/sources/noctalia-shell`
 - Fork branch: `main`
-- Upstream baseline: `a064c063f`
+- Upstream baseline: `e6846db9a`
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
 - Active launcher: `/home/ez/.local/bin/noctalia-v5`
 - Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
@@ -44,7 +44,7 @@ Copy the verified installation from the desktop to the laptop.
 For a complete laptop deployment, including the machine profile, run:
 
 ```sh
-cd /home/ez/Projects/desktop-stack/ops
+cd /home/ez/Projects/desktop-stack/dotfiles
 stacks/desktop-shell/scripts/deploy/deploy-laptop --dry-run
 stacks/desktop-shell/scripts/deploy/deploy-laptop
 ```
@@ -52,7 +52,7 @@ stacks/desktop-shell/scripts/deploy/deploy-laptop
 For a runtime-only deployment, run:
 
 ```sh
-cd /home/ez/Projects/desktop-stack/ops
+cd /home/ez/Projects/desktop-stack/dotfiles
 stacks/desktop-shell/scripts/deploy/deploy-v5-runtime-to-laptop --dry-run --no-source-sync
 stacks/desktop-shell/scripts/deploy/deploy-v5-runtime-to-laptop --no-source-sync
 ```
@@ -111,7 +111,7 @@ meson compile -C build-release
 meson test -C build-release --print-errorlogs
 ```
 
-All 90 tests must pass. Run the build on the desktop. Deploy the verified
+All 91 tests must pass. Run the build on the desktop. Deploy the verified
 installation to both machines. Do not compile Noctalia on the laptop.
 
 The desktop package bundles private libraries in `lib/`. The installed binary
