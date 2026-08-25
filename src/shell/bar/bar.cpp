@@ -2547,6 +2547,7 @@ void Bar::populateWidgets(BarInstance& instance) {
   );
   if (debugWidget != nullptr) {
     debugWidget->setConfigName("debug_indicator");
+    debugWidget->setFontScale(instance.barConfig.fontScale);
     debugWidget->setLabelFontWeight(labelFontWeight);
     debugWidget->setLabelFontFamily(barFontFamily);
     debugWidget->create();
