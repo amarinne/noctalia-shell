@@ -215,6 +215,12 @@ namespace noctalia::cli {
   inline constexpr std::array kMsgVolumeOsdPositionals{
       Positional{"value", {}, {}, false, false, false},
   };
+  inline constexpr std::array kMsgVolumeScrollDownPositionals{
+      Positional{"step", {}, {}, false, false, false},
+  };
+  inline constexpr std::array kMsgVolumeScrollUpPositionals{
+      Positional{"step", {}, {}, false, false, false},
+  };
   inline constexpr std::array kMsgVolumeSetPositionals{
       Positional{"value", {}, {}, true, false, false},
   };
@@ -708,6 +714,26 @@ namespace noctalia::cli {
         {},           kMsgVolumeOsdPositionals,
         {},           false
     };
+    inline constexpr Command volumeScrollDown{
+        "volume-scroll-down",
+        "Decrease speaker volume with scroll acceleration",
+        {},
+        {},
+        {},
+        kMsgVolumeScrollDownPositionals,
+        {},
+        false
+    };
+    inline constexpr Command volumeScrollUp{
+        "volume-scroll-up",
+        "Increase speaker volume with scroll acceleration",
+        {},
+        {},
+        {},
+        kMsgVolumeScrollUpPositionals,
+        {},
+        false
+    };
     inline constexpr Command volumeSet{"volume-set", "Set speaker volume",     {}, {},
                                        {},           kMsgVolumeSetPositionals, {}, false};
     inline constexpr Command volumeUp{"volume-up", "Increase speaker volume", {}, {},
@@ -906,6 +932,8 @@ namespace noctalia::cli {
       msg::volumeDown,
       msg::volumeMute,
       msg::volumeOsd,
+      msg::volumeScrollDown,
+      msg::volumeScrollUp,
       msg::volumeSet,
       msg::volumeUp,
       msg::wallpaperGet,

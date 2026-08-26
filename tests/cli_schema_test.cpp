@@ -39,5 +39,15 @@ int main() {
     TEST_CHECK(noctalia::theme::schemeToString(*parsed) == name);
   }
 
+  const auto* volumeScrollUp = noctalia::cli::findMsgCommand("volume-scroll-up");
+  TEST_CHECK(volumeScrollUp != nullptr);
+  TEST_CHECK(volumeScrollUp->positionals.size() == 1);
+  TEST_CHECK(!volumeScrollUp->positionals.front().required);
+
+  const auto* volumeScrollDown = noctalia::cli::findMsgCommand("volume-scroll-down");
+  TEST_CHECK(volumeScrollDown != nullptr);
+  TEST_CHECK(volumeScrollDown->positionals.size() == 1);
+  TEST_CHECK(!volumeScrollDown->positionals.front().required);
+
   return EXIT_SUCCESS;
 }

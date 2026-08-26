@@ -2120,6 +2120,36 @@ void PipeWireService::registerIpc(IpcService& ipc, const ConfigService& config) 
       }
   );
 
+  const auto bindVolumeScroll = [this, &ipc, maxVolume,
+                                 parseVolumeStepError](const noctalia::cli::Command& command, int direction) {
+    ipc.bind(
+        command,
+        [this, maxVolume, parseVolumeStepError, commandName = command.name,
+         direction](const std::string& args) -> std::string {
+          const auto parts = noctalia::ipc::splitWords(args);
+          if (parts.size() > 1) {
+            return std::format("error: {} accepts at most one optional [step]\n", commandName);
+          }
+          const auto* sink = defaultSink();
+          if (sink == nullptr) {
+            return "error: no default output\n";
+          }
+
+          const auto step = parts.empty() ? std::optional<float>(kVolumeStepDefault)
+                                          : noctalia::ipc::parseNormalizedOrPercent(parts[0], maxVolume() * 100.0F);
+          if (!step.has_value()) {
+            return parseVolumeStepError;
+          }
+
+          setVolume(m_volumeScrollRamp.advance(sink->id, direction, *step, sink->volume, maxVolume()));
+          return "ok\n";
+        },
+        {.actionEditorVisibility = IpcService::ActionEditorVisibility::Hidden}
+    );
+  };
+  bindVolumeScroll(noctalia::cli::msg::volumeScrollUp, 1);
+  bindVolumeScroll(noctalia::cli::msg::volumeScrollDown, -1);
+
   ipc.bind(noctalia::cli::msg::volumeMute, [this](const std::string&) -> std::string {
     const auto* sink = defaultSink();
     if (!sink)

@@ -1208,6 +1208,7 @@ if build_tests
     'wayland_toplevels_identity',
     'widget_action',
     'widget_definition',
+    'volume_scroll_ramp',
     'wallpaper_shuffle_state',
     'workspace_alert_service',
   ]

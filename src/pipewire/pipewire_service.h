@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pipewire/audio_glyphs.h"
+#include "pipewire/volume_scroll_ramp.h"
 
 #include <chrono>
 #include <cstdint>
@@ -235,6 +236,7 @@ private:
     int gesture = 0;
   };
   RelativeAdjust m_relativeAdjust;
+  VolumeScrollRamp m_volumeScrollRamp;
   void setDefaultNode(std::uint32_t id, const char* key);
 
   // Writes a node's volume directly (device nodes via mixer-api, program streams via SPA props) and
