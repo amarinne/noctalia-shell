@@ -37,6 +37,11 @@ namespace ui {
     // host-aware plugin to convert them to compositor-global coordinates. `coalesce`
     // is set for high-frequency streams (slider drag, input typing) where only the
     // latest value matters.
+    // `key` in `arg2`, so one handler can serve a whole keyed list. `coalesce`
+    // is set for high-frequency streams (slider drag, input typing) where only
+    // the latest value matters; `coalesceKey` groups callbacks that must
+    // supersede one another in order (a graph's pointer move and pointer
+    // leave), and defaults to `fn` when empty.
     struct ControlCallback {
       struct PointerContext {
         float x = 0.0F;
@@ -47,10 +52,11 @@ namespace ui {
 
       explicit ControlCallback(
           std::string fnName, std::string firstArg = {}, std::string secondArg = {}, bool coalesceStream = false,
-          std::string thirdArg = {}, std::string fourthArg = {}
+          std::string thirdArg = {}, std::string fourthArg = {}, std::string coalesceStreamKey = {}
       )
           : fn(std::move(fnName)), arg1(std::move(firstArg)), arg2(std::move(secondArg)),
-            arg3(std::move(thirdArg)), arg4(std::move(fourthArg)), coalesce(coalesceStream) {}
+            arg3(std::move(thirdArg)), arg4(std::move(fourthArg)), coalesce(coalesceStream),
+            coalesceKey(std::move(coalesceStreamKey)) {}
 
       std::string fn;
       std::string arg1;
@@ -58,6 +64,7 @@ namespace ui {
       std::string arg3;
       std::string arg4;
       bool coalesce = false;
+      std::string coalesceKey;
       std::optional<PointerContext> pointerContext;
     };
     using CallbackSink = std::function<void(const ControlCallback& callback)>;
@@ -121,6 +128,17 @@ namespace ui {
     void closeHover();
     void releaseHover(const Node* owner);
     [[nodiscard]] bool subtreeOwnsHover(const Slot& slot) const;
+    // Graph pointer tracking (onPointerMove/onPointerLeave) wiring, wired as one
+    // unit so both edges of a graph's pointer session share a coalescing stream.
+    void syncGraphPointerCallbacks(Slot& slot, const UiTreeNode& desired, Node* node);
+    // A pointer session is state the plugin mirrors, so every entered graph owes
+    // a leave. Same reason as hover: the dispatcher only delivers leave to areas
+    // still in the scene, so the reconciler ends the session itself when the
+    // graph is dropped, rewired, or reset away.
+    void openPointer(const Node* owner, std::string leaveCallback, std::string streamKey);
+    void closePointer();
+    void releasePointer(const Node* owner);
+    [[nodiscard]] bool subtreeOwnsPointer(const Slot& slot) const;
     [[nodiscard]] std::unique_ptr<Node> createControl(const UiTreeNode& desired);
 
     CallbackSink m_sink;
@@ -140,6 +158,14 @@ namespace ui {
     const Node* m_hoveredOwner = nullptr;
     std::unique_ptr<DragDropController> m_ownedDragDropController;
     DragDropController* m_dragDropController = nullptr;
+    // The graph reporting pointer position, with the leave callback and
+    // coalescing stream its wiring opened with. Compared, never dereferenced.
+    std::string m_pointerLeaveCallback;
+    std::string m_pointerStreamKey;
+    const Node* m_pointerOwner = nullptr;
+    // Source of per-graph coalescing stream keys. Monotonic so a rebuilt or
+    // rewired graph never inherits a stream that still has an event queued.
+    std::uint64_t m_pointerStreamSeq = 0;
     std::vector<Slot> m_rootSlots;
   };
 

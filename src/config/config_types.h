@@ -137,7 +137,7 @@ struct BarConfig {
 
   [[nodiscard]] constexpr bool isAutoHideEnabled() const noexcept { return autoHide || smartAutoHide; }
   bool reserveSpace = true;  // reserve compositor exclusive zone; applies with or without auto_hide
-  std::string layer = "top"; // top | overlay — attached panels use the same layer
+  std::string layer = "top"; // top | overlay; attached panels use the same layer
   std::int32_t thickness = Style::barThicknessDefault;
   float backgroundOpacity = 1.0F;
   // Inside outline for the bar background; attached panels inherit the resolved values.
@@ -513,7 +513,7 @@ struct WallpaperConfig {
   float transitionDurationMs = 1500.0F;
   float edgeSmoothness = 0.3F;
   bool transitionOnStartup = false;
-  std::string directory;      // empty = ~/Pictures/Wallpapers
+  std::string directory;      // empty = XDG_PICTURES_DIR
   std::string directoryLight; // empty = directory
   std::string directoryDark;  // empty = directory
   bool perMonitorDirectories = false;
@@ -1047,7 +1047,7 @@ struct ShellConfig {
     bool showCursor = false;
     bool pipeToCommand = false;
     std::string pipeCommand;
-    std::string directory;       // empty = ~/Pictures
+    std::string directory;       // empty = XDG Pictures directory
     std::string filenamePattern; // empty = screenshot_%Y%m%d_%H%M%S
 
     bool operator==(const ScreenshotConfig&) const = default;
@@ -1059,6 +1059,12 @@ struct ShellConfig {
     std::string screenFilterRegex;
 
     bool operator==(const PrivacyConfig&) const = default;
+  };
+
+  struct WindowSwitcherConfig {
+    bool mru = false;
+
+    bool operator==(const WindowSwitcherConfig&) const = default;
   };
 
   float cornerRadiusScale = 1.0F;
@@ -1109,6 +1115,7 @@ struct ShellConfig {
   ShadowConfig shadow;
   PanelConfig panel;
   LauncherConfig launcher;
+  WindowSwitcherConfig windowSwitcher;
   KeyboardLayoutConfig keyboardLayout;
   ScreenCornersConfig screenCorners;
   MprisConfig mpris;
@@ -1146,7 +1153,7 @@ struct CalendarConfig {
   // are not stored here. id must be [a-z0-9_] because it identifies durable credential records.
   struct Account {
     std::string id;
-    std::string type; // "google" | "caldav" | "ics"
+    std::string type; // "google" | "caldav" | "ics" | "vdir"
     std::string displayName;
     std::string color;                  // optional "#rrggbb" override
     std::string provider;               // "icloud" | "custom" (caldav only)
@@ -1155,12 +1162,15 @@ struct CalendarConfig {
     std::vector<std::string> calendars; // discovered collection ids; empty = all
     CalendarCredentialSource credentialSource = CalendarCredentialSource::SecretService; // CalDAV only
     std::string passwordFile; // required for file-backed CalDAV credentials
+    std::string path;         // directory path for vdir/local accounts
 
     bool operator==(const Account&) const = default;
   };
 
   bool enabled = false;
   std::int32_t refreshMinutes = 15;
+  std::string eventDateFormat = "%A %e %B";
+  std::string eventTimeFormat = "%H:%M";
   std::vector<Account> accounts;
 
   bool operator==(const CalendarConfig&) const = default;
@@ -1432,6 +1442,22 @@ constexpr EnumOption<ThemeMode> kThemeModes[] = {
     {ThemeMode::Auto, "auto", "common.states.auto"},
 };
 
+// Noctalia's own light/dark mode. `follow` tracks [theme].mode, which always drives apps
+// (templates and the GTK color scheme); the other values pin the shell independently.
+enum class ShellThemeMode : std::uint8_t {
+  Follow = 0,
+  Dark = 1,
+  Light = 2,
+  Auto = 3,
+};
+
+constexpr EnumOption<ShellThemeMode> kShellThemeModes[] = {
+    {ShellThemeMode::Follow, "follow", "settings.options.theme.shell-mode.follow"},
+    {ShellThemeMode::Dark, "dark", "settings.options.theme.mode.dark"},
+    {ShellThemeMode::Light, "light", "settings.options.theme.mode.light"},
+    {ShellThemeMode::Auto, "auto", "common.states.auto"},
+};
+
 struct WallpaperFavorite {
   std::string path;
   ThemeMode themeMode = ThemeMode::Auto;
@@ -1494,6 +1520,8 @@ struct ThemeConfig {
     std::string postHook;
     std::string postAction;
     int index = 0;
+    // False runs post_hook inline, serialized against other hooks of the same run.
+    bool hookAsync = true;
 
     bool operator==(const UserTemplateConfig&) const = default;
   };
@@ -1515,11 +1543,28 @@ struct ThemeConfig {
   std::string customPalette;
   std::string wallpaperScheme = "m3-content";
   ThemeMode mode = ThemeMode::Dark;
+  ShellThemeMode shellMode = ShellThemeMode::Follow;
   bool pureBlackDark = false;
   TemplatesConfig templates;
 
   bool operator==(const ThemeConfig&) const = default;
 };
+
+// The theme mode Noctalia's own surfaces run in, still expressed as a ThemeMode so `auto`
+// keeps resolving against the day/night schedule.
+[[nodiscard]] constexpr ThemeMode shellThemeMode(const ThemeConfig& theme) noexcept {
+  switch (theme.shellMode) {
+  case ShellThemeMode::Dark:
+    return ThemeMode::Dark;
+  case ShellThemeMode::Light:
+    return ThemeMode::Light;
+  case ShellThemeMode::Auto:
+    return ThemeMode::Auto;
+  case ShellThemeMode::Follow:
+    break;
+  }
+  return theme.mode;
+}
 
 struct ControlCenterConfig {
   static constexpr std::int32_t kDefaultWidth = 700;
@@ -1527,8 +1572,6 @@ struct ControlCenterConfig {
   struct CalendarTabConfig {
     bool showEventsCard = true;
     bool showWeekNumbers = false;
-    std::string eventDateFormat = "%A %e %B";
-    std::string eventTimeFormat = "%H:%M";
     bool operator==(const CalendarTabConfig&) const = default;
   };
 

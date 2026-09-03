@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cmath>
 #include <format>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -23,11 +24,6 @@ namespace {
   constexpr float kGraphicTerminalWidth = 2.5F;
   constexpr float kGraphicTerminalHeight = 7.0F;
   constexpr float kGraphicCornerRadius = 3.0F;
-
-  ColorSpec withOpacity(ColorSpec color, float opacity) {
-    color.alpha *= opacity;
-    return color;
-  }
 
   const char* batteryStateGlyph(BatteryState state) {
     if (state == BatteryState::Charging) {
@@ -111,7 +107,7 @@ void BatteryWidget::createGraphicMode() {
   container->addChild(
       ui::box({
           .out = &m_bodyBg,
-          .fill = withOpacity(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)), 0.3F),
+          .fill = scaleAlpha(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)), 0.3F),
       })
   );
 
@@ -124,7 +120,7 @@ void BatteryWidget::createGraphicMode() {
   container->addChild(
       ui::box({
           .out = &m_terminalNub,
-          .fill = withOpacity(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)), 0.3F),
+          .fill = scaleAlpha(widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface)), 0.3F),
       })
   );
 
@@ -423,11 +419,11 @@ void BatteryWidget::syncState(Renderer& renderer) {
       m_fillRect->setFill(fgColor);
     }
     if (m_bodyBg != nullptr) {
-      m_bodyBg->setFill(withOpacity(fgColor, 0.3F));
+      m_bodyBg->setFill(scaleAlpha(fgColor, 0.3F));
     }
 
     if (m_terminalNub != nullptr) {
-      m_terminalNub->setFill(withOpacity(fgColor, 0.3F));
+      m_terminalNub->setFill(scaleAlpha(fgColor, 0.3F));
     }
 
     // Animate fill percentage
@@ -473,20 +469,21 @@ void BatteryWidget::syncState(Renderer& renderer) {
       m_overlayGlyph->setVisible(stateGlyph != nullptr);
     }
   } else if (m_displayMode == BatteryDisplayMode::Glyph) {
-    const ColorSpec normalFgColor = widgetIconColorOr(colorSpecFromRole(ColorRole::OnSurface));
-    const ColorSpec fgColor = isWarning ? m_warningColor : normalFgColor;
+    const ColorSpec iconColor = isWarning ? m_warningColor : widgetIconColorOr(colorSpecFromRole(ColorRole::OnSurface));
+    const ColorSpec labelColor =
+        isWarning ? m_warningColor : widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurface));
 
     if (m_glyph != nullptr) {
       m_glyph->setGlyph(batteryGlyphName(s.percentage, s.state));
       m_glyph->setGlyphSize(Style::baseGlyphSize * m_contentScale);
-      m_glyph->setColor(fgColor);
+      m_glyph->setColor(iconColor);
       m_glyph->measure(renderer);
     }
 
     if (m_label != nullptr && m_showLabel) {
       m_label->setFontSize((m_isVertical ? Style::fontSizeCaption : Style::fontSizeBody) * fontScale());
       m_label->setText(buildLabelText(pct, s));
-      m_label->setColor(fgColor);
+      m_label->setColor(labelColor);
       m_label->measure(renderer);
     }
   } else if (m_displayMode == BatteryDisplayMode::None) {
@@ -543,9 +540,8 @@ void BatteryWidget::syncState(Renderer& renderer) {
           rows.push_back({i18n::tr("power.battery.tooltip.rate"), oss.str()});
         }
 
-        if (dev.energyFullDesign > 0.0) {
-          int health = static_cast<int>(std::round(dev.energyFull / dev.energyFullDesign * 100.0));
-          rows.push_back({i18n::tr("power.battery.tooltip.health"), std::to_string(health) + "%"});
+        if (const std::optional<double> health = dev.healthPercent()) {
+          rows.push_back({i18n::tr("power.battery.tooltip.health"), std::format("{:.0F}%", *health)});
         }
       }
     }

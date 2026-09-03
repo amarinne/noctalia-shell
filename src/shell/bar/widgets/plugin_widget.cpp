@@ -249,7 +249,7 @@ void PluginWidget::create() {
     }
     if (callback.arg3.empty() && callback.arg4.empty()) {
       (void)m_runtime->enqueueCallStrings(
-          callback.fn, callback.arg1, callback.arg2, makeScriptSnapshot(), callback.coalesce
+          callback.fn, callback.arg1, callback.arg2, makeScriptSnapshot(), callback.coalesce, callback.coalesceKey
       );
     } else {
       (void)m_runtime->enqueueCallArgs(
