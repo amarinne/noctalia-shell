@@ -68,6 +68,7 @@ public:
   [[nodiscard]] bool fillsHeight() const noexcept override { return m_heightFill; }
   [[nodiscard]] bool dismissOnOutsideClick() const override { return m_dismissOnOutsideClick; }
   [[nodiscard]] LayerShellKeyboard keyboardMode() const override { return m_keyboardMode; }
+  [[nodiscard]] LayerShellLayer layer() const override { return m_layer; }
   [[nodiscard]] bool isPersistent() const noexcept override { return m_persistent; }
   [[nodiscard]] PanelPlacement panelPlacement() const noexcept override { return m_shellConfig.placement; }
   [[nodiscard]] std::string panelScreenPosition() const override { return m_shellConfig.position; }
@@ -76,7 +77,7 @@ public:
   [[nodiscard]] bool dismissTransientUi() override;
 
   // Delivers a manifest-declared capture_keys chord to the script's onKey(chord, pressed) and
-  // reports it consumed. Declared chords only: everything else keeps its host behaviour, and a
+  // reports it consumed. Declared chords only: everything else keeps its host behavior, and a
   // focused text input still wins printable keys (PanelManager reserves those before calling).
   [[nodiscard]] bool handleGlobalKey(std::uint32_t sym, std::uint32_t modifiers, bool pressed, bool preedit) override;
 
@@ -146,6 +147,7 @@ private:
   bool m_heightFill = false;
   bool m_dismissOnOutsideClick = true;
   LayerShellKeyboard m_keyboardMode = LayerShellKeyboard::OnDemand;
+  LayerShellLayer m_layer = LayerShellLayer::Top;
   bool m_persistent = false;
   scripting::PluginPanelShellConfig m_shellConfig;
   std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);

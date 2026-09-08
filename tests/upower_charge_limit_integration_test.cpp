@@ -50,7 +50,7 @@ namespace {
               sdbus::registerProperty("EnergyFull").withGetter([]() { return 50.0; }),
               sdbus::registerProperty("EnergyFullDesign").withGetter([]() { return 55.0; }),
               sdbus::registerProperty("Percentage").withGetter([this]() {
-                std::lock_guard lock(stateMutex);
+                std::scoped_lock lock(stateMutex);
                 ++percentageReads;
                 return percentage;
               }),
@@ -63,19 +63,19 @@ namespace {
               sdbus::registerProperty("ChargeThresholdSupported").withGetter([this]() {
                 bool supported = false;
                 {
-                  std::lock_guard lock(stateMutex);
+                  std::scoped_lock lock(stateMutex);
                   ++supportedReads;
                   supported = thresholdSupported;
                 }
                 return supported;
               }),
               sdbus::registerProperty("ChargeThresholdEnabled").withGetter([this]() {
-                std::lock_guard lock(stateMutex);
+                std::scoped_lock lock(stateMutex);
                 ++enabledReads;
                 return thresholdEnabled;
               }),
               sdbus::registerProperty("ChargeThresholdSettingsSupported").withGetter([this]() {
-                std::lock_guard lock(stateMutex);
+                std::scoped_lock lock(stateMutex);
                 return supportedSettings;
               }),
               sdbus::registerProperty("ChargeStartThreshold").withGetter([]() { return std::uint32_t{75}; }),
@@ -93,7 +93,7 @@ namespace {
               sdbus::registerMethod("EnableChargeThreshold")
                   .withInputParamNames("enabled")
                   .implementedAs([this](sdbus::Result<>&& result, bool /*enabled*/) {
-                    std::lock_guard lock(stateMutex);
+                    std::scoped_lock lock(stateMutex);
                     pendingResults.push_back(std::move(result));
                   })
           )
@@ -113,7 +113,7 @@ namespace {
     }
 
     void disableThresholdSupport() {
-      std::lock_guard lock(stateMutex);
+      std::scoped_lock lock(stateMutex);
       thresholdSupported = false;
       supportedSettings = 0;
     }
@@ -121,7 +121,7 @@ namespace {
     void completeSuccess(bool enabled) {
       std::optional<sdbus::Result<>> result;
       {
-        std::lock_guard lock(stateMutex);
+        std::scoped_lock lock(stateMutex);
         TEST_CHECK(!pendingResults.empty());
         thresholdEnabled = enabled;
         result.emplace(std::move(pendingResults.front()));
@@ -133,7 +133,7 @@ namespace {
     void completeFailure(std::string message) {
       std::optional<sdbus::Result<>> result;
       {
-        std::lock_guard lock(stateMutex);
+        std::scoped_lock lock(stateMutex);
         TEST_CHECK(!pendingResults.empty());
         result.emplace(std::move(pendingResults.front()));
         pendingResults.erase(pendingResults.begin());
@@ -148,23 +148,23 @@ namespace {
       );
     }
     void setPercentage(double value) {
-      std::lock_guard lock(stateMutex);
+      std::scoped_lock lock(stateMutex);
       percentage = value;
     }
     std::size_t pendingCount() const {
-      std::lock_guard lock(stateMutex);
+      std::scoped_lock lock(stateMutex);
       return pendingResults.size();
     }
     int supportedReadCount() const {
-      std::lock_guard lock(stateMutex);
+      std::scoped_lock lock(stateMutex);
       return supportedReads;
     }
     int enabledReadCount() const {
-      std::lock_guard lock(stateMutex);
+      std::scoped_lock lock(stateMutex);
       return enabledReads;
     }
     int percentageReadCount() const {
-      std::lock_guard lock(stateMutex);
+      std::scoped_lock lock(stateMutex);
       return percentageReads;
     }
     sdbus::IConnection& connection;
@@ -194,7 +194,7 @@ namespace {
       manager
           ->addVTable(
               sdbus::registerMethod("EnumerateDevices").implementedAs([this]() {
-                std::lock_guard lock(pathsMutex);
+                std::scoped_lock lock(pathsMutex);
                 return paths;
               }),
               sdbus::registerMethod("GetDisplayDevice").implementedAs([]() { return sdbus::ObjectPath{"/"}; }),
@@ -220,7 +220,7 @@ namespace {
           )
       );
       {
-        std::lock_guard lock(pathsMutex);
+        std::scoped_lock lock(pathsMutex);
         paths.emplace_back(path);
       }
       if (emitSignal) {
@@ -231,7 +231,7 @@ namespace {
 
     void removeBattery(FakeBattery& battery) {
       {
-        std::lock_guard lock(pathsMutex);
+        std::scoped_lock lock(pathsMutex);
         std::erase(paths, sdbus::ObjectPath{battery.path});
       }
       manager->emitSignal("DeviceRemoved")
@@ -241,7 +241,7 @@ namespace {
 
     void readdBattery(FakeBattery& battery) {
       {
-        std::lock_guard lock(pathsMutex);
+        std::scoped_lock lock(pathsMutex);
         paths.emplace_back(battery.path);
       }
       manager->emitSignal("DeviceAdded").onInterface(kManagerInterface).withArguments(sdbus::ObjectPath{battery.path});
