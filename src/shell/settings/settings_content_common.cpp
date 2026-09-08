@@ -9,6 +9,7 @@
 #include "ui/style.h"
 #include "util/string_utils.h"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <unordered_set>
@@ -155,7 +156,9 @@ namespace settings {
       return configService.hasEffectiveOverride(range->highPath);
     }
     if (const auto* select = std::get_if<SelectSetting>(&entry.control)) {
-      return !select->linkedPath.empty() && configService.hasEffectiveOverride(select->linkedPath);
+      return std::ranges::any_of(selectLinkedPaths(*select, entry.path), [&configService](const auto& path) {
+        return configService.hasEffectiveOverride(path);
+      });
     }
     return false;
   }

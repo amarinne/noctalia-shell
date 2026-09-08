@@ -92,11 +92,29 @@ namespace settings {
     SelectValueType valueType = SelectValueType::String; // storage type for option values
     float preferredWidth = 0.0F;                         // 0 = default settings dropdown width
     std::vector<std::string> linkedPath;                 // companion path for groupedCommit / override reset
+    // Additional companion paths for groupedCommit / override reset (e.g. the auto-hide mode's
+    // third flag). Written by groupedCommit when it commits, cleared by grouped resets.
+    std::vector<std::vector<std::string>> extraLinkedPaths;
     std::function<std::vector<std::pair<std::vector<std::string>, ConfigOverrideValue>>(
         std::string_view selectedValue, const std::vector<std::string>& primaryPath
     )>
         groupedCommit;
   };
+
+  // All config paths a select's groupedCommit touches: the entry path itself, its companion
+  // linkedPath, and any extra companion paths. Consumers use this for grouped reset buttons,
+  // override badges, and page-level resets so every grouped flag is handled together.
+  [[nodiscard]] inline std::vector<std::vector<std::string>>
+    selectLinkedPaths(const SelectSetting& select, const std::vector<std::string>& primaryPath) {
+    std::vector<std::vector<std::string>> paths;
+    paths.reserve(1 + (select.linkedPath.empty() ? 0 : 1) + select.extraLinkedPaths.size());
+    paths.push_back(primaryPath);
+    if (!select.linkedPath.empty()) {
+      paths.push_back(select.linkedPath);
+    }
+    paths.insert(paths.end(), select.extraLinkedPaths.begin(), select.extraLinkedPaths.end());
+    return paths;
+  }
 
   struct SearchPickerSetting {
     std::vector<SelectOption> options;

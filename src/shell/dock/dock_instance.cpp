@@ -22,14 +22,20 @@ namespace shell::dock {
 
   namespace {
 
+    // smart_auto_hide and overview_auto_hide derive visibility from a "pinned" flag the dock
+    // re-evaluates on workspace/overview changes instead of pointer hover.
+    [[nodiscard]] constexpr bool dockUsesPinnedVisibility(const DockConfig& cfg) noexcept {
+      return cfg.smartAutoHide || cfg.overviewAutoHide;
+    }
+
     [[nodiscard]] bool dockUsesSlideAutoHide(const DockConfig& cfg, const DockInstance& instance) noexcept {
-      if (cfg.smartAutoHide) {
+      if (dockUsesPinnedVisibility(cfg)) {
         return !instance.smartAutoHidePinnedVisible;
       }
       return cfg.autoHide;
     }
 
-    [[nodiscard]] bool dockUsesAnyAutoHide(const DockConfig& cfg) noexcept { return cfg.autoHide || cfg.smartAutoHide; }
+    [[nodiscard]] bool dockUsesAnyAutoHide(const DockConfig& cfg) noexcept { return cfg.isAutoHideEnabled(); }
 
     [[nodiscard]] bool workspaceKeyMatchesAssignment(std::string_view assignmentKey, const Workspace& workspace) {
       if (assignmentKey.empty()) {
@@ -72,11 +78,27 @@ namespace shell::dock {
       return active->occupied;
     }
 
+    [[nodiscard]] bool compositorOverviewOpen(const CompositorPlatform& platform) noexcept {
+      return platform.hasOverviewState() && platform.isOverviewOpen();
+    }
+
     [[nodiscard]] bool smartAutoHideWantsPinnedVisible(const CompositorPlatform& platform, wl_output* output) {
-      if (platform.hasOverviewState() && platform.isOverviewOpen()) {
+      if (compositorOverviewOpen(platform)) {
         return true;
       }
       return !activeWorkspaceHasWindows(platform, output);
+    }
+
+    [[nodiscard]] bool overviewAutoHideWantsPinnedVisible(const CompositorPlatform& platform) {
+      return compositorOverviewOpen(platform);
+    }
+
+    // Pinned-visibility preference for the configured auto-hide mode.
+    [[nodiscard]] bool wantsPinnedVisible(const DockConfig& cfg, const CompositorPlatform& platform, wl_output* output) {
+      if (cfg.overviewAutoHide) {
+        return overviewAutoHideWantsPinnedVisible(platform);
+      }
+      return smartAutoHideWantsPinnedVisible(platform, output);
     }
 
   } // namespace
@@ -154,9 +176,15 @@ namespace shell::dock {
 
     const bool fullSurface = instance.pointerInside
         || instance.hideOpacity > 0.5F
-        || (cfg.smartAutoHide && instance.smartAutoHidePinnedVisible);
+        || (dockUsesPinnedVisibility(cfg) && instance.smartAutoHidePinnedVisible);
     if (fullSurface) {
       instance.surface->setInputRegion({InputRect{0, 0, surfW, surfH}});
+      return;
+    }
+    if (cfg.overviewAutoHide) {
+      // Overview-only docks never reveal from the edge trigger, so a hidden dock takes no
+      // pointer input at all instead of keeping the trigger strip hoverable.
+      instance.surface->setInputRegion({});
       return;
     }
     instance.surface->setInputRegion(
@@ -261,10 +289,11 @@ namespace shell::dock {
       }
 
       if (dockUsesAnyAutoHide(cfg)) {
+        const bool usesPinnedVisibility = dockUsesPinnedVisibility(cfg);
         instance.smartAutoHidePinnedVisible =
-            cfg.smartAutoHide && smartAutoHideWantsPinnedVisible(deps.platform, instance.output);
+            usesPinnedVisibility && wantsPinnedVisible(cfg, deps.platform, instance.output);
         instance.slideRoot->setOpacity(1.0F);
-        const bool startHidden = cfg.smartAutoHide ? !instance.smartAutoHidePinnedVisible : cfg.autoHide;
+        const bool startHidden = usesPinnedVisibility ? !instance.smartAutoHidePinnedVisible : cfg.autoHide;
         instance.hideOpacity = startHidden ? 0.0f : 1.0f;
         instance.hideTargetOpacity = instance.hideOpacity;
       } else {

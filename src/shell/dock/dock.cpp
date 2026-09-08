@@ -219,6 +219,11 @@ namespace {
   }
 
   [[nodiscard]] bool dockPointerHideAllowed(const DockConfig& cfg, const shell::dock::DockInstance& instance) noexcept {
+    if (cfg.overviewAutoHide) {
+      // Overview-only: visibility is overview-driven. While the overview is open the dock stays
+      // visible regardless of hover; when it is closed the dock must not reveal from the edge.
+      return instance.smartAutoHidePinnedVisible;
+    }
     if (cfg.smartAutoHide) {
       return !instance.smartAutoHidePinnedVisible;
     }
@@ -271,6 +276,10 @@ namespace {
       return true;
     }
     return !activeWorkspaceHasWindows(platform, output);
+  }
+
+  [[nodiscard]] bool dockOverviewAutoHideWantsPinnedVisible(const CompositorPlatform& platform) {
+    return platform.hasOverviewState() && platform.isOverviewOpen();
   }
 
 } // namespace
@@ -695,7 +704,7 @@ void Dock::reevaluateSmartAutoHide() {
   }
 
   const auto& cfg = m_config->config().dock;
-  if (!cfg.enabled || !cfg.smartAutoHide) {
+  if (!cfg.enabled || !(cfg.smartAutoHide || cfg.overviewAutoHide)) {
     return;
   }
 
@@ -726,7 +735,8 @@ void Dock::reevaluateSmartAutoHide() {
       m_hoveredInstance = instance;
     }
 
-    const bool wantsPinned = dockSmartAutoHideWantsPinnedVisible(*m_platform, instance->output);
+    const bool wantsPinned = cfg.overviewAutoHide ? dockOverviewAutoHideWantsPinnedVisible(*m_platform)
+                                                  : dockSmartAutoHideWantsPinnedVisible(*m_platform, instance->output);
     const bool pinnedChanged = wantsPinned != instance->smartAutoHidePinnedVisible;
     instance->smartAutoHidePinnedVisible = wantsPinned;
 

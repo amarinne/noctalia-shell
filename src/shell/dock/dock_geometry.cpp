@@ -23,7 +23,7 @@ namespace shell::dock {
     constexpr float kBadgeCornerOverhang = 0.45F;
 
     [[nodiscard]] int dockAutoHideEdgeGutter(const DockConfig& cfg) noexcept {
-      if ((!cfg.autoHide && !cfg.smartAutoHide) || cfg.marginEdge <= 0) {
+      if (!cfg.isAutoHideEnabled() || cfg.marginEdge <= 0) {
         return 0;
       }
       return cfg.marginEdge;

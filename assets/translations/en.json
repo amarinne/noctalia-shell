@@ -1329,7 +1329,8 @@
         "auto-hide": {
           "off": "Off",
           "on": "On",
-          "smart": "Smart"
+          "smart": "Smart",
+          "overview": "Overview"
         }
       },
       "clipboard": {
@@ -1933,7 +1934,7 @@
           "label": "Active Monitor Only"
         },
         "auto-hide": {
-          "description": "Off keeps the dock visible; On hides it until you move the pointer to the screen edge; Smart shows the dock on an empty workspace and hides it when windows are open"
+          "description": "Off keeps the dock visible; On hides it until you move the pointer to the screen edge; Smart shows the dock on an empty workspace and hides it when windows are open; Overview shows the dock only while the compositor overview is open"
         },
         "background-opacity": {
           "description": "Background opacity of the dock"

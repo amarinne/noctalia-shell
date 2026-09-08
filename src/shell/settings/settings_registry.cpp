@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <format>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -188,7 +189,10 @@ namespace settings {
       return SelectSetting{std::move(opts), std::string(selected)};
     }
 
-    [[nodiscard]] std::string barAutoHideMode(bool autoHide, bool smartAutoHide) {
+    [[nodiscard]] std::string autoHideMode(bool autoHide, bool smartAutoHide, bool overviewAutoHide = false) {
+      if (overviewAutoHide) {
+        return "overview";
+      }
       if (smartAutoHide) {
         return "smart";
       }
@@ -198,22 +202,46 @@ namespace settings {
       return "off";
     }
 
-    [[nodiscard]] SelectSetting autoHideModeSelect(std::string_view mode, std::vector<std::string> smartPath) {
-      auto select = asSegmented(plainSelect(
-          {{"off", "settings.options.bar.auto-hide.off"},
-           {"on", "settings.options.bar.auto-hide.on"},
-           {"smart", "settings.options.bar.auto-hide.smart"}},
-          mode
-      ));
-      select.linkedPath = std::move(smartPath);
-      select.groupedCommit = [](std::string_view value, const std::vector<std::string>& primaryPath) {
-        auto companionPath = primaryPath;
-        companionPath.back() = "smart_auto_hide";
-        return std::vector<std::pair<std::vector<std::string>, ConfigOverrideValue>>{
-            {primaryPath, ConfigOverrideValue{value == "on"}},
-            {std::move(companionPath), ConfigOverrideValue{value == "smart"}},
-        };
+    // `overviewKey` enables the Overview mode option and its companion config flag (used by the
+    // dock). When empty, the select only offers off / on / smart and commits the two base flags.
+    [[nodiscard]] SelectSetting
+    autoHideModeSelect(std::string_view mode, std::vector<std::string> smartPath, std::string_view overviewKey = {}) {
+      std::vector<std::pair<std::string_view, std::string_view>> items{
+          {"off", "settings.options.bar.auto-hide.off"},
+          {"on", "settings.options.bar.auto-hide.on"},
+          {"smart", "settings.options.bar.auto-hide.smart"},
       };
+      std::vector<std::vector<std::string>> extraLinkedPaths;
+      if (!overviewKey.empty()) {
+        items.emplace_back("overview", "settings.options.bar.auto-hide.overview");
+        auto overviewPath = smartPath;
+        overviewPath.back() = std::string(overviewKey);
+        extraLinkedPaths.push_back(std::move(overviewPath));
+      }
+      std::vector<SelectOption> opts;
+      opts.reserve(items.size());
+      for (const auto& [value, labelKey] : items) {
+        opts.push_back(SelectOption{std::string(value), i18n::tr(labelKey)});
+      }
+      auto select = asSegmented(SelectSetting{std::move(opts), std::string(mode)});
+      select.linkedPath = std::move(smartPath);
+      select.extraLinkedPaths = std::move(extraLinkedPaths);
+      const bool hasOverview = !overviewKey.empty();
+      select.groupedCommit =
+          [hasOverview](std::string_view value, const std::vector<std::string>& primaryPath) {
+            auto companionPath = primaryPath;
+            companionPath.back() = "smart_auto_hide";
+            std::vector<std::pair<std::vector<std::string>, ConfigOverrideValue>> commit{
+                {primaryPath, ConfigOverrideValue{value == "on"}},
+                {std::move(companionPath), ConfigOverrideValue{value == "smart"}},
+            };
+            if (hasOverview) {
+              auto overviewPath = primaryPath;
+              overviewPath.back() = "overview_auto_hide";
+              commit.emplace_back(std::move(overviewPath), ConfigOverrideValue{value == "overview"});
+            }
+            return commit;
+          };
       return select;
     }
 
@@ -908,10 +936,10 @@ namespace settings {
         SettingsSection::Dock, "behavior", tr("settings.schema.shared.auto-hide.label"),
         tr("settings.schema.dock.auto-hide.description"), {"dock", "auto_hide"},
         autoHideModeSelect(
-            barAutoHideMode(cfg.dock.autoHide, cfg.dock.smartAutoHide),
-            std::vector<std::string>{"dock", "smart_auto_hide"}
+            autoHideMode(cfg.dock.autoHide, cfg.dock.smartAutoHide, cfg.dock.overviewAutoHide),
+            std::vector<std::string>{"dock", "smart_auto_hide"}, "overview_auto_hide"
         ),
-        "autohide smart workspace"
+        "autohide smart overview workspace"
     ));
     entries.push_back(makeEntry(
         SettingsSection::Dock, "behavior", tr("settings.schema.shared.reserve-space.label"),
@@ -2972,7 +3000,7 @@ namespace settings {
       entries.push_back(makeEntry(
           section, "general", tr("settings.schema.shared.auto-hide.label"),
           tr("settings.schema.bar.auto-hide.description"), path("auto_hide"),
-          autoHideModeSelect(barAutoHideMode(bar.autoHide, bar.smartAutoHide), path("smart_auto_hide")),
+          autoHideModeSelect(autoHideMode(bar.autoHide, bar.smartAutoHide), path("smart_auto_hide")),
           "autohide smart workspace"
       ));
       const SettingVisibility autoHideOn = [barName = bar.name](const Config& c) {
@@ -3288,7 +3316,7 @@ namespace settings {
             section, "general", tr("settings.schema.shared.auto-hide.label"),
             tr("settings.schema.bar.auto-hide.description"), monitorPath("auto_hide"),
             autoHideModeSelect(
-                barAutoHideMode(ovr.autoHide.value_or(bar.autoHide), ovr.smartAutoHide.value_or(bar.smartAutoHide)),
+                autoHideMode(ovr.autoHide.value_or(bar.autoHide), ovr.smartAutoHide.value_or(bar.smartAutoHide)),
                 monitorPath("smart_auto_hide")
             ),
             "autohide smart workspace"

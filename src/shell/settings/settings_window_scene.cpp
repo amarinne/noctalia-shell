@@ -1952,7 +1952,9 @@ std::vector<std::vector<std::string>> SettingsWindow::currentPageResetPaths() co
       appendIfOverridden(range->highPath);
     }
     if (const auto* select = std::get_if<settings::SelectSetting>(&entry.control)) {
-      appendIfOverridden(select->linkedPath);
+      for (const auto& path : settings::selectLinkedPaths(*select, entry.path)) {
+        appendIfOverridden(path);
+      }
     }
   }
   return resetPagePaths;

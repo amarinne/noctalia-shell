@@ -399,6 +399,7 @@ shadow              = true
 show_running        = true
 auto_hide           = false
 # smart_auto_hide   = false       # show when the active workspace is empty; hide when it has windows
+# overview_auto_hide = false      # show only while the compositor overview is open; no pointer reveal
 reserve_space       = true
 layer               = "top"         # top | overlay
 active_scale        = 1.0

@@ -635,9 +635,10 @@ struct DockConfig {
   bool showRunning = true;             // also show running apps not in pinned list
   bool autoHide = false;               // slide out when not hovered (overlay mode)
   bool smartAutoHide = false;          // hide while the active workspace has windows; show when it is empty
+  bool overviewAutoHide = false;       // show only while the compositor overview is open; no pointer reveal
   std::string layer = "top";           // top | overlay
 
-  [[nodiscard]] constexpr bool isAutoHideEnabled() const noexcept { return autoHide || smartAutoHide; }
+  [[nodiscard]] constexpr bool isAutoHideEnabled() const noexcept { return autoHide || smartAutoHide || overviewAutoHide; }
   bool reserveSpace = true;         // reserve compositor exclusive zone; applies with or without auto_hide
   float activeScale = 1.0F;         // focused app icon scale
   float inactiveScale = 0.85F;      // non-focused app icon scale

@@ -149,6 +149,7 @@ The expected process path is
 - Niri workspace task ordering by layout.
 - Taskbar explicit target outputs and workspace drag/drop routing.
 - Plugin bar drag sources with click support.
+- Dock `overview_auto_hide` mode: dock visible only while the compositor overview is open, no screen-edge pointer reveal (DockConfig, settings auto-hide mode select, reevaluate loop).
 
 Use the upstream `WorkspacesWidget`. The XMB plugin provides the custom workspace strip.
 

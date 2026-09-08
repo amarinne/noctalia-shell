@@ -34,6 +34,7 @@ margin_edge         = 0          # distance from the nearest screen edge (positi
 show_running        = true       # also show running apps not in the pinned list
 auto_hide           = false      # slide out when pointer leaves; reveal from edge trigger strip
 smart_auto_hide     = false      # show when the active workspace is empty; hide when it has windows
+overview_auto_hide  = false      # show only while the compositor overview is open; no pointer reveal
 reserve_space       = true       # reserve compositor exclusive zone / push windows away
 layer               = "top"      # top | overlay (overlay keeps the dock above fullscreen apps)
 
@@ -118,11 +119,12 @@ Leaving the dock surface while dragging cancels the reorder. Tooltips are hidden
 
 ## Auto-hide
 
-Dock settings expose **Off**, **On**, and **Smart** as one control. In config they map to `auto_hide` and `smart_auto_hide`:
+Dock settings expose **Off**, **On**, **Smart**, and **Overview** as one control. In config they map to `auto_hide`, `smart_auto_hide`, and `overview_auto_hide`:
 
-- **Off**: `auto_hide = false`, `smart_auto_hide = false`
+- **Off**: `auto_hide = false`, `smart_auto_hide = false`, `overview_auto_hide = false`
 - **On**: pointer auto-hide (`auto_hide = true`)
 - **Smart**: workspace-based hide (`smart_auto_hide = true`, `auto_hide = false`)
+- **Overview**: shown only while the compositor overview is open (`overview_auto_hide = true`, other two `false`)
 
 When `auto_hide = true`, the dock slides out after the pointer leaves and slides back in when the pointer reaches the matching screen edge trigger strip.
 
@@ -133,6 +135,14 @@ Set auto-hide to **Smart** in dock settings (or `smart_auto_hide = true` with `a
 - Mutually exclusive with pointer auto-hide; if both are set in config, smart auto-hide takes precedence.
 - Uses the same slide animation and edge reveal strip while hidden.
 - On compositors that report overview state (Niri, Triad), the dock is kept visible while overview is open.
+
+### Overview auto-hide
+
+Set auto-hide to **Overview** in dock settings (or `overview_auto_hide = true` with the other two flags `false` in config). The dock is hidden during normal use — the screen-edge trigger strip is removed, so moving the pointer near the dock edge never reveals it — and slides in only while the compositor overview is open.
+
+- Requires compositor overview support (Niri, Triad). On compositors that do not report overview state, the dock stays hidden.
+- Uses the same slide animation as the other auto-hide modes.
+- `overview_auto_hide` takes precedence over `smart_auto_hide` if both are set in config.
 
 `reserve_space` controls whether the dock keeps a compositor exclusive zone. With both auto-hide modes off, `reserve_space = true` keeps windows pushed away; `reserve_space = false` overlays the dock on top of full-screen clients. With pointer or smart auto-hide active, `reserve_space = false` retracts the dock as an overlay (no gap); `reserve_space = true` keeps the gap while the dock slides out of view.
 

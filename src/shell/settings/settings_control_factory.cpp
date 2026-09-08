@@ -302,9 +302,7 @@ namespace settings {
             makeGroupedResetButton(std::vector<std::vector<std::string>>{entry.path, rangeSlider->highPath})
         );
       } else if (selectSetting != nullptr && !selectSetting->linkedPath.empty()) {
-        actions->addChild(
-            makeGroupedResetButton(std::vector<std::vector<std::string>>{entry.path, selectSetting->linkedPath})
-        );
+        actions->addChild(makeGroupedResetButton(selectLinkedPaths(*selectSetting, entry.path)));
       } else {
         actions->addChild(makeResetButton(entry.path));
       }
