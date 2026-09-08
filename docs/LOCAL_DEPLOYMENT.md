@@ -19,7 +19,7 @@ Use manual commands only when the dotfiles scripts cannot run.
 
 - Source: `/home/ez/Projects/desktop-stack/sources/noctalia-shell`
 - Fork branch: `main`
-- Upstream baseline: `e6846db9a`
+- Upstream baseline: `d6607b4ea` (v5.0.1, merged 2026-09-09)
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
 - Active launcher: `/home/ez/.local/bin/noctalia-v5`
 - Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
