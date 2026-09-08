@@ -412,20 +412,22 @@ namespace StringUtils {
       return tag.size() >= expected.size() && tagEquals(tag.substr(0, expected.size()), expected);
     };
     const auto isMarkupTag = [&tagEquals, &tagStartsWith](std::string_view tag) {
-      tag = trim(tag);
-      return tagEquals(tag, "b")
-          || tagEquals(tag, "/b")
-          || tagEquals(tag, "i")
-          || tagEquals(tag, "/i")
-          || tagEquals(tag, "u")
-          || tagEquals(tag, "/u")
-          || tagEquals(tag, "br")
-          || tagEquals(tag, "br/")
-          || tagEquals(tag, "br /")
-          || tagEquals(tag, "/br")
-          || tagStartsWith(tag, "a href=")
-          || tagEquals(tag, "/a")
-          || tagStartsWith(tag, "img src=");
+      // trim() returns a std::string by value; keeping it alive here (instead of assigning it to
+      // the string_view parameter) avoids a dangling view into a destroyed temporary.
+      const std::string trimmedTag = trim(tag);
+      return tagEquals(trimmedTag, "b")
+          || tagEquals(trimmedTag, "/b")
+          || tagEquals(trimmedTag, "i")
+          || tagEquals(trimmedTag, "/i")
+          || tagEquals(trimmedTag, "u")
+          || tagEquals(trimmedTag, "/u")
+          || tagEquals(trimmedTag, "br")
+          || tagEquals(trimmedTag, "br/")
+          || tagEquals(trimmedTag, "br /")
+          || tagEquals(trimmedTag, "/br")
+          || tagStartsWith(trimmedTag, "a href=")
+          || tagEquals(trimmedTag, "/a")
+          || tagStartsWith(trimmedTag, "img src=");
     };
 
     std::string out;
