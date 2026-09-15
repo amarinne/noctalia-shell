@@ -19,7 +19,7 @@ Use manual commands only when the dotfiles scripts cannot run.
 
 - Source: `/home/ez/Projects/desktop-stack/sources/noctalia-shell`
 - Fork branch: `main`
-- Upstream baseline: `d6607b4ea` (v5.0.1, merged 2026-09-09)
+- Upstream baseline: `e4eb0ff97` (v5.1.0, merged 2026-09-15)
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
 - Active launcher: `/home/ez/.local/bin/noctalia-v5`
 - Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
@@ -111,7 +111,7 @@ meson compile -C build-release
 meson test -C build-release --print-errorlogs
 ```
 
-All 91 tests must pass. Run the build on the desktop. Deploy the verified
+All 120 tests must pass. Run the build on the desktop. Deploy the verified
 installation to both machines. Do not compile Noctalia on the laptop.
 
 The desktop package bundles private libraries in `lib/`. The installed binary
@@ -148,8 +148,13 @@ The expected process path is
 - Grouped-taskbar active marker and icon padding.
 - Niri workspace task ordering by layout.
 - Taskbar explicit target outputs and workspace drag/drop routing.
-- Plugin bar drag sources with click support.
+- Plugin bar drag sources with click support, including cross-widget drag.
 - Dock `overview_auto_hide` mode: dock visible only while the compositor overview is open, no screen-edge pointer reveal (DockConfig, settings auto-hide mode select, reevaluate loop).
+- Dock/taskbar idle render-churn guard (`hideTargetOpacity` settling) plus drag-preview clamp to overlay bounds.
+- Native audio volume scroll acceleration (`src/pipewire/volume_scroll_ramp.h`).
+- Lockscreen minimal login defaults (compact 300x120 box, hidden caret and placeholder).
+- Settings window two-pixel outline kept inside the rounded surface.
+- Relocatable install RPATH `$ORIGIN/../lib`.
 
 Use the upstream `WorkspacesWidget`. The XMB plugin provides the custom workspace strip.
 
