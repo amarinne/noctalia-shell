@@ -500,7 +500,7 @@ struct WallpaperAutomationConfig {
   bool enabled = false;
   std::int32_t intervalSeconds = 1800;
   Order order = Order::Random;
-  bool recursive = true;
+  bool recursive = false;
 
   bool operator==(const WallpaperAutomationConfig&) const = default;
 };
@@ -1050,7 +1050,9 @@ struct ShellConfig {
     bool rememberLastRegion = false;
     bool showCursor = false;
     bool annotate = false;
+    bool skipAnnotateOnCopySave = false;
     bool closeOnCopy = true;
+    bool closeOnSave = true;
     bool pipeToCommand = false;
     std::string pipeCommand;
     std::string directory;       // empty = XDG Pictures directory
@@ -1092,6 +1094,7 @@ struct ShellConfig {
   bool telemetryEnabled = false;
   bool setupWizardEnabled = true;
   bool niriOverviewTypeToLaunchEnabled = false;
+  bool umbrielOverviewTypeToLaunchEnabled = false;
   bool polkitAgent = false;
   PasswordMaskStyle passwordMaskStyle = PasswordMaskStyle::CircleFilled;
   AnimationConfig animation;
