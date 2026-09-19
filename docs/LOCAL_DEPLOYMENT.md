@@ -19,7 +19,7 @@ Use manual commands only when the dotfiles scripts cannot run.
 
 - Source: `/home/ez/Projects/desktop-stack/sources/noctalia-shell`
 - Fork branch: `main`
-- Upstream baseline: `e4eb0ff97` (v5.1.0, merged 2026-09-15)
+- Upstream baseline: `960d4d46b` (post-v5.1.0, merged 2026-09-20)
 - Active prefix: `/home/ez/.local/opt/noctalia-v5-patched`
 - Active launcher: `/home/ez/.local/bin/noctalia-v5`
 - Active message client: `/home/ez/.local/bin/noctalia-v5-msg`
@@ -111,7 +111,7 @@ meson compile -C build-release
 meson test -C build-release --print-errorlogs
 ```
 
-All 120 tests must pass. Run the build on the desktop. Deploy the verified
+All 121 tests must pass. Run the build on the desktop. Deploy the verified
 installation to both machines. Do not compile Noctalia on the laptop.
 
 The desktop package bundles private libraries in `lib/`. The installed binary
