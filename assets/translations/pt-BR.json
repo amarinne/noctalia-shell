@@ -526,7 +526,7 @@
         }
       },
       "location-unavailable": "Localização indisponível",
-      "no-location-body": "Adicione seu endereço ou ative a localização automática nas configurações de localização.",
+      "no-location-body": "Adicione seu endereço ou ative a autolocalização  nas Configurações de Localização.",
       "no-location-title": "Localização não definida",
       "refreshing": "Atualizando o clima...",
       "waiting": "Aguardando dados do clima"
@@ -749,7 +749,7 @@
     },
     "empty": {
       "no-results": "Nenhum resultado encontrado",
-      "type-to-search": "Digite para pesquisar..."
+      "type-to-search": "Digite para buscar..."
     },
     "origins": {
       "appimage": "AppImage",
@@ -781,7 +781,7 @@
         "title": "Janelas"
       }
     },
-    "search-placeholder": "Pesquisar por aplicativos..."
+    "search-placeholder": "Busque por aplicativos..."
   },
   "location": {
     "errors": {
@@ -1066,13 +1066,16 @@
       },
       "monitor-override": {
         "create": "Criar",
+        "custom": "Personalizado",
         "delete": "Deletar",
         "delete-confirm-desc": "Essa configuração de monitor criada pela interface gráfica será removida do arquivo settings.toml.",
         "delete-confirm-title": "Deletar \"{name}\"?",
+        "exists": "Uma substituição para este monitor já existe.",
         "label": "Monitor: {name}",
         "management": "Soprebosição de Monitor",
         "match-placeholder": "Monitor correspondente",
         "new": "Sobreposição de Monitor",
+        "new-title": "Nova Substituição de Monitor",
         "rename": "Renomear",
         "rename-save": "Salvar"
       },
@@ -1368,6 +1371,7 @@
         "shell": "Shell",
         "system": "Sistema",
         "templates": "Modelos",
+        "umbriel": "Umbriel",
         "wallpaper": "Papel de Parede"
       }
     },
@@ -1603,6 +1607,8 @@
         "incompatible-plugin-api": "APi de plugin incoompatível",
         "remove": "Remover plugin",
         "requires": "Requer: {dependencies}",
+        "search-empty": "Não há plugins que correspondam \"{query}\".",
+        "search-placeholder": "Buscar por plugins instalados",
         "title": "Plugins",
         "update-all": "Atualizar todos({count})",
         "update-available": "atualização disponível",
@@ -1656,7 +1662,7 @@
         "open-page": "Abrir página de plugin em noctalia.dev",
         "open-source": "Abrir repositório fonte de plugin",
         "results-count": "{count} plugins",
-        "search-placeholder": "Pesquisar plugins...",
+        "search-placeholder": "Busque plugins...",
         "sort-added-at-asc": "Ordenar por data (mais antigos primeiro)",
         "sort-added-at-desc": "Ordenar por data (mais recentes primeiro)",
         "sort-name-asc": "Ordenar por nome (A-Z)",
@@ -1706,7 +1712,7 @@
         "community-palette": {
           "description": "Escolha uma paleta de cores do catálogo da comunidade",
           "label": "Paleta da Comunidade",
-          "search-placeholder": "Procurar paletas..."
+          "search-placeholder": "Busque paletas..."
         },
         "corner-roundness": {
           "description": "Dimensionar o raio dos cantos em contêineres e controles da interface do usuário do shell",
@@ -1715,7 +1721,7 @@
         "custom-palette": {
           "description": "Escolha uma paleta em ~/.config/noctalia/palettes/",
           "label": "Paleta Personalizada",
-          "search-placeholder": "Procurar paletas personalizadas..."
+          "search-placeholder": "Busque paletas personalizadas..."
         },
         "export-wallpaper-palette": {
           "button": "Salvar Paleta Customizada",
@@ -2521,7 +2527,7 @@
         },
         "launcher-session-search": {
           "description": "Incluir ações de sessão (bloquear, suspender, reiniciar, desligar, sair) nas buscas gerais do launcher, não apenas atrás do prefixo /session",
-          "label": "Habilitar Pesquisa na Sessão"
+          "label": "Habilitar Busca na Sessão"
         },
         "launcher-show-icons": {
           "description": "Exibir ícones dos aplicativos nos resultados do launcher",
@@ -2715,16 +2721,16 @@
           "label": "Latitude"
         },
         "location-address": {
-          "description": "Cidade ou endereço para localizar, usado quando auto-localizar está desabilitado",
+          "description": "Cidade ou endereço para localizar, usado quando autolocalizar está desabilitado",
           "label": "Endereço",
           "placeholder": "Cidade, País"
         },
         "location-auto-locate": {
           "description": "Detectar sua localização automaticamente a partir do seu endereço IP",
-          "label": "Localização Automática (IP)"
+          "label": "Autolocalização (IP)"
         },
         "longitude": {
-          "description": "Longitude manual para a programação de nascer/pôr do sol, usada quando auto-localizar e endereço estão desabilitados",
+          "description": "Longitude manual para a programação de nascer/pôr do sol, usada quando autolocalizar e endereço estão desabilitados",
           "label": "Longitude"
         },
         "minimum-brightness": {
@@ -3179,6 +3185,10 @@
           "description": "Formato de hora padrão para a interface do usuário do shell sem configuração própria",
           "label": "Formato da Hora"
         },
+        "umbriel-overview-type-to-launch": {
+          "description": "Abrir o Launcher enquanto digite na Overveiw do Umbriel; utiliza uma pequena superfície de foco de teclado enquanto a Overview está aberta",
+          "label": "Digitar para Abrir Launcher"
+        },
         "window-switcher-mru": {
           "description": "Organizar janelas no alternador por mais recentemente usadas ao invés de espaço de trabalho e layout de tela",
           "label": "Ordem Mais Recentemente Usada"
@@ -3229,7 +3239,7 @@
           "label": "Ordem"
         },
         "automation-recursive": {
-          "description": "Procura papéis de parede em subpastas",
+          "description": "Busca papéis de parede em subpastas",
           "label": "Incluir Subpastas"
         },
         "directory": {
@@ -3338,7 +3348,7 @@
         "filter-all": "Todos",
         "filter-enabled": "Habilitado",
         "results-count": "{count} modelos",
-        "search-placeholder": "Buscar modelos...",
+        "search-placeholder": "Busque modelos...",
         "sort-category-asc": "Ordenar por categoria (A-Z)",
         "sort-category-desc": "Ordenar por categoria (Z-A)",
         "sort-name-asc": "Ordenar por nome (A-Z)",
@@ -4550,7 +4560,7 @@
       },
       "reset-page": "Redefinir Página",
       "reset-page-confirm": "Confirmar Reinício",
-      "search-placeholder": "Pesquisar configurações...",
+      "search-placeholder": "Busque configurações...",
       "search-truncated": "Exibindo as primeiras {count} correspondências. Refine sua busca para restringir os resultados.",
       "support-report": "Relatório de suporte",
       "support-report-saved": "Relatório de suporte salvo.",
@@ -4638,7 +4648,7 @@
     "controls": {
       "search-picker": {
         "empty": "Sem resultados",
-        "placeholder": "Procurar..."
+        "placeholder": "Buscar..."
       },
       "select": {
         "placeholder": "Selecione uma opção"
@@ -4676,7 +4686,7 @@
       },
       "glyph-picker": {
         "all-categories": "Todos",
-        "search-placeholder": "Procurar símbolos",
+        "search-placeholder": "Busque símbolos...",
         "title": "Selecione um símbolo"
       }
     }

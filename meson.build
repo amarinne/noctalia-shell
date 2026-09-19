@@ -513,6 +513,8 @@ _noctalia_sources = files(
   'src/launcher/dmenu_stdin_provider.cpp',
   'src/launcher/emoji_provider.cpp',
   'src/launcher/math_provider.cpp',
+  'src/launcher/panel_catalog.cpp',
+  'src/launcher/panel_provider.cpp',
   'src/launcher/plugin_launcher_provider.cpp',
   'src/launcher/session_provider.cpp',
   'src/launcher/wallpaper_provider.cpp',
@@ -1254,6 +1256,7 @@ if build_tests
     'widget_action',
     'widget_definition',
     'volume_scroll_ramp',
+    'widget_settings_schema',
     'workspace_alert_service',
   ]
 

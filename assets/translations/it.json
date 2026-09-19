@@ -1066,13 +1066,16 @@
       },
       "monitor-override": {
         "create": "Crea",
+        "custom": "Custom",
         "delete": "Elimina",
         "delete-confirm-desc": "Questa override monitor creato dalla GUI verrà rimosso da settings.toml.",
         "delete-confirm-title": "Eliminare \"{name}\"?",
+        "exists": "Esiste già un'opzione di override per questo monitor.",
         "label": "Monitor: {name}",
         "management": "Override monitor",
         "match-placeholder": "Corrispondenza monitor",
         "new": "Override monitor",
+        "new-title": "Nuovo override del monitor",
         "rename": "Rinomina",
         "rename-save": "Salva"
       },
@@ -1368,6 +1371,7 @@
         "shell": "Shell",
         "system": "Sistema",
         "templates": "Template",
+        "umbriel": "Umbriel",
         "wallpaper": "Sfondo"
       }
     },
@@ -1603,6 +1607,8 @@
         "incompatible-plugin-api": "API plugin incompatibile",
         "remove": "Rimuovi plugin",
         "requires": "Richiede: {dependencies}",
+        "search-empty": "Nessun plugin corrisponde a \"{query}\".",
+        "search-placeholder": "Cerca i plugin installati",
         "title": "Elenco plugin",
         "update-all": "Aggiorna tutti ({count})",
         "update-available": "aggiornamento disponibile",
@@ -3178,6 +3184,10 @@
         "time-format": {
           "description": "Formato ora predefinito per la shell UI senza impostazione propria",
           "label": "Formato ora"
+        },
+        "umbriel-overview-type-to-launch": {
+          "description": "Apri il launcher mentre digiti in nella Overview di Umbriel; utilizza una piccola area di focus della tastiera mentre l'Overview è aperta",
+          "label": "Digita per avviare"
         },
         "window-switcher-mru": {
           "description": "Nello switcher di finestre queste vengono ordinate in base all'utilizzo più recente, anziché in base all'area di lavoro e al layout dello schermo.",
