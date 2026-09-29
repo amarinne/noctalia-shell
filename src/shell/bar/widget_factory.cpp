@@ -425,7 +425,7 @@ std::unique_ptr<Widget> WidgetFactory::create(
             .audioSpectrum = m_audioSpectrum,
             .mpris = m_mpris,
         },
-        barName, outputName, sharedDragDropController, enableScroll
+        barName, outputName, context.verticalBar, sharedDragDropController, enableScroll
     );
     widget->setContentScale(contentScale);
     return widget;

@@ -42,7 +42,7 @@ namespace scripting {
 class PluginWidget : public Widget, public scripting::PluginIpcEndpoint {
 public:
   PluginWidget(
-      scripting::PluginRuntimeContext context, std::string barName, std::string outputName,
+      scripting::PluginRuntimeContext context, std::string barName, std::string outputName, bool isVertical,
       DragDropController* sharedDragDropController = nullptr, bool enableScroll = true
   );
   ~PluginWidget() override;

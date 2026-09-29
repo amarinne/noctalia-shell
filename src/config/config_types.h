@@ -35,6 +35,8 @@ struct BarCapsuleGroupStyle {
   // True when `border` is explicitly present (empty value = no outline); mirrors bar/widget border semantics.
   bool borderSpecified = false;
   std::optional<ColorSpec> border;
+  // Outline thickness in logical pixels before content-scale; only drawn when `border` is set.
+  float borderWidth = Style::borderWidth;
   std::optional<ColorSpec> foreground;
   float padding = Style::barCapsulePadding;
   std::optional<float> radius;
@@ -106,6 +108,7 @@ struct BarMonitorOverride {
   std::optional<double> widgetCapsulePadding;
   std::optional<double> widgetCapsuleRadius;
   std::optional<double> widgetCapsuleOpacity;
+  std::optional<float> widgetCapsuleBorderWidth;
   std::optional<bool> hoverHighlight;
   BarDeadZoneOverride deadZone;
 
@@ -192,6 +195,8 @@ struct BarConfig {
   // True when `capsule_border` appears under `[bar.*]` (empty value = no outline for widgets that inherit border).
   bool widgetCapsuleBorderSpecified = false;
   std::optional<ColorSpec> widgetCapsuleBorder;
+  // Capsule outline thickness in logical pixels before content-scale; only drawn when a border color is set.
+  float widgetCapsuleBorderWidth = Style::borderWidth;
   // Soft tint of a widget's foreground color over the widget under the pointer (per member in capsule groups).
   bool hoverHighlight = true;
   BarDeadZoneConfig deadZone;
@@ -362,7 +367,7 @@ using ConfigOverrideValue = std::variant<
     std::vector<KeyChord>, std::vector<BarCapsuleGroupStyle>>;
 
 // Optional rounded “capsule” behind a bar widget (see `[widget.*] capsule_*` in CONFIG.md).
-// Corner shape, border width, and edge softness are fixed in the shell code; padding/radius are configurable.
+// Corner shape and edge softness are fixed in the shell code; padding, radius, and border width are configurable.
 struct WidgetBarCapsuleSpec {
   bool enabled = false;
   ColorSpec fill = colorSpecFromRole(ColorRole::SurfaceVariant);
@@ -371,6 +376,8 @@ struct WidgetBarCapsuleSpec {
   std::string group;
   // Set only when `capsule_border` is present and non-empty in config; otherwise no outline.
   std::optional<ColorSpec> border;
+  // Outline thickness in logical pixels before content-scale (see `capsule_border_width` / bar default).
+  float borderWidth = Style::borderWidth;
   // Icon + primary label color when the capsule is visible; unset = widget defaults.
   std::optional<ColorSpec> foreground;
   // Inner padding in logical pixels before content-scale (see `capsule_padding` / bar default).
@@ -480,6 +487,15 @@ enum class WallpaperTransition : std::uint8_t {
   Honeycomb = 5,
 };
 
+enum class LockscreenTransition : std::uint8_t {
+  Fade = 0,
+  Wipe = 1,
+  Disc = 2,
+  Stripes = 3,
+  Zoom = 4,
+  Honeycomb = 5,
+};
+
 struct WallpaperMonitorOverride {
   std::string match;
   std::optional<bool> enabled;
@@ -541,6 +557,11 @@ struct LockscreenConfig {
   bool fingerprint = true;
   bool allowEmptyPassword = false;
   bool blurredDesktop = false;
+  std::vector<LockscreenTransition> transitions = {LockscreenTransition::Fade, LockscreenTransition::Wipe,
+                                                   LockscreenTransition::Disc, LockscreenTransition::Stripes,
+                                                   LockscreenTransition::Zoom, LockscreenTransition::Honeycomb};
+  float transitionDurationMs = 1500.0F;
+  float edgeSmoothness = 0.3F;
   float blurIntensity = 0.5F;
   float tintIntensity = 0.3F;
   std::string wallpaper;
@@ -732,9 +753,12 @@ struct OsdConfig {
   std::string position = "top_center";
   std::string positionVertical = "top_center";
   std::string orientation = "horizontal";
+  std::int32_t hideDelayMs = 1400;
   float scale = 1.0F;
   float backgroundOpacity = 0.97F;
   bool border = true; // outline around OSD popup cards
+  ColorSpec borderColor = colorSpecFromRole(ColorRole::Outline);
+  float borderWidth = Style::borderWidth;
   int offsetX = 20;
   int offsetY = 8;
   std::vector<std::string> monitors;
@@ -752,8 +776,10 @@ struct NotificationConfig {
   float scale = 1.0F;
   float backgroundOpacity = 0.97F; // toast card background alpha (0.0–1.0)
   bool border = true;              // outline around toast cards
-  int offsetX = 20;                // absolute horizontal margin from the screen edge
-  int offsetY = 8;                 // absolute vertical margin from the screen edge
+  ColorSpec borderColor = colorSpecFromRole(ColorRole::Outline);
+  float borderWidth = Style::borderWidth;
+  int offsetX = 20; // absolute horizontal margin from the screen edge
+  int offsetY = 8;  // absolute vertical margin from the screen edge
   std::vector<std::string> monitors;
   bool collapseOnDismiss = true;
   bool keepDismissedInHistory = true;
@@ -913,6 +939,15 @@ constexpr EnumOption<WallpaperTransition> kWallpaperTransitions[] = {
     {WallpaperTransition::Stripes, "stripes", "settings.options.wallpaper.transition.stripes"},
     {WallpaperTransition::Wipe, "wipe", "settings.options.wallpaper.transition.wipe"},
     {WallpaperTransition::Zoom, "zoom", "settings.options.wallpaper.transition.zoom"},
+};
+
+constexpr EnumOption<LockscreenTransition> kLockscreenTransitions[] = {
+    {LockscreenTransition::Disc, "disc", "settings.options.lockscreen.transition.disc"},
+    {LockscreenTransition::Fade, "fade", "settings.options.lockscreen.transition.fade"},
+    {LockscreenTransition::Honeycomb, "honeycomb", "settings.options.lockscreen.transition.honeycomb"},
+    {LockscreenTransition::Stripes, "stripes", "settings.options.lockscreen.transition.stripes"},
+    {LockscreenTransition::Wipe, "wipe", "settings.options.lockscreen.transition.wipe"},
+    {LockscreenTransition::Zoom, "zoom", "settings.options.lockscreen.transition.zoom"},
 };
 
 // One config-driven dmenu-style launcher entry. The provider runs `command`, splits
@@ -1077,8 +1112,24 @@ struct ShellConfig {
     bool operator==(const PrivacyConfig&) const = default;
   };
 
+  enum class WindowSwitcherStyle : std::uint8_t {
+    Carousel = 0,
+    Compact = 1,
+  };
+
+  static constexpr EnumOption<WindowSwitcherStyle> kWindowSwitcherStyles[] = {
+      {WindowSwitcherStyle::Carousel, "carousel", "settings.options.shell.window-switcher-style.carousel"},
+      {WindowSwitcherStyle::Compact, "compact", "settings.options.shell.window-switcher-style.compact"},
+  };
+
   struct WindowSwitcherConfig {
+    WindowSwitcherStyle style = WindowSwitcherStyle::Carousel;
     bool mru = false;
+    bool showCaption = true;
+    bool showCount = true;
+    bool showAppIcon = true;
+    bool showAllOutputs = true;
+    bool currentWorkspaceOnly = false;
 
     bool operator==(const WindowSwitcherConfig&) const = default;
   };
@@ -1108,6 +1159,7 @@ struct ShellConfig {
   AnimationConfig animation;
   std::string avatarPath;
   bool settingsShowAdvanced = true;
+  bool settingsExpandAllGroups = false;
   bool settingsWindowTranslucent = false;
   bool showLocation = true;
   bool appIconColorize = false;
@@ -1184,10 +1236,25 @@ struct CalendarConfig {
     bool operator==(const Account&) const = default;
   };
 
+  // Event reminder notifications. Gated by CalendarConfig::enabled.
+  struct Reminders {
+    bool enabled = true;
+    // Honor per-event reminders (VALARM triggers, Google reminder overrides). When false, every
+    // event uses defaultLeadMinutes instead.
+    bool useEventReminders = true;
+    // Fallback lead for events that carry no reminder of their own. 0 = notify at event start.
+    std::int32_t defaultLeadMinutes = 10;
+    // "HH:MM" local time for the once-a-day all-day event digest; empty disables it.
+    std::string allDayDigestTime = "09:00";
+
+    bool operator==(const Reminders&) const = default;
+  };
+
   bool enabled = false;
   std::int32_t refreshMinutes = 15;
   std::string eventDateFormat = "%A %e %B";
   std::string eventTimeFormat = "%H:%M";
+  Reminders reminders;
   std::vector<Account> accounts;
 
   bool operator==(const CalendarConfig&) const = default;
@@ -1271,10 +1338,9 @@ struct SystemConfig {
 
 struct AudioConfig {
   bool enableOverdrive = false;
-  bool enableSounds = false;
+  bool enableSounds = true;
   float soundVolume = 0.5F;
-  std::string volumeChangeSound;
-  std::string notificationSound;
+  std::string soundTheme = "freedesktop";
 
   bool operator==(const AudioConfig&) const = default;
 };
@@ -1477,7 +1543,7 @@ constexpr EnumOption<ShellThemeMode> kShellThemeModes[] = {
 
 struct WallpaperFavorite {
   std::string path;
-  ThemeMode themeMode = ThemeMode::Auto;
+  std::optional<ThemeMode> themeMode;
   std::optional<PaletteSource> paletteSource;
   std::string builtinPalette;
   std::string communityPalette;
