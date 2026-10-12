@@ -226,7 +226,9 @@
       "auto": "Auto",
       "custom": "Custom",
       "inherit": "Inherit",
-      "off": "Off"
+      "inherit-value": "Inherit ({value})",
+      "off": "Off",
+      "on": "On"
     }
   },
   "control-center": {
@@ -551,7 +553,10 @@
         "select-sticker-image": "Select Sticker Image"
       },
       "settings": {
+        "album-art-background": "Album Art Background",
+        "album-art-blur": "Album Art Blur",
         "aspect-ratio": "Aspect Ratio",
+        "audio-visualizer": "Audio Visualizer",
         "background": "Background",
         "background-color": "Color",
         "background-opacity": "Opacity",
@@ -626,6 +631,7 @@
         "show-login-button": "Login Button",
         "show-media": "Media",
         "show-password-hint": "Password Hint",
+        "show-seconds": "Second Hand",
         "show-session-buttons": "Session Buttons",
         "show-unlock-hint": "Unlock Hint",
         "show-vpn-label": "Show VPN Label",
@@ -796,7 +802,34 @@
         "title": "Windows"
       }
     },
-    "search-placeholder": "Search applications…"
+    "search-placeholder": "Search applications…",
+    "browser": {
+      "actions": {
+        "power": "Power",
+        "settings": "Settings"
+      },
+      "navigation": {
+        "all-apps": "All Apps",
+        "categories": "Categories",
+        "pinned": "Pinned",
+        "providers": "Providers",
+        "recent": "Recent"
+      },
+      "options": {
+        "show-grid": "Show Grid View",
+        "show-list": "Show List View",
+        "sort-by-frequency": "Prioritize Frequent Results",
+        "use-default-order": "Use Default Ordering"
+      },
+      "sections": {
+        "all-apps": "All Apps",
+        "other-apps": "Other Apps",
+        "pinned": "Pinned",
+        "providers": "Providers",
+        "recent": "Recent",
+        "search-results": "Search Results"
+      }
+    }
   },
   "location": {
     "errors": {
@@ -888,6 +921,15 @@
       "lockscreen-widgets-editor-blocked-locked": "Unlock the session before editing lockscreen widgets.",
       "lockscreen-widgets-editor-enabled": "Lockscreen widget editor is on. Switch to an empty workspace so open windows do not cover the editor.",
       "mpris-disabled": "MPRIS disabled",
+      "network": "Network",
+      "network-connect-failed-auth": "The password was rejected or not provided.",
+      "network-connect-failed-generic": "NetworkManager could not complete the connection.",
+      "network-connect-failed-ip": "Connected to the network but could not get an IP address.",
+      "network-connect-failed-no-reply": "NetworkManager did not answer. An authorization request may be waiting with no polkit agent to answer it.",
+      "network-connect-failed-not-found": "The network is no longer in range.",
+      "network-connect-failed-permission": "Not authorized to change network connections. Enable the polkit agent in Security settings, or allow NetworkManager actions in a polkit rule.",
+      "network-connect-failed-timeout": "The network did not respond in time.",
+      "network-connect-failed-title": "Could not connect to {ssid}",
       "polkit-agent": "Polkit Agent",
       "polkit-no-session": "Polkit agent needs logind, elogind, or XDG_SESSION_ID. On seatd-only setups it cannot register for graphical prompts. Use terminal pkexec for greeter sync, or install elogind for in-session authentication.",
       "screen-time-reset": "Screen Time",
@@ -1541,6 +1583,16 @@
         "top-right": "Top Right"
       },
       "shell": {
+        "launcher-default-view": {
+          "all-apps": "All Apps",
+          "categories": "Categories",
+          "pinned": "Pinned",
+          "recent": "Recent"
+        },
+        "launcher-search-position": {
+          "bottom": "Bottom",
+          "top": "Top"
+        },
         "panel-placement": {
           "attached": "Attached",
           "floating": "Floating"
@@ -1702,14 +1754,27 @@
         "installed": "Installed",
         "loading": "Loading catalog…",
         "no-readme": "No description available.",
+        "not-listed": "Not listed",
         "open-page": "Open plugin page on noctalia.dev",
         "open-source": "Open plugin source repository",
+        "recommend": "Recommend",
+        "recommendation-error": "The change was not confirmed. Your previous recommendation is unchanged. Retry the same change to reconcile it.",
+        "recommendation-not-recommendable": "This plugin cannot accept this recommendation.",
+        "recommendation-pending": "Sending recommendation…",
+        "recommendation-protocol-error": "The service returned an unexpected response. Your previous recommendation is unchanged.",
+        "recommendation-rate-limited": "Too many requests. Wait before retrying this change.",
+        "recommendation-retry": "Retry recommendation change",
+        "recommendation-state-error": "Recommendation state could not be read or saved. Check state.toml before retrying.",
+        "recommendation-unavailable": "Recommendations are temporarily unavailable. Your previous recommendation is unchanged. You can retry shortly.",
+        "remove-recommendation": "Remove recommendation",
         "results-count": "{count} plugins",
         "search-placeholder": "Search plugins…",
         "sort-added-at-asc": "Sort by date added (oldest first)",
         "sort-added-at-desc": "Sort by date added (newest first)",
+        "sort-most-recommended": "Most recommended",
         "sort-name-asc": "Sort by name (A-Z)",
         "sort-name-desc": "Sort by name (Z-A)",
+        "sort-trending": "Trending",
         "sort-updated-at-asc": "Sort by date updated (oldest first)",
         "sort-updated-at-desc": "Sort by date updated (newest first)",
         "source-all": "All sources",
@@ -1809,6 +1874,10 @@
           "description": "Pin Noctalia's own light or dark mode; Follow keeps it in sync with Theme Mode",
           "label": "Shell Theme Mode"
         },
+        "show-close-buttons": {
+          "description": "Show close buttons on panels, notification toasts, popups, dialogs, and the settings window",
+          "label": "Show Close Buttons"
+        },
         "theme-mode": {
           "description": "Choose Dark, Light, or Auto based on time of day; also applies to apps through templates",
           "label": "Theme Mode"
@@ -1885,6 +1954,10 @@
         "center-widgets": {
           "description": "Widgets in the center of the bar",
           "label": "Center Widgets"
+        },
+        "compositor-blur": {
+          "description": "Allow the compositor to blur behind this bar when the background effect protocol is available",
+          "label": "Compositor Blur"
         },
         "concave-edge-corners": {
           "description": "Carve concave notches into two of the bar's corners (requires Edge Margin to be 0); with Ends Margin at 0, the corners on the bar's inner edge are carved, otherwise the corners touching the screen edge are carved",
@@ -1971,6 +2044,10 @@
         "show-on-workspace-switch": {
           "description": "Briefly reveal the bar when the active workspace changes",
           "label": "Show on Workspace Switch"
+        },
+        "show-tooltip": {
+          "description": "Show hover tooltips for widgets on this bar; a widget's own Show Tooltip setting overrides this",
+          "label": "Show Tooltips"
         },
         "start-widgets": {
           "description": "Widgets on the start (left/top) side of the bar",
@@ -2162,10 +2239,6 @@
         "main-axis-padding": {
           "description": "Inner padding at the ends of the icon row (before the first and after the last icon)"
         },
-        "monitors": {
-          "description": "Choose which monitors show the dock (leave empty for all); active-monitor filtering applies within these monitors",
-          "label": "Monitors"
-        },
         "pinned-apps": {
           "description": "Desktop entry IDs of apps pinned to the dock",
           "label": "Pinned Apps"
@@ -2350,6 +2423,10 @@
           "description": "Unlock with a fingerprint reader via fprintd, alongside password entry",
           "label": "Fingerprint Unlock"
         },
+        "grace-period": {
+          "description": "Allow passwordless unlock for this many seconds after locking; any keypress or mouse movement unlocks. Set to 0 to always require the password",
+          "label": "Grace Period"
+        },
         "lock-before-suspend": {
           "description": "Lock the session before sleep (lid close, systemctl suspend, hibernate); Lock & Suspend actions still lock first",
           "label": "Lock Before Suspend"
@@ -2421,6 +2498,10 @@
           "description": "Per-sender rules for toasts, history, and sounds; first matching enabled filter wins",
           "label": "Notification Filters"
         },
+        "follow-focused-output": {
+          "description": "Show new notification toasts on the focused monitor",
+          "label": "Follow Focused Output"
+        },
         "history-retention-hours": {
           "description": "Automatically remove notification history entries older than the specified number of hours (0 to keep forever)",
           "label": "Retention Period"
@@ -2468,9 +2549,21 @@
         "toast-opacity": {
           "description": "Background opacity of notification toasts",
           "label": "Background Opacity"
+        },
+        "width": {
+          "description": "Toast width in pixels before scaling",
+          "label": "Width"
         }
       },
       "panels": {
+        "border-color": {
+          "description": "Outline color for floating panels; a theme role name follows the active theme, or pick a custom color",
+          "label": "Border Color"
+        },
+        "border-width": {
+          "description": "Outline width for floating panels in pixels, 0 hides the stroke",
+          "label": "Border Width"
+        },
         "borders": {
           "description": "Draw an outline on floating panels",
           "label": "Borders"
@@ -2516,7 +2609,7 @@
           "label": "Show App Actions"
         },
         "launcher-app-grid": {
-          "description": "Show a grid of application icons with labels underneath when results are apps only",
+          "description": "Show applications, global search results, and the provider overview as icon grids",
           "label": "App Grid View"
         },
         "launcher-app-origin-indicator": {
@@ -2527,9 +2620,9 @@
           "description": "After calculator, emoji, and other copy activations, paste into the focused window (same shortcuts as clipboard auto-paste)",
           "label": "Auto-Paste"
         },
-        "launcher-categories": {
-          "description": "Display category filters in the launcher; reveal with F6, then cycle with F6 and Shift+F6",
-          "label": "Show Categories"
+        "launcher-category-icons-only": {
+          "description": "Show only icons for app categories, with full names in hover tooltips",
+          "label": "Category Icons Only"
         },
         "launcher-compact": {
           "description": "Use smaller icons and tighter result rows",
@@ -2538,6 +2631,26 @@
         "launcher-currency-exchange": {
           "description": "Fetch rates from third party online sources",
           "label": "Currency Exchange Conversion"
+        },
+        "launcher-default-view": {
+          "description": "Choose the view shown when the launcher opens without a search",
+          "label": "Default View"
+        },
+        "launcher-width": {
+          "description": "Set the launcher panel width",
+          "label": "Launcher Width"
+        },
+        "launcher-search-position": {
+          "description": "Place the launcher toolbar at the top or bottom",
+          "label": "Toolbar Position"
+        },
+        "launcher-show-session-button": {
+          "description": "Show a shortcut to the configured session actions",
+          "label": "Show Session Button"
+        },
+        "launcher-show-settings-button": {
+          "description": "Show a shortcut to Noctalia Settings",
+          "label": "Show Settings Button"
         },
         "launcher-global-calculator": {
           "description": "Also show calculator results in unprefixed search",
@@ -2568,7 +2681,7 @@
           "label": "Panels Ignored"
         },
         "launcher-pinned-apps": {
-          "description": "Desktop entry IDs of apps pinned to the launcher; they appear first when the launcher opens",
+          "description": "Desktop entry IDs shown in manual order in the Pinned view",
           "label": "Pinned Apps"
         },
         "launcher-prefix-calculator": {
@@ -2601,7 +2714,7 @@
         },
         "launcher-reset-usage": {
           "button": "Reset",
-          "description": "Clear launch counts and recently used history used for launcher sorting",
+          "description": "Clear launcher history used by Recent and usage-based sorting",
           "label": "Reset Usage Data"
         },
         "launcher-session-search": {
@@ -2613,8 +2726,12 @@
           "label": "Show App Icons"
         },
         "launcher-sort-by-usage": {
-          "description": "Boost frequently used apps toward the top and show a Recently Used category filter",
+          "description": "Prioritize frequently used results in normal browsing and search",
           "label": "Sort by Usage"
+        },
+        "launcher-track-usage": {
+          "description": "Record launcher history for Recent and usage-based sorting",
+          "label": "Track Usage"
         },
         "list-item-background": {
           "description": "Draw a rounded background behind each launcher and clipboard list item",
@@ -2698,6 +2815,10 @@
         "transparency-mode": {
           "description": "Panel glass style, including floating panel opacity and card translucency",
           "label": "Transparency"
+        },
+        "wallpaper-show-names": {
+          "description": "Caption each thumbnail with its file name in the wallpaper picker.",
+          "label": "Show File Names"
         }
       },
       "power": {
@@ -2741,6 +2862,14 @@
           "description-opening": "Calendar credentials are being opened through Secret Service",
           "description-unavailable": "No Secret Service provider is available in this session",
           "label": "Calendar Credential Storage"
+        },
+        "calendar-dedupe-events": {
+          "description": "Collapse an event that appears in more than one of your calendars into a single entry",
+          "label": "Merge Duplicate Events"
+        },
+        "calendar-dedupe-ignore-patterns": {
+          "description": "Regular expressions removed from an event title before it is compared, so titles that differ only by a matched part still merge",
+          "label": "Ignore in Title When Merging"
         },
         "calendar-digest-time": {
           "description": "Time of day for a single notification listing all-day events. Leave empty to disable.",
@@ -2850,8 +2979,20 @@
           "label": "Notification Sound",
           "placeholder": "/path/to/sound.wav"
         },
+        "notification-sounds": {
+          "description": "Play a sound when notifications arrive",
+          "label": "Notification Sounds"
+        },
+        "power-sounds": {
+          "description": "Play a sound when the charger connects or disconnects",
+          "label": "Power Sounds"
+        },
+        "screenshot-sounds": {
+          "description": "Play a sound on screenshot capture",
+          "label": "Screenshot Sounds"
+        },
         "shell-sounds": {
-          "description": "Play sound effects for shell events",
+          "description": "Master toggle for shell sound effects",
           "label": "Shell Sounds"
         },
         "sound-theme": {
@@ -2924,6 +3065,10 @@
           "description": "Sound file used for volume feedback",
           "label": "Volume Change Sound",
           "placeholder": "/path/to/sound.wav"
+        },
+        "volume-sounds": {
+          "description": "Play a sound when output or input volume changes",
+          "label": "Volume Sounds"
         },
         "weather": {
           "description": "Enable the weather service via open-meteo.com",
@@ -3102,6 +3247,10 @@
           "description": "Master switch for all OSD popups; when off no OSD is shown",
           "label": "Enable OSD"
         },
+        "osd-follow-focused-output": {
+          "description": "Show new OSD popups on the focused monitor; visible popups stay where they appeared",
+          "label": "Follow Focused Output"
+        },
         "osd-hide-delay": {
           "description": "How long an OSD popup remains visible before hiding",
           "label": "Hide Delay"
@@ -3213,6 +3362,10 @@
         "privacy-screen-filter-regex": {
           "description": "Regex for screen-sharing apps to ignore in privacy indicators and OSDs",
           "label": "Screen Sharing Filter Regex"
+        },
+        "readline-shortcuts": {
+          "description": "Use readline-style shortcuts in every text field (Ctrl+A moves to the start of the line instead of selecting all)",
+          "label": "Readline Shortcuts"
         },
         "screen-time-enabled": {
           "description": "Track per-app usage and show it in Control Center",
@@ -4265,6 +4418,10 @@
           "description": "Tray item IDs to hide",
           "label": "Hidden Items"
         },
+        "hidden-workspaces": {
+          "description": "Workspace names whose windows are left out of the taskbar unless that workspace is active",
+          "label": "Hidden Workspaces"
+        },
         "hide-album-art": {
           "description": "Hide the album artwork",
           "label": "Hide Album Art"
@@ -4297,6 +4454,10 @@
         "hide-when-full": {
           "description": "Hide the battery widget when fully charged",
           "label": "Hide When Full"
+        },
+        "hide-when-idle": {
+          "description": "Hide the widget while the active MPRIS player is paused or stopped",
+          "label": "Hide When Idle"
         },
         "hide-when-inactive": {
           "description": "Hide the microphone widget while no application is capturing audio",
@@ -4481,6 +4642,10 @@
           "description": "Reverse the low-to-high frequency order of the bars",
           "label": "Reversed"
         },
+        "rotate-album-art": {
+          "description": "Rotate the circular album artwork while media is playing",
+          "label": "Rotate Album Art"
+        },
         "scale": {
           "description": "Scale this widget relative to the bar content scale",
           "label": "Scale"
@@ -4554,8 +4719,8 @@
           "label": "Show Temperature"
         },
         "show-tooltip": {
-          "description": "Show a workspace's full name on hover when its pill does not already display it",
-          "label": "Show Name Tooltip"
+          "description": "Show this widget's tooltip on hover",
+          "label": "Show Tooltip"
         },
         "show-unlock-hint": {
           "description": "Show the status card above the login box for unlock hints and auth prompts; errors and Caps Lock warnings still appear when this is off",

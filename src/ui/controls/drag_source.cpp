@@ -93,9 +93,7 @@ void DragSource::setEnabled(bool enabled) {
   }
 }
 
-void DragSource::setOnClick(std::function<void()> callback) {
-  m_onClick = std::move(callback);
-}
+void DragSource::setOnClick(std::function<void()> callback) { m_onClick = std::move(callback); }
 
 void DragSource::setTooltip(std::string_view text) {
   m_tooltip = text;

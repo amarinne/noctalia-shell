@@ -56,8 +56,18 @@ Direct project dependencies are listed below; transitive dependencies are owned 
 
 ## Code Style
 
-This project uses [clang-format](https://clang.llvm.org/docs/ClangFormat.html) for formatting. Run `just format`
-before committing.
+Local formatting accepts [clang-format](https://clang.llvm.org/docs/ClangFormat.html) 22 or newer. Run `just format`
+before committing and `just format-check` to check both `src/` and `tests/`. Both recipes reject formatter versions
+older than 22 and print the version in use.
+
+CI runs `just format-check` on Arch with clang-format 22. Newer versions may produce different formatting, so a local
+check with a newer formatter does not guarantee CI will pass. Use version 22 to reproduce or resolve CI formatting
+failures.
+
+For CI parity, install `clang22` on Arch or `clang-tools-extra` on Fedora 44. If your distribution installs Clang 22
+outside the default PATH, prepend its binary directory when running either recipe, for example
+`PATH=/usr/lib/llvm22/bin:$PATH just format-check` on Arch. Keep editor formatting on the same version as your
+command-line formatter.
 
 For editor integration, `just configure` creates a root `compile_commands.json` symlink to the selected Meson build
 directory. Run `just configure`, `just configure release`, or `just configure asan` for the build mode you want clangd
@@ -159,6 +169,11 @@ check.
 
 For bug fixes, reproduce the bug and confirm the reproduction no longer fails. Add a regression test only when it
 provides durable coverage beyond that check.
+
+Write test checks with `TEST_CHECK` from `tests/test_check.h`, never `assert`. `assert` compiles away under `NDEBUG`, so
+a release build would pass a broken test silently; `TEST_CHECK` prints the failed expression with its file and line and
+exits non-zero. The header refuses to compile with `NDEBUG`, so test executables set
+`override_options: ['b_ndebug=false']` in `meson.build`.
 
 ## Commit Messages
 

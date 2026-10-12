@@ -204,6 +204,7 @@ location = "https://example.invalid/bad"
     bar.layer = "overlay";
     bar.thickness = 44;
     bar.backgroundOpacity = 0.85F;
+    bar.compositorBlur = false;
     bar.border = colorSpecFromConfigString("#123456");
     bar.borderWidth = 2.0F;
     bar.radius = 18;
@@ -250,6 +251,7 @@ location = "https://example.invalid/bad"
     bar.widgetCapsuleBorder = colorSpecFromConfigString("#111213");
     bar.widgetCapsuleBorderWidth = 2.5F;
     bar.hoverHighlight = false;
+    bar.showTooltip = false;
     BarCapsuleGroupStyle group;
     group.id = "grp1";
     group.members = {"clock", "weather"};
@@ -277,6 +279,7 @@ location = "https://example.invalid/bad"
     ovr.layer = "top";
     ovr.thickness = 50;
     ovr.backgroundOpacity = 0.7F;
+    ovr.compositorBlur = true;
     ovr.border = colorSpecFromConfigString("#a1a2a3");
     ovr.borderWidth = 3.0F;
     ovr.radius = 22;
@@ -312,6 +315,7 @@ location = "https://example.invalid/bad"
     ovr.widgetColor = colorSpecFromConfigString("#e1e2e3");
     ovr.widgetIconColor = colorSpecFromConfigString("#e3e2e1");
     ovr.hoverHighlight = true;
+    ovr.showTooltip = true;
     BarCapsuleGroupStyle ogroup;
     ogroup.id = "ogrp";
     ogroup.members = {"volume"};
@@ -336,7 +340,16 @@ location = "https://example.invalid/bad"
   // checks exercise real serialization rather than all-defaults.
   Config makeProbe() {
     Config c;
-    c.audio = AudioConfig{true, true, 0.73F, "freedesktop"};
+    c.audio = AudioConfig{
+        .enableOverdrive = true,
+        .enableSounds = true,
+        .enableVolumeSounds = false,
+        .enableNotificationSounds = false,
+        .enablePowerSounds = false,
+        .enableScreenshotSounds = false,
+        .soundVolume = 0.73F,
+        .soundTheme = "freedesktop"
+    };
     c.weather = WeatherConfig{false, false, 17, "imperial"};
     c.osd.position = "bottom_left";
     c.osd.positionVertical = "top_right";
@@ -345,6 +358,7 @@ location = "https://example.invalid/bad"
     c.osd.scale = 1.4F;
     c.osd.backgroundOpacity = 0.42F;
     c.osd.border = false;
+    c.osd.followFocusedOutput = true;
     c.osd.offsetX = 33;
     c.osd.offsetY = 11;
     c.osd.monitors = {"DP-1", "HDMI-A-1"};
@@ -353,6 +367,7 @@ location = "https://example.invalid/bad"
     c.backdrop = BackdropConfig{true, 0.8F, 0.2F};
     c.lockscreen = LockscreenConfig{
         .lockBeforeSuspend = false,
+        .gracePeriodSeconds = 3,
         .blurredDesktop = true,
         .transitions = {LockscreenTransition::Disc, LockscreenTransition::Zoom},
         .transitionDurationMs = 900.0F,
@@ -383,8 +398,10 @@ location = "https://example.invalid/bad"
         .position = "bottom_left",
         .layer = "overlay",
         .scale = 1.3F,
+        .width = 420,
         .backgroundOpacity = 0.5F,
         .border = false,
+        .followFocusedOutput = true,
         .offsetX = 12,
         .offsetY = 6,
         .monitors = {"DP-2"},
@@ -413,7 +430,17 @@ location = "https://example.invalid/bad"
     c.dock.radiusBottomRight = 16;
     c.dock.launcherPosition = DockLauncherPosition::Start;
     c.dock.pinned = {"firefox.desktop"};
-    c.dock.monitors = {"DP-1"};
+    c.dock.monitorOverrides = {DockMonitorOverride{
+        .tableName = "laptop",
+        .match = "eDP-1",
+        .enabled = false,
+        .position = DockEdge::Left,
+        .iconSize = 36,
+        .autoHide = true,
+        .overviewAutoHide = true,
+        .launcherPosition = DockLauncherPosition::End,
+        .pinned = std::vector<std::string>{"org.gnome.Nautilus.desktop"},
+    }};
     c.brightness.enableDdcutil = true;
     c.brightness.ddcutilIgnoreMmids = {"ABC123"};
     c.brightness.monitorOverrides = {
@@ -428,6 +455,8 @@ location = "https://example.invalid/bad"
     c.controlCenter.calendarTab.showWeekNumbers = true;
     c.controlCenter.shortcuts = {{"wifi"}, {"bluetooth"}};
     c.calendar.enabled = true;
+    c.calendar.dedupeEvents = true;
+    c.calendar.dedupeIgnorePatterns = {R"(\s*\(.*\)$)", " - tentative"};
     c.calendar.refreshMinutes = 30;
     c.calendar.eventDateFormat = "%Y-%m-%d";
     c.calendar.eventTimeFormat = "%I:%M %p";
@@ -482,10 +511,12 @@ location = "https://example.invalid/bad"
     };
     c.accessibility.uiScale = 1.25F;
     c.shell.buttonBorders = false;
+    c.shell.showCloseButtons = false;
     c.shell.fontFamily = "Inter";
     c.shell.lang = "en_US";
     c.shell.timeFormat = "{:%H:%M:%S}";
     c.shell.passwordMaskStyle = PasswordMaskStyle::RandomIcons;
+    c.shell.readlineShortcuts = true;
     c.shell.clipboardHistoryMaxEntries = 80;
     c.shell.clipboardAutoPaste = ClipboardAutoPasteMode::CtrlV;
     c.storage.keySource = StorageKeySource::File;
@@ -497,7 +528,15 @@ location = "https://example.invalid/bad"
     c.shell.panel.transparencyMode = PanelTransparencyMode::Glass;
     c.shell.panel.floatingLayer = "top";
     c.shell.panel.launcherPlacement = PanelPlacement::Floating;
+    c.shell.launcher.width = 680;
+    c.shell.launcher.categories = false;
+    c.shell.launcher.searchPosition = ShellConfig::LauncherSearchPosition::Bottom;
+    c.shell.launcher.defaultView = ShellConfig::LauncherDefaultView::Categories;
+    c.shell.launcher.categoryIconsOnly = true;
+    c.shell.launcher.showSettingsButton = false;
+    c.shell.launcher.showSessionButton = false;
     c.shell.launcher.compact = true;
+    c.shell.launcher.trackUsage = false;
     c.shell.launcher.sortByUsage = false;
     DmenuEntryConfig notifyDmenu;
     notifyDmenu.id = "notify";
@@ -674,6 +713,24 @@ location = "https://example.invalid/bad"
         fail("lockscreen.transition: invalid entries were not reported");
       }
     }
+    // Grace period is strictly opt-in: a config that never mentions the key keeps
+    // requiring authentication, and an explicit 0 stays disabled.
+    {
+      auto t = toml::parse("lock_before_suspend = true");
+      LockscreenConfig lockscreen{};
+      Diagnostics d;
+      readInto(t, lockscreen, lockscreenSchema(), "lockscreen", d);
+      if (lockscreen.gracePeriodSeconds != 0) {
+        fail("lockscreen.grace_period_seconds: missing key must default to 0 (passwordless unlock is opt-in)");
+      }
+      auto explicitZero = toml::parse("grace_period_seconds = 0");
+      LockscreenConfig zero{};
+      Diagnostics dZero;
+      readInto(explicitZero, zero, lockscreenSchema(), "lockscreen", dZero);
+      if (zero.gracePeriodSeconds != 0) {
+        fail("lockscreen.grace_period_seconds: explicit 0 must stay disabled");
+      }
+    }
     // Clipboard history count accepts large text-heavy histories but still has
     // an explicit config ceiling.
     {
@@ -685,9 +742,27 @@ location = "https://example.invalid/bad"
         fail("shell.clipboard_history_max_entries clamp: expected 10000");
       }
     }
+    {
+      auto t = toml::parse("width = 100");
+      NotificationConfig n{};
+      Diagnostics d;
+      readInto(t, n, notificationSchema(), "notification", d);
+      if (n.width != static_cast<std::int32_t>(*kNotificationWidthRange.min)) {
+        fail("notification.width clamp: expected 240");
+      }
+    }
+    {
+      auto t = toml::parse("width = 2000");
+      NotificationConfig n{};
+      Diagnostics d;
+      readInto(t, n, notificationSchema(), "notification", d);
+      if (n.width != static_cast<std::int32_t>(*kNotificationWidthRange.max)) {
+        fail("notification.width clamp: expected 500");
+      }
+    }
   }
 
-  void checkMonitorFontScaleChangeSet() {
+  void checkMonitorOverrideChangeSet() {
     Config before;
     BarConfig bar;
     bar.name = "default";
@@ -696,10 +771,16 @@ location = "https://example.invalid/bad"
     bar.monitorOverrides.push_back(monitor);
     before.bars.push_back(bar);
 
-    Config after = before;
-    after.bars.front().monitorOverrides.front().fontScale = 1.5F;
-    if (!computeConfigChangeSet(before, after).bars) {
+    Config fontScaleChanged = before;
+    fontScaleChanged.bars.front().monitorOverrides.front().fontScale = 1.5F;
+    if (!computeConfigChangeSet(before, fontScaleChanged).bars) {
       fail("monitor font_scale override did not mark bars changed");
+    }
+
+    Config blurChanged = before;
+    blurChanged.bars.front().monitorOverrides.front().compositorBlur = false;
+    if (!computeConfigChangeSet(before, blurChanged).bars) {
+      fail("monitor compositor_blur override did not mark bars changed");
     }
   }
 
@@ -1063,6 +1144,7 @@ capsule_radius = 12.0
 capsule_thickness = 0.5
 center = [ "clock", "weather" ]
 color = "#0A0B0C"
+compositor_blur = false
 concave_edge_corners = true
 contact_shadow = true
 enabled = false
@@ -1088,6 +1170,7 @@ reserve_space = false
 scale = 2.0
 shadow = false
 show_on_workspace_switch = true
+show_tooltip = false
 smart_auto_hide = false
 start = [ "launcher" ]
 thickness = 44
@@ -1122,6 +1205,7 @@ widget_spacing = 8
     capsule_thickness = 0.25
     center = [ "media" ]
     color = "#E1E2E3"
+    compositor_blur = true
     concave_edge_corners = false
     contact_shadow = false
     enabled = true
@@ -1148,6 +1232,7 @@ widget_spacing = 8
     scale = 1.5
     shadow = true
     show_on_workspace_switch = true
+    show_tooltip = true
     smart_auto_hide = false
     start = [ "tray" ]
     thickness = 50
@@ -1291,7 +1376,7 @@ widget_spacing = 8
   checkStorageKeySourceValidation();
   checkPanelFloatingLayerValidation();
   checkClamps();
-  checkMonitorFontScaleChangeSet();
+  checkMonitorOverrideChangeSet();
   checkPluginAutoUpdateMode();
   checkAutoUpdateScopeSelection();
   checkDuplicatePluginSourceRejection();

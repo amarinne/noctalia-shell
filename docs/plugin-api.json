@@ -169,14 +169,20 @@
   },
   {
     "level": 31,
-    "noctaliaVersion": null,
+    "noctaliaVersion": "v5.2.0",
     "feature": "get-color",
     "introduced": "`noctalia.getColor(role)` for reading colors from the active theme palette."
   },
   {
     "level": 32,
-    "noctaliaVersion": null,
+    "noctaliaVersion": "v5.2.0",
     "feature": "container-tooltip",
     "introduced": "The `tooltip` prop on `ui.box`, `ui.row`, `ui.column`, and `ui.image`, shown on hover."
+  },
+  {
+    "level": 33,
+    "noctaliaVersion": null,
+    "feature": "scroll-reveal-key",
+    "introduced": "The `revealKey` prop on `ui.scroll` for scrolling a keyed child into view."
   }
 ]

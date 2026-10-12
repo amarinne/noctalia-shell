@@ -48,6 +48,7 @@ struct TaskbarWidgetOptions {
   WorkspaceLabelPlacement workspaceLabelPlacement = WorkspaceLabelPlacement::Corner;
   WorkspaceGroupContent workspaceGroupContent = WorkspaceGroupContent::Icons;
   bool hideEmptyWorkspaces = false;
+  std::vector<std::string> hiddenWorkspaces;
   bool workspaceGroupCapsule = true;
   bool focusedOutputOnly = false;
   bool minimal = false;
@@ -145,8 +146,8 @@ private:
   struct WorkspaceDragState {
     InputArea* sourceArea = nullptr;
     std::string sourceWindowId;
-    float startSceneX = 0.0f;
-    float startSceneY = 0.0f;
+    float startSceneX = 0.0F;
+    float startSceneY = 0.0F;
     bool pressed = false;
     bool dragging = false;
   };

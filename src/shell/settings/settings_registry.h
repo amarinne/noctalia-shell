@@ -108,7 +108,7 @@ namespace settings {
   // linkedPath, and any extra companion paths. Consumers use this for grouped reset buttons,
   // override badges, and page-level resets so every grouped flag is handled together.
   [[nodiscard]] inline std::vector<std::vector<std::string>>
-    selectLinkedPaths(const SelectSetting& select, const std::vector<std::string>& primaryPath) {
+  selectLinkedPaths(const SelectSetting& select, const std::vector<std::string>& primaryPath) {
     std::vector<std::vector<std::string>> paths;
     paths.reserve(1 + (select.linkedPath.empty() ? 0 : 1) + select.extraLinkedPaths.size());
     paths.push_back(primaryPath);
@@ -321,6 +321,7 @@ namespace settings {
     bool niriOverviewTypeToLaunchSupported = false; // show niri-only type-to-launch integration
     bool umbrielOverviewTypeToLaunchSupported = false;
     bool screencopySupported = false;           // lockscreen blurred desktop + screenshot features
+    bool backgroundEffectBlurSupported = false; // hide compositor blur toggles without ext-background-effect-v1
     bool ddcutilAvailable = false;              // disable ddcutil toggle when ddcutil is not on PATH
     bool systemdUserManaged = false;            // disable systemd app launching when the shell is not a user unit
     bool gammaControlAvailable = false;         // hide night-light entries when gamma control is unavailable
@@ -340,6 +341,7 @@ namespace settings {
 
   [[nodiscard]] const BarConfig* findBar(const Config& cfg, std::string_view name);
   [[nodiscard]] const BarMonitorOverride* findMonitorOverride(const BarConfig& bar, std::string_view match);
+  [[nodiscard]] const DockMonitorOverride* findDockMonitorOverride(const DockConfig& dock, std::string_view tableName);
   [[nodiscard]] std::vector<std::string> barNames(const Config& cfg);
   [[nodiscard]] std::vector<SettingEntry> buildSettingsRegistry(
       const Config& cfg, const BarConfig* selectedBar, const BarMonitorOverride* selectedMonitorOverride = nullptr,
@@ -349,9 +351,12 @@ namespace settings {
   [[nodiscard]] bool matchesNormalizedSettingQuery(const SettingEntry& entry, std::string_view normalizedQuery);
   [[nodiscard]] bool matchesSettingQuery(const SettingEntry& entry, std::string_view query);
   [[nodiscard]] bool isBarMonitorOverrideSettingPath(const std::vector<std::string>& path);
+  [[nodiscard]] bool isDockMonitorOverrideSettingPath(const std::vector<std::string>& path);
   [[nodiscard]] bool settingEntryMatchesBarNavigation(
       const SettingEntry& entry, std::string_view selectedBarName, std::string_view selectedMonitorOverride
   );
+  [[nodiscard]] bool
+  settingEntryMatchesDockNavigation(const SettingEntry& entry, std::string_view selectedMonitorOverride);
   [[nodiscard]] std::string barSettingContentSectionKey(const SettingEntry& entry);
   [[nodiscard]] std::span<const SettingsSectionDescriptor> settingsSectionDescriptors();
   [[nodiscard]] std::string_view settingsSectionId(SettingsSection section);

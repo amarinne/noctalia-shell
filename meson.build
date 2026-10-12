@@ -73,7 +73,7 @@ freetype2_dep       = dependency('freetype2')
 fontconfig_dep      = dependency('fontconfig')
 cairo_dep           = dependency('cairo')
 cairo_ft_dep        = dependency('cairo-ft')
-pango_dep           = dependency('pango')
+pango_dep           = dependency('pango', version: '>=1.50')
 pangocairo_dep      = dependency('pangocairo')
 pangoft2_dep        = dependency('pangoft2')
 harfbuzz_dep        = dependency('harfbuzz')
@@ -442,6 +442,7 @@ _noctalia_sources = files(
   'src/calendar/calendar_reminders.cpp',
   'src/calendar/calendar_service.cpp',
   'src/calendar/event_link.cpp',
+  'src/calendar/event_merge.cpp',
   'src/calendar/google_client.cpp',
   'src/calendar/google_oauth.cpp',
   'src/calendar/ical_parser.cpp',
@@ -481,6 +482,7 @@ _noctalia_sources = files(
   'src/dbus/mpris/mpris_service.cpp',
   'src/dbus/network/external_ip_service.cpp',
   'src/dbus/network/inetwork_service.cpp',
+  'src/dbus/network/iwd_diagnostics.cpp',
   'src/dbus/network/iwd_secret_agent.cpp',
   'src/dbus/network/iwd_service.cpp',
   'src/dbus/network/network_display.cpp',
@@ -536,7 +538,9 @@ _noctalia_sources = files(
   'src/pipewire/pipewire_service.cpp',
   'src/pipewire/pipewire_error.cpp',
   'src/pipewire/audio_glyphs.cpp',
+  'src/pipewire/audio_media_class.cpp',
   'src/pipewire/audio_route_selection.cpp',
+  'src/pipewire/privacy_capture_classification.cpp',
   'src/pipewire/wireplumber_mixer.cpp',
   'src/pipewire/privacy_filter.cpp',
   'src/pipewire/pipewire_spectrum.cpp',
@@ -596,6 +600,7 @@ _noctalia_sources = files(
   'src/scripting/plugin_ipc.cpp',
   'src/scripting/plugin_lint.cpp',
   'src/scripting/plugin_manager.cpp',
+  'src/scripting/plugin_recommendations.cpp',
   'src/scripting/plugin_manifest.cpp',
   'src/scripting/plugin_panel_shell.cpp',
   'src/scripting/plugin_registry.cpp',
@@ -684,6 +689,7 @@ _noctalia_sources = files(
   'src/shell/profile/avatar_path.cpp',
   'src/shell/greeter/greeter_appearance_sync.cpp',
   'src/shell/lockscreen/lock_screen.cpp',
+  'src/shell/lockscreen/lockscreen_session_actions.cpp',
   'src/shell/lockscreen/lock_surface.cpp',
   'src/shell/notification/notification_toast.cpp',
   'src/shell/osd/audio_osd.cpp',
@@ -844,6 +850,7 @@ _noctalia_sources = files(
   'src/system/format_units.cpp',
   'src/system/hardware_info.cpp',
   'src/system/icon_resolver.cpp',
+  'src/system/icon_theme_poll_source.cpp',
   'src/system/internal_app_metadata.cpp',
   'src/system/easyeffects_service.cpp',
   'src/system/day_night_schedule.cpp',
@@ -957,10 +964,6 @@ _noctalia_sources = files(
   'src/compositors/niri/niri_output_backend.cpp',
   'src/compositors/niri/niri_keyboard_backend.cpp',
   'src/compositors/niri/niri_workspace_backend.cpp',
-  'src/compositors/triad/triad_runtime.cpp',
-  'src/compositors/triad/triad_output_backend.cpp',
-  'src/compositors/triad/triad_keyboard_backend.cpp',
-  'src/compositors/triad/triad_workspace_backend.cpp',
   'src/compositors/umbriel/umbriel_runtime.cpp',
   'src/compositors/umbriel/umbriel_event_handler.cpp',
   'src/compositors/umbriel/umbriel_workspace_backend.cpp',
@@ -1154,12 +1157,21 @@ install_data(
 )
 
 if build_tests
+  wayland_server_dep = dependency('wayland-server')
+
+  _wlr_screencopy_test_server_h = custom_target('wlr-screencopy-unstable-v1-test-server-header',
+    input: 'protocols/wlr-screencopy-unstable-v1.xml',
+    output: 'wlr-screencopy-unstable-v1-test-server-protocol.h',
+    command: [wayland_scanner, 'server-header', '@INPUT@', '@OUTPUT@'],
+  )
+
   _cpp_test_names = [
     'annotation_document',
     'annotation_raster',
     'animation_manager',
     'app_identity',
     'audio_glyphs',
+    'audio_media_class',
     'audio_route_selection',
     'battery_health',
     'battery_hook_state',
@@ -1192,11 +1204,13 @@ if build_tests
     'cpu_temp_sensor',
     'desktop_entry_launch',
     'desktop_entry_localization',
+    'desktop_entry_symlink',
     'disk_mounts',
     'dock_edge_overlap',
     'dock_pinned_apps',
     'enterprise_credentials',
     'event_link',
+    'event_merge',
     'fcitx_status',
     'freedesktop_key_file',
     'firefox_theme_manifest',
@@ -1220,11 +1234,13 @@ if build_tests
     'input_password_mode',
     'input_readline_shortcuts',
     'ipc_service',
+    'iwd_diagnostics',
     'jxl_decoder',
     'kde_color_scheme',
     'keyboard_layout_label',
     'lane_selection_token',
     'location_service',
+    'lockscreen_session_actions',
     'log',
     'math_provider',
     'monitor_selector',
@@ -1238,6 +1254,7 @@ if build_tests
     'notification_internal_history',
     'path_browse',
     'pipewire_error',
+    'privacy_capture_classification',
     'plugin_bindings',
     'plugin_catalog',
     'plugin_git_export',
@@ -1245,6 +1262,7 @@ if build_tests
     'plugin_lifecycle',
     'plugin_manifest',
     'plugin_process',
+    'plugin_recommendations',
     'plugin_source_locks',
     'plugin_source_paths',
     'process',
@@ -1258,13 +1276,13 @@ if build_tests
     'system_monitor_service',
     'taskbar_widget',
     'template_apply_notify',
+    'template_apply_shutdown',
     'template_hook_async',
     'template_hook_runner',
     'theme_shell_mode',
     'time_format',
     'toplevel_thumbnail_capture',
     'tray_identifier',
-    'triad_workspace_backend',
     'ui_tree_reconciler',
     'upower_charge_limit',
     'upower_device_catalog',
@@ -1281,6 +1299,7 @@ if build_tests
     'volume_scroll_ramp',
     'widget_settings_schema',
     'window_switcher_membership',
+    'window_switcher_shortcut_state',
     'workspace_alert_service',
     'workspaces_widget',
   ]
@@ -1301,7 +1320,25 @@ if build_tests
       test_args = [meson.project_source_root() / 'assets' / 'translations']
     endif
     test(test_name, test_exe, args: test_args)
+    if test_name == 'plugin_recommendations' and git_program.found()
+      recommendations_python = find_program('python3', required: false)
+      recommendations_openssl = find_program('openssl', required: false)
+      if recommendations_python.found() and recommendations_openssl.found()
+        test('plugin_recommendations_http', recommendations_python,
+          args: [files('tests/plugin_recommendations_http_test.py'), test_exe],
+          workdir: meson.project_source_root(),
+          timeout: 90,
+        )
+      endif
+    endif
   endforeach
+
+  screencopy_connection_isolation_exe = executable('screencopy_connection_isolation_test',
+    sources: files('tests/screencopy_connection_isolation_test.cpp') + [_wlr_screencopy_test_server_h],
+    dependencies: [noctalia_core_dep, wayland_server_dep],
+    override_options: ['b_ndebug=false'],
+  )
+  test('screencopy_connection_isolation', screencopy_connection_isolation_exe)
 
   upower_integration_exe = executable('upower_charge_limit_integration_test',
     sources: files('tests/upower_charge_limit_integration_test.cpp'),
@@ -1310,6 +1347,16 @@ if build_tests
   )
   secret_collection_probe_integration_exe = executable('secret_collection_probe_integration_test',
     sources: files('tests/secret_collection_probe_integration_test.cpp'),
+    dependencies: noctalia_core_dep,
+    override_options: ['b_ndebug=false'],
+  )
+  tray_registration_integration_exe = executable('tray_registration_integration_test',
+    sources: files('tests/tray_registration_integration_test.cpp'),
+    dependencies: noctalia_core_dep,
+    override_options: ['b_ndebug=false'],
+  )
+  fingerprint_integration_exe = executable('fingerprint_authenticator_integration_test',
+    sources: files('tests/fingerprint_authenticator_integration_test.cpp'),
     dependencies: noctalia_core_dep,
     override_options: ['b_ndebug=false'],
   )
@@ -1328,6 +1375,39 @@ if build_tests
       dbus_run_session,
       args: ['--', secret_collection_probe_integration_exe.full_path()],
       depends: secret_collection_probe_integration_exe,
+    )
+    foreach mode : ['registration', 'discovery']
+      test('tray_' + mode + '_integration',
+        dbus_run_session,
+        args: ['--', tray_registration_integration_exe.full_path(), mode],
+        depends: tray_registration_integration_exe,
+      )
+    endforeach
+    test('fingerprint_authenticator_integration',
+      dbus_run_session,
+      args: [
+        '--', 'sh', '-c',
+        'export DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"; exec "$1"',
+        'sh', fingerprint_integration_exe.full_path(),
+      ],
+      depends: fingerprint_integration_exe,
+    )
+  endif
+
+  bluetooth_property_integration_exe = executable('bluetooth_property_integration_test',
+    sources: files('tests/bluetooth_property_integration_test.cpp'),
+    dependencies: noctalia_core_dep,
+    override_options: ['b_ndebug=false'],
+  )
+  if dbus_run_session.found()
+    test('bluetooth_property_integration',
+      dbus_run_session,
+      args: [
+        '--', 'sh', '-c',
+        'export DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"; exec "$1"',
+        'sh', bluetooth_property_integration_exe.full_path(),
+      ],
+      depends: bluetooth_property_integration_exe,
     )
   endif
 

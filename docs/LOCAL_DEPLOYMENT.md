@@ -41,7 +41,7 @@ Do not start the old `qs -c noctalia-shell` process with v5.
 Do not compile Noctalia on the laptop. Build and test Noctalia on the desktop.
 Copy the verified installation from the desktop to the laptop.
 
-For a complete laptop deployment, including the machine profile, run:
+For a laptop runtime deployment that preserves the live machine profile, run:
 
 ```sh
 cd /home/ez/Projects/desktop-stack/ops
@@ -60,6 +60,8 @@ stacks/desktop-shell/scripts/deploy/deploy-v5-runtime-to-laptop --no-source-sync
 The runtime script creates a versioned artifact. The installer verifies file
 hashes, architecture, Fedora version, glibc version, and RPATH. The installer
 also creates a rollback backup before it replaces the active runtime.
+Use the [operations config workflow](../../../ops/stacks/desktop-shell/README.md#configuration-updates) for intentional shared config updates.
+Runtime deployment never restores profiles or synchronizes Noctalia UI state.
 
 Use this manual restart only for recovery:
 
@@ -111,11 +113,10 @@ meson compile -C build-release
 meson test -C build-release --print-errorlogs
 ```
 
-All 133 tests must pass. Run the build on the desktop. Deploy the verified
+All enabled tests must pass. Run the build on the desktop. Deploy the verified
 installation to both machines. Do not compile Noctalia on the laptop.
 
-The desktop package bundles private libraries in `lib/`. The installed binary
-must have this RPATH:
+The installed binary must support bundled libraries in `lib/` with this RPATH:
 
 ```text
 $ORIGIN/../lib
@@ -152,6 +153,7 @@ The expected process path is
 - Dock `overview_auto_hide` mode: dock visible only while the compositor overview is open, no screen-edge pointer reveal (DockConfig, settings auto-hide mode select, reevaluate loop).
 - Dock/taskbar idle render-churn guard (`hideTargetOpacity` settling) plus drag-preview clamp to overlay bounds.
 - Native audio volume scroll acceleration (`src/pipewire/volume_scroll_ramp.h`).
+- Launcher `categories` switch, all-apps default view, and 640-by-660 default dimensions.
 - Lockscreen minimal login defaults (compact 300x120 box, hidden caret and placeholder).
 - Settings window two-pixel outline kept inside the rounded surface.
 - Relocatable install RPATH `$ORIGIN/../lib`.

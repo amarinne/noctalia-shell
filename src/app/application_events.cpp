@@ -32,7 +32,7 @@ namespace {
 } // namespace
 
 void Application::onIconThemeChanged() {
-  kLog.info("system icon theme changed; refreshing icon consumers");
+  kLog.info("system icons changed; refreshing icon consumers");
   m_bar.reload();
   m_dock.reload();
   m_panelManager.onIconThemeChanged();
@@ -124,7 +124,7 @@ void Application::onUpowerStateChangedForHooks() {
     if (m_prevBatteryPluggedForEvents.has_value()
         && *m_prevBatteryPluggedForEvents != *plugged
         && m_soundPlayer != nullptr) {
-      m_soundPlayer->play(*plugged ? "power-plug" : "power-unplug");
+      m_soundPlayer->play(*plugged ? SoundPlayer::kEventPowerPlug : SoundPlayer::kEventPowerUnplug);
     }
     m_prevBatteryPluggedForEvents = plugged;
   } else if (!state.isPresent) {

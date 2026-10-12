@@ -7,8 +7,8 @@
 #include "render/scene/node.h"
 #include "shell/bar/widget.h"
 #include "shell/panel/attached_panel_context.h"
-#include "ui/signal.h"
 #include "ui/drag_drop_controller.h"
+#include "ui/signal.h"
 #include "wayland/layer_surface.h"
 
 #include <cstdint>

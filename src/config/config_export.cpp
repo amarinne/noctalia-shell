@@ -151,6 +151,8 @@ namespace config_export {
         resolved.thickness = *ovr.thickness;
       if (ovr.backgroundOpacity)
         resolved.backgroundOpacity = *ovr.backgroundOpacity;
+      if (ovr.compositorBlur)
+        resolved.compositorBlur = *ovr.compositorBlur;
       if (ovr.border)
         resolved.border = *ovr.border;
       if (ovr.borderWidth)
@@ -229,6 +231,8 @@ namespace config_export {
         resolved.widgetCapsuleBorderWidth = *ovr.widgetCapsuleBorderWidth;
       if (ovr.hoverHighlight)
         resolved.hoverHighlight = *ovr.hoverHighlight;
+      if (ovr.showTooltip)
+        resolved.showTooltip = *ovr.showTooltip;
       if (ovr.deadZone.actions)
         resolved.deadZone.actions = *ovr.deadZone.actions;
       return resolved;

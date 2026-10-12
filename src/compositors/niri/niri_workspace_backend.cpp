@@ -323,7 +323,8 @@ std::vector<WorkspaceWindow> NiriWorkspaceBackend::workspaceWindows(const std::s
             .x = window.x,
             .y = window.y,
             .outputName = {},
-            .active = workspaceIt->second->activeWindowId.has_value() && *workspaceIt->second->activeWindowId == windowId,
+            .active =
+                workspaceIt->second->activeWindowId.has_value() && *workspaceIt->second->activeWindowId == windowId,
         }
     );
   }
@@ -787,6 +788,9 @@ std::optional<std::size_t> NiriWorkspaceBackend::parseLeadingNumber(const std::s
 }
 
 std::string NiriWorkspaceBackend::workspaceKey(const WorkspaceState& workspace) {
+  if (!workspace.name.empty()) {
+    return workspace.name;
+  }
   if (workspace.idx > 0) {
     return std::to_string(workspace.idx);
   }

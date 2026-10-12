@@ -214,9 +214,8 @@ TaskbarWidget::TaskbarWidget(
 )
     : m_platform(platform), m_configService(config), m_output(output), m_configOptions(std::move(options)),
       m_showAllOutputs(m_configOptions.showAllOutputs), m_dragDropCommand(m_configOptions.dragDropCommand),
-      m_middleClickCommand(m_configOptions.middleClickCommand),
-      m_focusedOutputOnly(m_configOptions.focusedOutputOnly), m_minimal(m_configOptions.minimal),
-      m_showActiveIndicator(m_configOptions.showActiveIndicator),
+      m_middleClickCommand(m_configOptions.middleClickCommand), m_focusedOutputOnly(m_configOptions.focusedOutputOnly),
+      m_minimal(m_configOptions.minimal), m_showActiveIndicator(m_configOptions.showActiveIndicator),
       m_activeIndicatorColor(m_configOptions.activeIndicatorColor), m_activeOpacity(m_configOptions.activeOpacity),
       m_inactiveOpacity(m_configOptions.inactiveOpacity), m_pinnedOpacity(m_configOptions.pinnedOpacity),
       m_focusedColor(m_configOptions.focusedColor), m_occupiedColor(m_configOptions.occupiedColor),
@@ -292,9 +291,7 @@ bool TaskbarWidget::focusWindowThroughCommand(const std::string& windowId) const
   if (!compositors::isNiri() || m_dragDropCommand.empty() || windowId.empty()) {
     return false;
   }
-  return process::runAsync(
-      std::vector<std::string>{m_dragDropCommand, "focus-window", "--window-id", windowId}
-  );
+  return process::runAsync(std::vector<std::string>{m_dragDropCommand, "focus-window", "--window-id", windowId});
 }
 
 bool TaskbarWidget::focusWorkspaceThroughCommand(const Workspace& workspace) const {
@@ -2945,6 +2942,22 @@ void TaskbarWidget::updateModels() {
     }
   }
 
+  if (!m_configOptions.hiddenWorkspaces.empty() && !nextWorkspaces.empty()) {
+    const auto& hiddenNames = m_configOptions.hiddenWorkspaces;
+    // Hidden workspaces still show while active, so switching to one keeps its windows visible.
+    const auto isHidden = [&hiddenNames](const WorkspaceModel& wsm) {
+      return !wsm.workspace.active
+          && !wsm.workspace.name.empty()
+          && std::ranges::find(hiddenNames, wsm.workspace.name) != hiddenNames.end();
+    };
+    std::erase_if(nextTasks, [&](const TaskModel& t) {
+      return std::ranges::any_of(nextWorkspaces, [&](const WorkspaceModel& wsm) {
+        return isHidden(wsm) && taskInWorkspaceGroup(t, wsm);
+      });
+    });
+    std::erase_if(nextWorkspaces, isHidden);
+  }
+
   if (m_onlyActiveWorkspace && !nextWorkspaces.empty()) {
     std::unordered_set<std::string> activeKeys;
     activeKeys.reserve(nextWorkspaces.size() * 3);
@@ -3726,7 +3739,7 @@ ColorSpec TaskbarWidget::workspaceTextColor(const WorkspaceModel& model) const {
     return m_occupiedColor;
   }
 
-  ColorSpec color = widgetForegroundOr(colorSpecFromRole(ColorRole::OnSurfaceVariant));
+  ColorSpec color = m_emptyColor;
   color.alpha *= 0.55F;
   return color;
 }

@@ -56,9 +56,8 @@ namespace ui {
           std::string fnName, std::string firstArg = {}, std::string secondArg = {}, bool coalesceStream = false,
           std::string thirdArg = {}, std::string fourthArg = {}, std::string coalesceStreamKey = {}
       )
-          : fn(std::move(fnName)), arg1(std::move(firstArg)), arg2(std::move(secondArg)),
-            arg3(std::move(thirdArg)), arg4(std::move(fourthArg)), coalesce(coalesceStream),
-            coalesceKey(std::move(coalesceStreamKey)) {}
+          : fn(std::move(fnName)), arg1(std::move(firstArg)), arg2(std::move(secondArg)), arg3(std::move(thirdArg)),
+            arg4(std::move(fourthArg)), coalesce(coalesceStream), coalesceKey(std::move(coalesceStreamKey)) {}
 
       std::string fn;
       std::string arg1;
@@ -147,6 +146,10 @@ namespace ui {
     void releasePointer(const Node* owner);
     [[nodiscard]] bool subtreeOwnsPointer(const Slot& slot) const;
     [[nodiscard]] std::unique_ptr<Node> createControl(const UiTreeNode& desired);
+    // Scroll revealKey. Runs after the scroll's children reconcile, since the key
+    // names one of them.
+    void syncScrollReveal(Slot& slot, const UiTreeNode& desired);
+    [[nodiscard]] static const Slot* findKeyedSlot(const std::vector<Slot>& slots, const std::string& key);
 
     CallbackSink m_sink;
     PathResolver m_resolver;

@@ -97,7 +97,8 @@ namespace shell::dock {
     }
 
     // Pinned-visibility preference for the configured auto-hide mode.
-    [[nodiscard]] bool wantsPinnedVisible(const DockConfig& cfg, const CompositorPlatform& platform, wl_output* output) {
+    [[nodiscard]] bool
+    wantsPinnedVisible(const DockConfig& cfg, const CompositorPlatform& platform, wl_output* output) {
       if (cfg.overviewAutoHide) {
         return overviewAutoHideWantsPinnedVisible(platform);
       }
@@ -113,7 +114,7 @@ namespace shell::dock {
         instance.row->setPosition(instance.row->x(), -instance.scrollOffset);
       } else {
         instance.row->setPosition(-instance.scrollOffset, instance.row->y());
-    }
+      }
     }
 
   } // namespace
@@ -245,7 +246,7 @@ namespace shell::dock {
 
     Renderer& renderer = instance.surface->renderTarget().renderer();
 
-    const auto& cfg = deps.config.config().dock;
+    const auto& cfg = instance.config;
     const bool vert = shell::dock::isVerticalEdge(cfg.position);
 
     const auto w = static_cast<float>(instance.surface->width());
@@ -286,11 +287,11 @@ namespace shell::dock {
       // Clip overflow along the dock while retaining the cross-axis surface room used by magnification.
       auto viewport = ui::inputArea({});
       viewport->setClipChildren(true);
-      viewport->setOnAxisHandler([inst = &instance, &config = deps.config](const InputArea::PointerData& data) {
+      viewport->setOnAxisHandler([inst = &instance](const InputArea::PointerData& data) {
         if (inst->row == nullptr || inst->maxScrollOffset <= 0.0F) {
           return false;
         }
-        const auto& dockConfig = config.config().dock;
+        const auto& dockConfig = inst->config;
         const bool vertical = shell::dock::isVerticalEdge(dockConfig.position);
         const bool mainAxis =
             data.axis == (vertical ? WL_POINTER_AXIS_VERTICAL_SCROLL : WL_POINTER_AXIS_HORIZONTAL_SCROLL);
@@ -340,12 +341,12 @@ namespace shell::dock {
             usesPinnedVisibility && wantsPinnedVisible(cfg, deps.platform, instance.output);
         instance.slideRoot->setOpacity(1.0F);
         const bool startHidden = usesPinnedVisibility ? !instance.smartAutoHidePinnedVisible : cfg.autoHide;
-        instance.hideOpacity = startHidden ? 0.0f : 1.0f;
+        instance.hideOpacity = startHidden ? 0.0F : 1.0F;
         instance.hideTargetOpacity = instance.hideOpacity;
       } else {
-        instance.slideRoot->setOpacity(0.0f);
-        instance.hideOpacity = 1.0f;
-        instance.hideTargetOpacity = 1.0f;
+        instance.slideRoot->setOpacity(0.0F);
+        instance.hideOpacity = 1.0F;
+        instance.hideTargetOpacity = 1.0F;
         instance.animations.animate(
             0.0F, 1.0F, Style::animSlow, Easing::EaseOutCubic,
             [slide = instance.slideRoot](float v) { slide->setOpacity(v); }, {}, instance.slideRoot
@@ -435,8 +436,8 @@ namespace shell::dock {
     applyDockCompositorBlur(instance, cfg);
 
     // Palette reactivity.
-    instance.paletteConn = paletteChanged().connect([inst = &instance, &config = deps.config] {
-      applyPanelPalette(*inst, config.config().dock);
+    instance.paletteConn = paletteChanged().connect([inst = &instance] {
+      applyPanelPalette(*inst, inst->config);
       if (inst->surface)
         inst->surface->requestRedraw();
     });
@@ -470,17 +471,17 @@ namespace shell::dock {
     }
   }
 
-  void revealAutoHideDock(DockInstance& inst, ConfigService& config) {
-    const auto& cfg = config.config().dock;
+  void revealAutoHideDock(DockInstance& inst) {
+    const auto& cfg = inst.config;
     if (!dockUsesAnyAutoHide(cfg) || inst.surface == nullptr || inst.slideRoot == nullptr) {
       return;
     }
 
-    constexpr float kSettledThreshold = 0.999f;
+    constexpr float kSettledThreshold = 0.999F;
     if (inst.hideAnimId != 0 && inst.hideTargetOpacity >= kSettledThreshold) {
       return;
     }
-    inst.hideTargetOpacity = 1.0f;
+    inst.hideTargetOpacity = 1.0F;
     if (inst.hideAnimId != 0) {
       inst.animations.cancel(inst.hideAnimId);
       inst.hideAnimId = 0;
@@ -488,7 +489,7 @@ namespace shell::dock {
 
     const float current = inst.hideOpacity;
     if (current >= kSettledThreshold) {
-      inst.hideOpacity = 1.0f;
+      inst.hideOpacity = 1.0F;
       syncDockAutoHideInputRegion(inst, cfg, DockPanelGeometry{});
       inst.surface->requestRedraw();
       return;
@@ -496,15 +497,14 @@ namespace shell::dock {
 
     inst.hideAnimId = inst.animations.animate(
         current, 1.0F, Style::animNormal, Easing::EaseOutCubic,
-        [&inst, &config](float v) {
+        [&inst](float v) {
           inst.hideOpacity = v;
-          const auto& dockCfg = config.config().dock;
-          syncDockSlideLayerTransform(inst, dockCfg);
-          applyDockCompositorBlur(inst, dockCfg);
+          syncDockSlideLayerTransform(inst, inst.config);
+          applyDockCompositorBlur(inst, inst.config);
         },
         [&inst]() {
-          inst.hideOpacity = 1.0f;
-          inst.hideTargetOpacity = 1.0f;
+          inst.hideOpacity = 1.0F;
+          inst.hideTargetOpacity = 1.0F;
           inst.hideAnimId = 0;
         }
     );
@@ -512,12 +512,12 @@ namespace shell::dock {
     inst.surface->requestRedraw();
   }
 
-  void startHideFadeOut(DockInstance& inst, ConfigService& config) {
-    constexpr float kSettledThreshold = 0.001f;
+  void startHideFadeOut(DockInstance& inst) {
+    constexpr float kSettledThreshold = 0.001F;
     if (inst.hideAnimId != 0 && inst.hideTargetOpacity <= kSettledThreshold) {
       return;
     }
-    inst.hideTargetOpacity = 0.0f;
+    inst.hideTargetOpacity = 0.0F;
     // xdg tooltips are not parent-transformed with the slide; destroy immediately
     // so they cannot remain pinned after auto-hide starts (#4177).
     TooltipManager::instance().forceDestroy();
@@ -527,30 +527,29 @@ namespace shell::dock {
     }
     const float current = inst.hideOpacity;
     if (current <= kSettledThreshold) {
-      inst.hideOpacity = 0.0f;
+      inst.hideOpacity = 0.0F;
       if (inst.surface != nullptr) {
-        syncDockSlideLayerTransform(inst, config.config().dock);
-        applyDockCompositorBlur(inst, config.config().dock);
-        syncDockAutoHideInputRegion(inst, config.config().dock, DockPanelGeometry{});
+        syncDockSlideLayerTransform(inst, inst.config);
+        applyDockCompositorBlur(inst, inst.config);
+        syncDockAutoHideInputRegion(inst, inst.config, DockPanelGeometry{});
         inst.surface->requestRedraw();
       }
       return;
     }
     inst.hideAnimId = inst.animations.animate(
         current, 0.0F, Style::animNormal, Easing::EaseInQuad,
-        [&inst, &config](float v) {
+        [&inst](float v) {
           inst.hideOpacity = v;
-          const auto& cfg = config.config().dock;
-          syncDockSlideLayerTransform(inst, cfg);
-          applyDockCompositorBlur(inst, cfg);
+          syncDockSlideLayerTransform(inst, inst.config);
+          applyDockCompositorBlur(inst, inst.config);
         },
         [&inst]() {
-          inst.hideOpacity = 0.0f;
-          inst.hideTargetOpacity = 0.0f;
+          inst.hideOpacity = 0.0F;
+          inst.hideTargetOpacity = 0.0F;
           inst.hideAnimId = 0;
         }
     );
-    syncDockAutoHideInputRegion(inst, config.config().dock, DockPanelGeometry{});
+    syncDockAutoHideInputRegion(inst, inst.config, DockPanelGeometry{});
     if (inst.surface) {
       inst.surface->requestRedraw();
     }

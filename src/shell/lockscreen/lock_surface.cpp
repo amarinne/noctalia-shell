@@ -1,6 +1,7 @@
 #include "shell/lockscreen/lock_surface.h"
 
 #include "capture/screencopy_capture.h"
+#include "core/log.h"
 #include "core/ui_phase.h"
 #include "dbus/mpris/mpris_art.h"
 #include "dbus/mpris/mpris_service.h"
@@ -12,6 +13,7 @@
 #include "render/render_context.h"
 #include "render/scene/wallpaper_node.h"
 #include "shell/lockscreen/lockscreen_login_box.h"
+#include "shell/lockscreen/lockscreen_session_actions.h"
 #include "shell/lockscreen/lockscreen_widgets_host.h"
 #include "shell/session/session_action_meta.h"
 #include "shell/session/session_action_runner.h"
@@ -25,7 +27,6 @@
 #include "ui/palette.h"
 #include "ui/style.h"
 #include "util/clamp.h"
-#include "util/string_utils.h"
 #include "wayland/wayland_connection.h"
 #include "wayland/wayland_seat.h"
 
@@ -41,6 +42,8 @@
 #include <wayland-client-core.h>
 
 namespace {
+
+  constexpr Logger kLog("lockscreen");
 
   const ext_session_lock_surface_v1_listener kLockSurfaceListener = {
       .configure = &LockSurface::handleConfigure,
@@ -504,6 +507,28 @@ LockSurface::LockSurface(WaylandConnection& connection, ConfigService* config) :
 
   m_loginContentRow->addChild(
       ui::button({
+          .out = &m_passwordRevealButton,
+          .text = "",
+          .glyph = "eye",
+          .glyphSize = 16.0F,
+          .variant = ButtonVariant::Ghost,
+          .onClick =
+              [this]() {
+                if (m_passwordField == nullptr) {
+                  return;
+                }
+                const bool revealed = !m_passwordField->passwordRevealed();
+                m_passwordField->setPasswordRevealed(revealed);
+                if (m_passwordRevealButton != nullptr) {
+                  m_passwordRevealButton->setGlyph(revealed ? "eye-off" : "eye");
+                }
+              },
+          .configure = [](Button& button) { button.setZIndex(2); },
+      })
+  );
+
+  m_loginContentRow->addChild(
+      ui::button({
           .out = &m_loginButton,
           .text = "",
           .glyph = "check",
@@ -557,9 +582,6 @@ LockSurface::LockSurface(WaylandConnection& connection, ConfigService* config) :
 LockSurface::~LockSurface() {
   m_aliveGuard.reset();
   releaseCaptureTextures();
-  if (m_wallpaperTexture.id != 0) {
-    releaseWallpaperTextureRef(m_textureWallpaperPath);
-  }
   m_connection.unregisterSurface(m_surface);
   if (m_lockSurface != nullptr) {
     // If get_lock_surface raced with the output disappearing server-side, some
@@ -647,6 +669,13 @@ void LockSurface::setLockedState(bool locked) {
   }
   m_locked = locked;
   if (m_locked) {
+    // Never carry a revealed password across lock cycles.
+    if (m_passwordField != nullptr) {
+      m_passwordField->setPasswordRevealed(false);
+    }
+    if (m_passwordRevealButton != nullptr) {
+      m_passwordRevealButton->setGlyph("eye");
+    }
     focusPasswordField();
   } else {
     m_inputDispatcher.setFocus(nullptr);
@@ -725,6 +754,15 @@ void LockSurface::setWallpaperFillMode(WallpaperFillMode fillMode) {
     m_wallpaper->setFillMode(m_wallpaperFillMode);
   }
   requestRedraw();
+}
+
+void LockSurface::setWallpaperCoverage(TextureCoverage coverage) {
+  if (m_wallpaperCoverage == coverage) {
+    return;
+  }
+  m_wallpaperCoverage = coverage;
+  m_wallpaperDirty = true;
+  requestLayout();
 }
 
 void LockSurface::setWallpaperFillColor(Color fillColor) {
@@ -1148,6 +1186,9 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
     m_widgetLayer->setVisible(false);
     m_loginPanel->setVisible(false);
     m_passwordField->setVisible(false);
+    if (m_passwordRevealButton != nullptr) {
+      m_passwordRevealButton->setVisible(false);
+    }
     m_loginButton->setVisible(false);
     if (m_infoRow != nullptr) {
       m_infoRow->setVisible(false);
@@ -1176,6 +1217,9 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
   m_loginPanel->setVisible(loginVisible);
   m_loginContentRow->setVisible(loginVisible);
   m_passwordField->setVisible(loginVisible);
+  if (m_passwordRevealButton != nullptr) {
+    m_passwordRevealButton->setVisible(loginVisible);
+  }
   m_loginButton->setVisible(loginVisible && loginStyle.showLoginButton);
 
   const bool regular = loginVisible && loginStyle.layout == lockscreen_login_box::LayoutMode::Regular;
@@ -1444,6 +1488,12 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
     m_loginButton->setGlyphSize(sessionGlyphSize);
   }
 
+  if (m_passwordRevealButton != nullptr) {
+    m_passwordRevealButton->setRadius(Style::scaledRadius(loginStyle.inputRadius));
+    m_passwordRevealButton->setSize(controlHeight, controlHeight);
+    m_passwordRevealButton->setGlyphSize(sessionGlyphSize);
+  }
+
   m_loginPanel->arrange(renderer, LayoutRect{panelX, panelY, panelWidth, panelHeight});
 
   // Auth panel: sibling above/below the login box (flips below when near the top edge).
@@ -1492,6 +1542,9 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
 void LockSurface::updateCopy() {
   m_passwordField->setValue(m_password);
   m_passwordField->setEnabled(!m_authenticating);
+  if (m_passwordRevealButton != nullptr) {
+    m_passwordRevealButton->setEnabled(!m_authenticating);
+  }
   if (m_loginButton != nullptr) {
     m_loginButton->setEnabled(!m_authenticating);
   }
@@ -1528,35 +1581,9 @@ void LockSurface::updateCopy() {
 }
 
 std::vector<SessionPanelActionConfig> LockSurface::resolveSessionActions() const {
-  std::vector<SessionPanelActionConfig> src =
+  const std::vector<SessionPanelActionConfig> src =
       m_config != nullptr ? m_config->config().shell.session.actions : defaultSessionPanelActions();
-
-  std::vector<SessionPanelActionConfig> out;
-  out.reserve(src.size());
-  for (const auto& row : src) {
-    if (!row.enabled) {
-      continue;
-    }
-    if (!session_action::isKnown(row.action)) {
-      continue;
-    }
-    if (row.action == "lock" || row.action == "lock_and_suspend") {
-      continue;
-    }
-    if (row.action == "command" && (!row.command.has_value() || StringUtils::trim(*row.command).empty())) {
-      continue;
-    }
-    out.push_back(row);
-  }
-  if (out.empty()) {
-    for (const auto& row : defaultSessionPanelActions()) {
-      if (row.action == "lock" || row.action == "lock_and_suspend") {
-        continue;
-      }
-      out.push_back(row);
-    }
-  }
-  return out;
+  return lockscreen::resolveSessionActions(src, defaultSessionPanelActions());
 }
 
 void LockSurface::ensureLayoutChipInPasswordRow() {
@@ -1625,8 +1652,9 @@ void LockSurface::rebuildSessionButtons() {
   }
 
   for (const auto& cfg : actions) {
-    const std::string labelText =
-        cfg.label.has_value() && !cfg.label->empty() ? *cfg.label : i18n::tr(session_action::labelKey(cfg.action));
+    const std::string_view labelKey =
+        cfg.action == "lock_and_suspend" ? session_action::labelKey("suspend") : session_action::labelKey(cfg.action);
+    const std::string labelText = cfg.label.has_value() && !cfg.label->empty() ? *cfg.label : i18n::tr(labelKey);
     auto button = ui::button({
         .out = nullptr,
         .text = labelText,
@@ -1833,27 +1861,6 @@ std::string LockSurface::resolveStatusText(const lockscreen_login_box::LoginBoxS
   return {};
 }
 
-void LockSurface::releaseWallpaperTextureRef(const std::string& path) {
-  if (m_wallpaperTexture.id == 0) {
-    return;
-  }
-  const std::string& releasePath = !path.empty() ? path : m_textureWallpaperPath;
-  if (m_textureCache != nullptr && m_textureCache->shared()) {
-    if (releasePath.empty()) {
-      m_wallpaperTexture = {};
-      return;
-    }
-    m_textureCache->release(m_wallpaperTexture, releasePath);
-  } else if (renderContext() != nullptr) {
-    renderContext()->backend().makeCurrentNoSurface();
-    renderContext()->textureManager().unload(m_wallpaperTexture);
-    m_wallpaperTexture = {};
-  }
-  if (m_textureWallpaperPath == releasePath || path.empty()) {
-    m_textureWallpaperPath.clear();
-  }
-}
-
 void LockSurface::applyWallpaperTexture() {
   if (usesDesktopCaptureBackground()) {
     applyBlurredDesktopTexture();
@@ -1869,9 +1876,10 @@ void LockSurface::applyWallpaperTexture() {
   bool loaded = true;
   Color color = rgba(0.0F, 0.0F, 0.0F, 1.0F);
   if (parseColorWallpaperPath(m_wallpaperPath, color)) {
-    if (m_wallpaperTexture.id != 0) {
-      releaseWallpaperTextureRef(m_textureWallpaperPath);
-    }
+    m_wallpaperLease.reset();
+    m_pendingWallpaperLease.reset();
+    m_shownWallpaperPath.clear();
+    m_pendingWallpaperPath.clear();
     if (m_blurredWallpaperTexture.id != 0 && renderContext() != nullptr) {
       renderContext()->backend().makeCurrentNoSurface();
       renderContext()->textureManager().unload(m_blurredWallpaperTexture);
@@ -1885,24 +1893,38 @@ void LockSurface::applyWallpaperTexture() {
     m_wallpaper->setFillMode(m_wallpaperFillMode);
     m_wallpaper->setFillColor(m_wallpaperFillColor);
   } else if (m_textureCache != nullptr && !m_wallpaperPath.empty()) {
-    const bool needsReload = m_wallpaperTexture.id == 0 || m_textureWallpaperPath != m_wallpaperPath;
-    TextureHandle newTexture = m_wallpaperTexture;
-    if (needsReload) {
-      newTexture = m_textureCache->acquire(m_wallpaperPath);
-      if (newTexture.id == 0 && !m_textureCache->shared() && renderContext() != nullptr) {
-        renderContext()->backend().makeCurrentNoSurface();
-        newTexture = renderContext()->textureManager().loadFromFile(m_wallpaperPath, 0, true);
+    m_wallpaperLease.setCoverage(m_wallpaperCoverage);
+    m_pendingWallpaperLease.setCoverage(m_wallpaperCoverage);
+    if (m_shownWallpaperPath == m_wallpaperPath) {
+      m_pendingWallpaperLease.reset();
+      m_pendingWallpaperPath.clear();
+    } else if (m_pendingWallpaperPath != m_wallpaperPath && renderContext() != nullptr) {
+      m_pendingWallpaperLease = m_textureCache->acquire(
+          SharedTextureRequest{.path = m_wallpaperPath, .coverage = m_wallpaperCoverage}, &renderContext()->backend(),
+          [this]() {
+            m_wallpaperDirty = true;
+            requestLayout();
+          }
+      );
+      m_pendingWallpaperPath = m_pendingWallpaperLease.empty() ? std::string{} : m_wallpaperPath;
+    }
+
+    if (!m_pendingWallpaperLease.empty()) {
+      if (m_pendingWallpaperLease.failed()) {
+        kLog.warn("failed to load lockscreen wallpaper {}", m_pendingWallpaperPath);
+        m_pendingWallpaperLease.reset();
+      } else if (m_pendingWallpaperLease.texture().id != 0) {
+        m_wallpaperLease = std::move(m_pendingWallpaperLease);
+        m_shownWallpaperPath = std::move(m_pendingWallpaperPath);
+        m_pendingWallpaperPath.clear();
       }
     }
 
-    if (newTexture.id == 0) {
+    const TextureHandle wallpaperTexture = m_wallpaperLease.texture();
+    if (wallpaperTexture.id == 0) {
       loaded = false;
     } else {
-      if (needsReload && m_wallpaperTexture.id != 0 && m_textureWallpaperPath != m_wallpaperPath) {
-        releaseWallpaperTextureRef(m_textureWallpaperPath);
-      }
-      m_wallpaperTexture = newTexture;
-      m_textureWallpaperPath = m_wallpaperPath;
+      loaded = m_pendingWallpaperLease.empty();
 
       if (m_blurredWallpaperTexture.id != 0 && renderContext() != nullptr) {
         renderContext()->backend().makeCurrentNoSurface();
@@ -1917,11 +1939,11 @@ void LockSurface::applyWallpaperTexture() {
         const std::uint32_t blurWidth = renderTarget().bufferWidth();
         const std::uint32_t blurHeight = renderTarget().bufferHeight();
         m_blurredWallpaperTexture = m_wallpaperBlurCache.get(
-            renderer->backend(), m_wallpaperTexture, blurWidth, blurHeight, blurRadius, kBlurRounds
+            renderer->backend(), wallpaperTexture, blurWidth, blurHeight, blurRadius, kBlurRounds
         );
       }
       const TextureHandle textureToDisplay =
-          m_blurredWallpaperTexture.id != 0 ? m_blurredWallpaperTexture : m_wallpaperTexture;
+          m_blurredWallpaperTexture.id != 0 ? m_blurredWallpaperTexture : wallpaperTexture;
       m_wallpaper->setTextures(
           textureToDisplay.id, {}, static_cast<float>(textureToDisplay.width),
           static_cast<float>(textureToDisplay.height), 0.0F, 0.0F
@@ -1931,9 +1953,10 @@ void LockSurface::applyWallpaperTexture() {
       m_wallpaper->setFillColor(m_wallpaperFillColor);
     }
   } else if (m_wallpaperPath.empty()) {
-    if (m_wallpaperTexture.id != 0) {
-      releaseWallpaperTextureRef(m_textureWallpaperPath);
-    }
+    m_wallpaperLease.reset();
+    m_pendingWallpaperLease.reset();
+    m_shownWallpaperPath.clear();
+    m_pendingWallpaperPath.clear();
     m_wallpaper->setTextures({}, {}, 0.0F, 0.0F, 0.0F, 0.0F);
   } else {
     loaded = false;
@@ -2049,17 +2072,6 @@ void LockSurface::onGpuResourcesInvalidated() {
     m_transitionProgress = 1.0F;
   }
 
-  if (!m_wallpaperPath.empty() && m_textureCache != nullptr) {
-    if (m_textureCache->shared()) {
-      m_wallpaperTexture = m_textureCache->peek(m_wallpaperPath);
-    } else if (renderContext() != nullptr) {
-      renderContext()->backend().textureManager().unload(m_wallpaperTexture);
-      if (!m_wallpaperPath.empty()) {
-        m_wallpaperTexture = renderContext()->backend().textureManager().loadFromFile(m_wallpaperPath, 0, true);
-      }
-    }
-  }
-
   m_captureDirty = true;
   m_wallpaperDirty = true;
   requestLayout();
@@ -2068,7 +2080,6 @@ void LockSurface::onGpuResourcesInvalidated() {
 void LockSurface::prepareForGraphicsReset() noexcept {
   m_blurCache.abandon();
   m_wallpaperBlurCache.abandon();
-  m_wallpaperTexture = {};
   m_blurredWallpaperTexture = {};
   m_captureSourceTexture = {};
   m_blurredDesktopTexture = {};

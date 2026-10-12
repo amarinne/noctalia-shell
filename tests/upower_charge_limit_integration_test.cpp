@@ -32,8 +32,7 @@ namespace {
         bool registerChargeMethod, bool hideChargeMethodUntilReappearance
     )
         : connection(connection), path(std::move(path)), nativePath(std::move(nativePath)), model(std::move(model)),
-          powerSupply(powerSupply),
-          chargeMethodRegistered(registerChargeMethod && !hideChargeMethodUntilReappearance) {
+          powerSupply(powerSupply), chargeMethodRegistered(registerChargeMethod && !hideChargeMethodUntilReappearance) {
       registerObject();
     }
 
@@ -255,10 +254,8 @@ namespace {
   };
 
   template <typename Predicate>
-  void drainUntil(
-      SystemBus& bus, Predicate&& predicate,
-      std::source_location location = std::source_location::current()
-  ) {
+  void
+  drainUntil(SystemBus& bus, Predicate&& predicate, std::source_location location = std::source_location::current()) {
     for (int attempt = 0; attempt < 1000; ++attempt) {
       bus.processPendingEvents();
       if (std::invoke(predicate)) {

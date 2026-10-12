@@ -34,6 +34,13 @@ namespace shell::dock {
     std::int32_t outputLogicalY = 0;
     std::int32_t outputLogicalWidth = 0;
     std::int32_t outputLogicalHeight = 0;
+    DockConfig config;
+    std::string monitorOverrideTable;
+    bool pinnedOverridden = false;
+    std::vector<std::string> lastPinnedConfig;
+    std::vector<DesktopEntry> pinnedEntries;
+    std::uint64_t modelSerial = 0;
+    std::uint64_t entriesVersion = 0;
     std::unique_ptr<LayerSurface> surface;
     // sceneRoot must be destroyed before `animations` — ~Node() calls cancelForOwner().
     AnimationManager animations;
@@ -61,8 +68,8 @@ namespace shell::dock {
     float launcherVisualScale = -1.0F;
     AnimationManager::Id launcherScaleAnimId = 0;
     // Auto-hide: tracks visibility [0,1] driven by hover.
-    float hideOpacity = 1.0f;
-    float hideTargetOpacity = 1.0f;
+    float hideOpacity = 1.0F;
+    float hideTargetOpacity = 1.0F;
     AnimationManager::Id hideAnimId = 0;
     // smart_auto_hide: active workspace empty (or overview open) — keep the dock visible.
     bool smartAutoHidePinnedVisible = false;
@@ -103,7 +110,7 @@ namespace shell::dock {
   void applyPanelPalette(DockInstance& instance, const DockConfig& cfg);
   void syncDockSlideLayerTransform(DockInstance& instance, const DockConfig& cfg);
   void applyDockCompositorBlur(DockInstance& instance, const DockConfig& cfg);
-  void startHideFadeOut(DockInstance& instance, ConfigService& config);
-  void revealAutoHideDock(DockInstance& instance, ConfigService& config);
+  void startHideFadeOut(DockInstance& instance);
+  void revealAutoHideDock(DockInstance& instance);
 
 } // namespace shell::dock
