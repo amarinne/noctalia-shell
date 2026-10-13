@@ -507,28 +507,6 @@ LockSurface::LockSurface(WaylandConnection& connection, ConfigService* config) :
 
   m_loginContentRow->addChild(
       ui::button({
-          .out = &m_passwordRevealButton,
-          .text = "",
-          .glyph = "eye",
-          .glyphSize = 16.0F,
-          .variant = ButtonVariant::Ghost,
-          .onClick =
-              [this]() {
-                if (m_passwordField == nullptr) {
-                  return;
-                }
-                const bool revealed = !m_passwordField->passwordRevealed();
-                m_passwordField->setPasswordRevealed(revealed);
-                if (m_passwordRevealButton != nullptr) {
-                  m_passwordRevealButton->setGlyph(revealed ? "eye-off" : "eye");
-                }
-              },
-          .configure = [](Button& button) { button.setZIndex(2); },
-      })
-  );
-
-  m_loginContentRow->addChild(
-      ui::button({
           .out = &m_loginButton,
           .text = "",
           .glyph = "check",
@@ -669,13 +647,6 @@ void LockSurface::setLockedState(bool locked) {
   }
   m_locked = locked;
   if (m_locked) {
-    // Never carry a revealed password across lock cycles.
-    if (m_passwordField != nullptr) {
-      m_passwordField->setPasswordRevealed(false);
-    }
-    if (m_passwordRevealButton != nullptr) {
-      m_passwordRevealButton->setGlyph("eye");
-    }
     focusPasswordField();
   } else {
     m_inputDispatcher.setFocus(nullptr);
@@ -1186,9 +1157,6 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
     m_widgetLayer->setVisible(false);
     m_loginPanel->setVisible(false);
     m_passwordField->setVisible(false);
-    if (m_passwordRevealButton != nullptr) {
-      m_passwordRevealButton->setVisible(false);
-    }
     m_loginButton->setVisible(false);
     if (m_infoRow != nullptr) {
       m_infoRow->setVisible(false);
@@ -1217,9 +1185,6 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
   m_loginPanel->setVisible(loginVisible);
   m_loginContentRow->setVisible(loginVisible);
   m_passwordField->setVisible(loginVisible);
-  if (m_passwordRevealButton != nullptr) {
-    m_passwordRevealButton->setVisible(loginVisible);
-  }
   m_loginButton->setVisible(loginVisible && loginStyle.showLoginButton);
 
   const bool regular = loginVisible && loginStyle.layout == lockscreen_login_box::LayoutMode::Regular;
@@ -1488,12 +1453,6 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
     m_loginButton->setGlyphSize(sessionGlyphSize);
   }
 
-  if (m_passwordRevealButton != nullptr) {
-    m_passwordRevealButton->setRadius(Style::scaledRadius(loginStyle.inputRadius));
-    m_passwordRevealButton->setSize(controlHeight, controlHeight);
-    m_passwordRevealButton->setGlyphSize(sessionGlyphSize);
-  }
-
   m_loginPanel->arrange(renderer, LayoutRect{panelX, panelY, panelWidth, panelHeight});
 
   // Auth panel: sibling above/below the login box (flips below when near the top edge).
@@ -1542,9 +1501,6 @@ void LockSurface::layoutScene(std::uint32_t width, std::uint32_t height) {
 void LockSurface::updateCopy() {
   m_passwordField->setValue(m_password);
   m_passwordField->setEnabled(!m_authenticating);
-  if (m_passwordRevealButton != nullptr) {
-    m_passwordRevealButton->setEnabled(!m_authenticating);
-  }
   if (m_loginButton != nullptr) {
     m_loginButton->setEnabled(!m_authenticating);
   }

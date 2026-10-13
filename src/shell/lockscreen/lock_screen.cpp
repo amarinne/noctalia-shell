@@ -895,7 +895,7 @@ bool LockScreen::captureDesktopSnapshots() {
 void LockScreen::chooseTransition() {
   m_activeTransition.reset();
   m_transitionParams = {};
-  m_transitionDurationMs = 1500.0F;
+  m_transitionDurationMs = 500.0F;
   if (m_configService == nullptr || m_wayland == nullptr || !m_wayland->hasScreencopy()) {
     return;
   }

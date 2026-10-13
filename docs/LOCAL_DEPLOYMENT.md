@@ -154,7 +154,8 @@ The expected process path is
 - Dock/taskbar idle render-churn guard (`hideTargetOpacity` settling) plus drag-preview clamp to overlay bounds.
 - Native audio volume scroll acceleration (`src/pipewire/volume_scroll_ramp.h`).
 - Launcher `categories` switch, all-apps default view, and 640-by-660 default dimensions.
-- Lockscreen minimal login defaults (compact 300x120 box, hidden caret and placeholder).
+- Lockscreen minimal login defaults (compact 300x60 box, hidden caret, placeholder, and password reveal control).
+- Lockscreen transitions default to 500 ms for faster lock and unlock feedback.
 - Settings window two-pixel outline kept inside the rounded surface.
 - Relocatable install RPATH `$ORIGIN/../lib`.
 

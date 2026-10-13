@@ -169,7 +169,7 @@ private:
   bool m_unlockFinishQueued = false;
   std::optional<LockscreenTransition> m_activeTransition;
   LockscreenTransitionParams m_transitionParams;
-  float m_transitionDurationMs = 1500.0F;
+  float m_transitionDurationMs = 500.0F;
   std::function<void()> m_pendingAfterLocked;
   std::function<void()> m_onSessionLocked;
   std::function<void()> m_onSessionUnlocked;

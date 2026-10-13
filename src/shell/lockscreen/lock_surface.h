@@ -182,7 +182,6 @@ private:
   Label* m_authLabel = nullptr;
   Flex* m_loginContentRow = nullptr;
   Input* m_passwordField = nullptr;
-  Button* m_passwordRevealButton = nullptr;
   Button* m_loginButton = nullptr;
   Button* m_layoutChip = nullptr;
   Flex* m_sessionRow = nullptr;
@@ -202,7 +201,7 @@ private:
   TransitionPhase m_transitionPhase = TransitionPhase::Disabled;
   AnimationManager::Id m_transitionAnimation = 0;
   float m_transitionProgress = 1.0F;
-  float m_transitionDurationMs = 1500.0F;
+  float m_transitionDurationMs = 500.0F;
   float m_blurIntensity = 0.5F;
   float m_tintIntensity = 0.3F;
   float m_regularContentScale = 1.0F;

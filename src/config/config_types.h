@@ -572,7 +572,7 @@ struct LockscreenConfig {
   std::vector<LockscreenTransition> transitions = {LockscreenTransition::Fade, LockscreenTransition::Wipe,
                                                    LockscreenTransition::Disc, LockscreenTransition::Stripes,
                                                    LockscreenTransition::Zoom, LockscreenTransition::Honeycomb};
-  float transitionDurationMs = 1500.0F;
+  float transitionDurationMs = 500.0F;
   float edgeSmoothness = 0.3F;
   float blurIntensity = 0.5F;
   float tintIntensity = 0.3F;

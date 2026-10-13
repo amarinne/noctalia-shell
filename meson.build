@@ -1240,6 +1240,7 @@ if build_tests
     'keyboard_layout_label',
     'lane_selection_token',
     'location_service',
+    'lockscreen_login_box',
     'lockscreen_session_actions',
     'log',
     'math_provider',

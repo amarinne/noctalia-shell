@@ -75,7 +75,8 @@ namespace lockscreen_login_box {
   [[nodiscard]] LayoutMode resolveLayout(std::string_view layout);
 
   constexpr float kCompactInputWidth = 300.0F;
-  constexpr float kCompactInputHeight = 120.0F;
+  // Keep the compact login field short enough to avoid dominating the lock screen.
+  constexpr float kCompactInputHeight = 60.0F;
   constexpr float kCompactDefaultWidthCap = kCompactInputWidth + 2.0F * Style::spaceLg;
   constexpr float kRegularDefaultWidthCap = 810.0F;
   constexpr float kCompactMinPanelWidth = kCompactDefaultWidthCap;
