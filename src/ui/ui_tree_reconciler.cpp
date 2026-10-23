@@ -1500,19 +1500,6 @@ namespace ui {
         warnMistypedOptionalProp(desired, "grabCursor", "a boolean");
       }
       source->setGrabCursor(grabCursor == nullptr || *grabCursor);
-      if (const std::string* onClick = callbackProp(desired, "onClick"); onClick != nullptr) {
-        if (*onClick != slot.callbackName) {
-          slot.callbackName = *onClick;
-          source->setOnClick([this, name = slot.callbackName]() {
-            if (m_sink) {
-              m_sink(ControlCallback{name});
-            }
-          });
-        }
-      } else if (!slot.callbackName.empty()) {
-        slot.callbackName.clear();
-        source->setOnClick(nullptr);
-      }
     } else if (desired.type == "drop_zone") {
       auto* zone = static_cast<DropZone*>(node);
       if (auto error = validateDragDropProps(desired)) {
