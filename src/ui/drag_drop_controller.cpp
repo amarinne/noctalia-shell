@@ -371,8 +371,8 @@ void DragDropController::updatePreview(float sceneX, float sceneY) {
   if (m_preview == nullptr || m_overlayRoot == nullptr) {
     return;
   }
-  float localX = 0.0f;
-  float localY = 0.0f;
+  float localX = 0.0F;
+  float localY = 0.0F;
   // Pointer capture can deliver positions outside the overlay. Use the unbounded
   // transform so the preview still follows the pointer, then clamp it to the
   // overlay so its painted box stays inside (or covers it when oversized).
