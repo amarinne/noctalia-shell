@@ -52,13 +52,14 @@ namespace scripting {
     }
 
     // Each entry kind paired with its TOML array-table name.
-    constexpr std::array<std::pair<PluginEntryKind, std::string_view>, 6> kEntryKinds{{
+    constexpr std::array<std::pair<PluginEntryKind, std::string_view>, 7> kEntryKinds{{
         {PluginEntryKind::Widget, "widget"},
         {PluginEntryKind::Panel, "panel"},
         {PluginEntryKind::Shortcut, "shortcut"},
         {PluginEntryKind::DesktopWidget, "desktop_widget"},
         {PluginEntryKind::LauncherProvider, "launcher_provider"},
         {PluginEntryKind::Service, "service"},
+        {PluginEntryKind::Layer, "layer"},
     }};
 
     ManifestFieldType parseFieldType(std::string_view type) {
@@ -451,11 +452,45 @@ namespace scripting {
               outSize = *number;
               return true;
             }
-            error = "panel entry '" + entry.id + "': " + key + " must be a positive number or \"fill\"";
+            error = "panel entry '"
+                + entry.id
+                + "': "
+                + key
+                + (std::string_view(key) == "height" ? R"( must be a positive number, "fill", or "content")"
+                                                     : R"( must be a positive number or "fill")");
             return false;
           };
-          if (!parsePanelExtent("width", entry.panelWidth, entry.panelWidthFill)
-              || !parsePanelExtent("height", entry.panelHeight, entry.panelHeightFill)) {
+          // height = "content" fits the panel to its rendered tree, up to max_height.
+          if (const auto* height = (*entryTable)["height"].as_string();
+              height != nullptr && height->get() == "content") {
+            if (manifest.pluginApiVersion < kPanelContentHeightPluginApiVersion) {
+              error = "panel entry '"
+                  + entry.id
+                  + R"(': height = "content" requires plugin_api >= )"
+                  + std::to_string(kPanelContentHeightPluginApiVersion);
+              return false;
+            }
+            entry.panelHeightContent = true;
+          } else if (!parsePanelExtent("height", entry.panelHeight, entry.panelHeightFill)) {
+            return false;
+          }
+          if (!parsePanelExtent("width", entry.panelWidth, entry.panelWidthFill)) {
+            return false;
+          }
+          if ((*entryTable)["max_height"]) {
+            const auto maxHeight = tableNumber(*entryTable, "max_height");
+            if (!entry.panelHeightContent) {
+              error = "panel entry '" + entry.id + R"(': max_height requires height = "content")";
+              return false;
+            }
+            if (!maxHeight.has_value() || !std::isfinite(*maxHeight) || *maxHeight <= 0.0) {
+              error = "panel entry '" + entry.id + "': max_height must be a positive number";
+              return false;
+            }
+            entry.panelMaxHeight = *maxHeight;
+          } else if (entry.panelHeightContent) {
+            // The surface is allocated at the maximum for as long as the panel is open.
+            error = "panel entry '" + entry.id + R"(': height = "content" requires max_height)";
             return false;
           }
           if (const std::string placement = tableString(*entryTable, "placement"); !placement.empty()) {
@@ -541,6 +576,10 @@ namespace scripting {
             }
             entry.panelPersistent = persistent->get();
           }
+          if (entry.panelPersistent && entry.panelHeightContent) {
+            error = "panel entry '" + entry.id + R"(': height = "content" is not supported with persistent = true)";
+            return false;
+          }
           if (entry.panelPersistent) {
             // A persistent panel has neither click shield nor focus grab.
             if (entry.panelDismissOnOutsideClick) {
@@ -623,6 +662,40 @@ namespace scripting {
               }
               entry.widgetActions.emplace_back(std::string(gestureKey.str()), *action);
             }
+          }
+          if ((*entryTable)["hover_highlight"]) {
+            if (manifest.pluginApiVersion < kWidgetHoverHighlightPluginApiVersion) {
+              error = "widget entry '"
+                  + entry.id
+                  + "': hover_highlight requires plugin_api >= "
+                  + std::to_string(kWidgetHoverHighlightPluginApiVersion);
+              return false;
+            }
+            const auto* hoverHighlight = (*entryTable)["hover_highlight"].as_boolean();
+            if (hoverHighlight == nullptr) {
+              error = "widget entry '" + entry.id + "': hover_highlight must be a bool";
+              return false;
+            }
+            entry.widgetHoverHighlight = hoverHighlight->get();
+          }
+        }
+        if (kind == PluginEntryKind::Layer) {
+          if (manifest.pluginApiVersion < kLayerEntryPluginApiVersion) {
+            error =
+                "layer entry '" + entry.id + "' requires plugin_api >= " + std::to_string(kLayerEntryPluginApiVersion);
+            return false;
+          }
+          std::string layerError;
+          if (!parsePluginLayerTable(*entryTable, entry.layerConfig, layerError)) {
+            error = "layer entry '" + entry.id + "': " + layerError;
+            return false;
+          }
+          if (const auto visible = (*entryTable)["visible"]) {
+            if (visible.as_boolean() == nullptr) {
+              error = "layer entry '" + entry.id + "': visible must be a bool";
+              return false;
+            }
+            entry.layerVisible = visible.as_boolean()->get();
           }
         }
         if (kind == PluginEntryKind::LauncherProvider) {

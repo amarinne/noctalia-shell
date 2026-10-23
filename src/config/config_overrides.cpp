@@ -173,6 +173,9 @@ namespace {
     if (ovr.autoHide) {
       resolved.autoHide = *ovr.autoHide;
     }
+    if (ovr.autoHideDelayMs) {
+      resolved.autoHideDelayMs = *ovr.autoHideDelayMs;
+    }
     if (ovr.smartAutoHide) {
       resolved.smartAutoHide = *ovr.smartAutoHide;
     }
@@ -410,6 +413,7 @@ namespace {
         && a.audio == b.audio
         && a.brightness == b.brightness
         && a.battery == b.battery
+        && a.bluetooth == b.bluetooth
         && keybindsConfigEqual(a.keybinds, b.keybinds)
         && a.nightlight == b.nightlight
         && a.location == b.location
@@ -570,6 +574,12 @@ namespace {
               row.insert_or_assign(
                   "accordion_direction", std::string(enumToKey(kBarAccordionDirections, item.accordionDirection))
               );
+              if (item.accordionDurationMs.has_value()) {
+                row.insert_or_assign("accordion_duration", static_cast<std::int64_t>(*item.accordionDurationMs));
+              }
+              if (item.accordionDelayMs.has_value()) {
+                row.insert_or_assign("accordion_delay_ms", static_cast<std::int64_t>(*item.accordionDelayMs));
+              }
               if (item.widgetSpacing.has_value()) {
                 row.insert_or_assign("widget_spacing", static_cast<std::int64_t>(*item.widgetSpacing));
               }
@@ -890,6 +900,7 @@ ConfigChangeSet computeConfigChangeSet(const Config& prev, const Config& next) {
       .audio = !(prev.audio == next.audio),
       .brightness = !(prev.brightness == next.brightness),
       .battery = !(prev.battery == next.battery),
+      .bluetooth = !(prev.bluetooth == next.bluetooth),
       .keybinds = !keybindsConfigEqual(prev.keybinds, next.keybinds),
       .nightlight = !(prev.nightlight == next.nightlight),
       .location = !(prev.location == next.location),

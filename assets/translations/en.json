@@ -41,12 +41,13 @@
       "copy": "Copy the annotated image (Ctrl+C)",
       "cursor": "Show the pointer captured with the screen (p)",
       "cursor-capture-failed": "Pointer toggle unavailable: the compositor could not provide a separate cursor image",
-      "cursor-live": "Freeze the screen first to change the captured pointer (F)",
+      "cursor-live": "Freeze the screen first to change the captured pointer (Z)",
       "cursor-not-captured": "Pointer toggle unavailable: this compositor does not support separate cursor capture",
       "done": "Apply the screenshot settings (Enter)",
-      "fill-off": "Shape fill: off",
-      "fill-on": "Shape fill: on",
-      "freeze": "Freeze the screen under the ink (f)",
+      "fill-off": "Shape fill: off (f)",
+      "fill-opaque": "Shape fill: opaque (f)",
+      "fill-semi": "Shape fill: semi-transparent (f)",
+      "freeze": "Freeze the screen under the ink (z)",
       "move-toolbar": "Drag to move the toolbar",
       "redo": "Redo (Ctrl+Shift+Z)",
       "save": "Save the annotated image (Ctrl+S)",
@@ -275,6 +276,7 @@
         "connected": "Connected",
         "paired": "Paired"
       },
+      "trust-and-allow": "Trust and allow",
       "unavailable": "Bluetooth service unavailable",
       "unknown-device": "Unknown device",
       "visible": "Discoverable by nearby devices"
@@ -317,7 +319,8 @@
       "active-player": "Active player",
       "nothing-playing": "Nothing Playing",
       "now-playing": "Now Playing",
-      "start-playback": "Start playback in an MPRIS app"
+      "start-playback": "Start playback in an MPRIS app",
+      "toggle-visualizer": "Toggle visualizer"
     },
     "network": {
       "anonymous-identity": "Anonymous identity (optional)",
@@ -631,10 +634,12 @@
         "show-login-button": "Login Button",
         "show-media": "Media",
         "show-password-hint": "Password Hint",
+        "show-password-reveal": "Password Reveal",
         "show-seconds": "Second Hand",
         "show-session-buttons": "Session Buttons",
         "show-unlock-hint": "Unlock Hint",
         "show-vpn-label": "Show VPN Label",
+        "show-wave": "Show Wave",
         "show-weather": "Weather",
         "show-week-numbers": "Show Week Numbers",
         "show-when-idle": "Show When Idle",
@@ -720,6 +725,34 @@
     }
   },
   "launcher": {
+    "browser": {
+      "actions": {
+        "power": "Power",
+        "settings": "Settings"
+      },
+      "navigation": {
+        "all": "All",
+        "all-apps": "All Apps",
+        "categories": "Categories",
+        "pinned": "Pinned",
+        "providers": "Providers",
+        "recent": "Recent"
+      },
+      "options": {
+        "show-grid": "Show Grid View",
+        "show-list": "Show List View",
+        "sort-by-frequency": "Prioritize Frequent Results",
+        "use-default-order": "Use Default Ordering"
+      },
+      "sections": {
+        "all-apps": "All Apps",
+        "other-apps": "Other Apps",
+        "pinned": "Pinned",
+        "providers": "Providers",
+        "recent": "Recent",
+        "search-results": "Search Results"
+      }
+    },
     "categories": {
       "all": "All",
       "applications": {
@@ -802,34 +835,7 @@
         "title": "Windows"
       }
     },
-    "search-placeholder": "Search applications…",
-    "browser": {
-      "actions": {
-        "power": "Power",
-        "settings": "Settings"
-      },
-      "navigation": {
-        "all-apps": "All Apps",
-        "categories": "Categories",
-        "pinned": "Pinned",
-        "providers": "Providers",
-        "recent": "Recent"
-      },
-      "options": {
-        "show-grid": "Show Grid View",
-        "show-list": "Show List View",
-        "sort-by-frequency": "Prioritize Frequent Results",
-        "use-default-order": "Use Default Ordering"
-      },
-      "sections": {
-        "all-apps": "All Apps",
-        "other-apps": "Other Apps",
-        "pinned": "Pinned",
-        "providers": "Providers",
-        "recent": "Recent",
-        "search-results": "Search Results"
-      }
-    }
+    "search-placeholder": "Search applications…"
   },
   "location": {
     "errors": {
@@ -1030,6 +1036,7 @@
       "lock-and-suspend": "Lock & Suspend",
       "logout": "Log Out",
       "reboot": "Reboot",
+      "reboot-uefi": "Reboot to UEFI",
       "shutdown": "Shut Down",
       "suspend": "Suspend"
     },
@@ -1055,6 +1062,8 @@
     "calendar-accounts": {
       "add-title": "Add Calendar Account",
       "calendars-label": "Calendars",
+      "client-cert-label": "Client Certificate (PEM)",
+      "client-key-label": "Client Key (PEM)",
       "color-label": "Color",
       "credential-source-file": "Password file",
       "credential-source-keyring": "Keyring",
@@ -1156,9 +1165,13 @@
         },
         "group": {
           "accordion": "Accordion",
+          "accordion-delay": "Unfold Delay",
+          "accordion-delay-description": "Milliseconds to hover before the group starts unfolding (0 reacts at once)",
           "accordion-description": "Show only the first widget; hovering the capsule reveals the rest",
-          "accordion-direction": "Reveal direction",
+          "accordion-direction": "Reveal Direction",
           "accordion-direction-description": "Side of the first widget where the hidden widgets unfold",
+          "accordion-duration": "Unfold Time",
+          "accordion-duration-description": "Milliseconds the group takes to unfold on hover (0 is instant)",
           "action": "Group",
           "border": "Border",
           "border-description": "Capsule outline color role; leave on Default for no outline",
@@ -1304,6 +1317,8 @@
       "merged-user-description": "Combines config files and GUI overrides into one TOML file. Built-in defaults stay implicit.",
       "merged-user-save-title": "Save Merged User Config",
       "merged-user-title": "Merged User Config (Recommended)",
+      "privacy-warning-description": "Both export modes may include API keys, passwords, or other sensitive data stored in your config, including by plugins. Treat exported files as private. Review and remove sensitive data before sharing.",
+      "privacy-warning-title": "Exports may contain secrets",
       "title": "Export Config"
     },
     "idle": {
@@ -1345,6 +1360,7 @@
         "background": "Background",
         "battery": "Battery",
         "behavior": "Behavior",
+        "bluetooth": "Bluetooth",
         "borders": "Borders",
         "brightness": "Brightness",
         "built-in": "Built-In",
@@ -1540,10 +1556,15 @@
       },
       "lockscreen": {
         "transition": {
+          "diamond": "Diamond",
           "disc": "Disc",
           "fade": "Fade",
+          "golden": "Golden",
           "honeycomb": "Honeycomb",
+          "melt": "Melt",
+          "pixel": "Pixel",
           "stripes": "Stripes",
+          "vortex": "Vortex",
           "wipe": "Wipe",
           "zoom": "Zoom"
         }
@@ -1582,12 +1603,31 @@
         "top-left": "Top Left",
         "top-right": "Top Right"
       },
+      "screenshot": {
+        "format": {
+          "jpeg": "JPEG",
+          "jxl": "JPEG XL",
+          "png": "PNG",
+          "webp": "WebP"
+        },
+        "region-modifier": {
+          "alt": "Alt",
+          "ctrl": "Ctrl",
+          "none": "None",
+          "shift": "Shift",
+          "super": "Super"
+        }
+      },
       "shell": {
         "launcher-default-view": {
-          "all-apps": "All Apps",
+          "all": "All",
           "categories": "Categories",
           "pinned": "Pinned",
           "recent": "Recent"
+        },
+        "launcher-layout": {
+          "full": "Full",
+          "simple": "Simple"
         },
         "launcher-search-position": {
           "bottom": "Bottom",
@@ -1655,10 +1695,15 @@
           "random": "Random"
         },
         "transition": {
+          "diamond": "Diamond",
           "disc": "Disc",
           "fade": "Fade",
+          "golden": "Golden",
           "honeycomb": "Honeycomb",
+          "melt": "Melt",
+          "pixel": "Pixel",
           "stripes": "Stripes",
+          "vortex": "Vortex",
           "wipe": "Wipe",
           "zoom": "Zoom"
         }
@@ -1669,6 +1714,21 @@
           "metric": "Metric"
         }
       }
+    },
+    "palette-inspector": {
+      "copied": "Copied {value}",
+      "copy-failed": "Could not copy the color to the clipboard.",
+      "copy-hex": "Copy hex value",
+      "copy-name": "Copy color name",
+      "description": "Template colors in {mode} mode.",
+      "empty": "No matching colors.",
+      "filter-all": "All Colors",
+      "filter-palette": "Palette",
+      "filter-terminal": "Terminal",
+      "missing": "Unavailable",
+      "search-placeholder": "Search color names or hex values...",
+      "terminal-number": "{number} · ANSI {index}",
+      "title": "Palette Inspector"
     },
     "plugins": {
       "browse-store": "Browse Plugins",
@@ -1854,6 +1914,11 @@
           "description": "Override automatic locale detection",
           "label": "Language"
         },
+        "palette-inspector": {
+          "button": "Inspect Colors",
+          "description": "View template color names, swatches, and hex values for the active palette",
+          "label": "Palette Inspector"
+        },
         "palette-source": {
           "description": "Where to derive the color palette from",
           "label": "Palette Source"
@@ -1877,6 +1942,10 @@
         "show-close-buttons": {
           "description": "Show close buttons on panels, notification toasts, popups, dialogs, and the settings window",
           "label": "Show Close Buttons"
+        },
+        "sync-color-scheme": {
+          "description": "Set the system dark/light preference read by browsers and other apps to follow Theme Mode",
+          "label": "Sync App Color Scheme"
         },
         "theme-mode": {
           "description": "Choose Dark, Light, or Auto based on time of day; also applies to apps through templates",
@@ -1907,6 +1976,10 @@
       "bar": {
         "auto-hide": {
           "description": "Off keeps the bar visible; On hides it until you move the pointer to the screen edge; Smart shows the bar on an empty workspace and hides it when windows are open"
+        },
+        "auto-hide-delay": {
+          "description": "Wait this many milliseconds after the pointer leaves before hiding the bar; 0 hides immediately (On mode only)",
+          "label": "Auto-Hide Delay"
         },
         "background-opacity": {
           "description": "Background opacity of the bar"
@@ -2608,10 +2681,6 @@
           "description": "Show application action entries alongside applications in results",
           "label": "Show App Actions"
         },
-        "launcher-app-grid": {
-          "description": "Show applications, global search results, and the provider overview as icon grids",
-          "label": "App Grid View"
-        },
         "launcher-app-origin-indicator": {
           "description": "Show package origin indicators on application results",
           "label": "Show App Origin Indicators"
@@ -2619,6 +2688,10 @@
         "launcher-auto-paste": {
           "description": "After calculator, emoji, and other copy activations, paste into the focused window (same shortcuts as clipboard auto-paste)",
           "label": "Auto-Paste"
+        },
+        "launcher-categories": {
+          "description": "Show the All, Recently Used, and category chips under the search field",
+          "label": "Show Categories"
         },
         "launcher-category-icons-only": {
           "description": "Show only icons for app categories, with full names in hover tooltips",
@@ -2635,22 +2708,6 @@
         "launcher-default-view": {
           "description": "Choose the view shown when the launcher opens without a search",
           "label": "Default View"
-        },
-        "launcher-width": {
-          "description": "Set the launcher panel width",
-          "label": "Launcher Width"
-        },
-        "launcher-search-position": {
-          "description": "Place the launcher toolbar at the top or bottom",
-          "label": "Toolbar Position"
-        },
-        "launcher-show-session-button": {
-          "description": "Show a shortcut to the configured session actions",
-          "label": "Show Session Button"
-        },
-        "launcher-show-settings-button": {
-          "description": "Show a shortcut to Noctalia Settings",
-          "label": "Show Settings Button"
         },
         "launcher-global-calculator": {
           "description": "Also show calculator results in unprefixed search",
@@ -2676,9 +2733,17 @@
           "description": "Also show open windows in unprefixed search",
           "label": "Windows in Global Search"
         },
+        "launcher-grid": {
+          "description": "Show results and the provider overview as an icon grid instead of rows",
+          "label": "Grid View"
+        },
         "launcher-ignored-panels": {
           "description": "Panels the panel provider never lists (e.g. authentication prompts, the setup wizard)",
           "label": "Panels Ignored"
+        },
+        "launcher-layout": {
+          "description": "Full adds view tabs and a toolbar with your profile and shortcuts; Simple shows a search field, optional category chips, and results",
+          "label": "Layout"
         },
         "launcher-pinned-apps": {
           "description": "Desktop entry IDs shown in manual order in the Pinned view",
@@ -2717,6 +2782,10 @@
           "description": "Clear launcher history used by Recent and usage-based sorting",
           "label": "Reset Usage Data"
         },
+        "launcher-search-position": {
+          "description": "Place the launcher toolbar at the top or bottom",
+          "label": "Toolbar Position"
+        },
         "launcher-session-search": {
           "description": "Include session actions (lock, suspend, reboot, shutdown, logout) in general launcher searches, not only behind the /session prefix",
           "label": "Enable Session Search"
@@ -2725,6 +2794,14 @@
           "description": "Show application icons in launcher results",
           "label": "Show App Icons"
         },
+        "launcher-show-session-button": {
+          "description": "Show a shortcut to the configured session actions",
+          "label": "Show Session Button"
+        },
+        "launcher-show-settings-button": {
+          "description": "Show a shortcut to Noctalia Settings",
+          "label": "Show Settings Button"
+        },
         "launcher-sort-by-usage": {
           "description": "Prioritize frequently used results in normal browsing and search",
           "label": "Sort by Usage"
@@ -2732,6 +2809,10 @@
         "launcher-track-usage": {
           "description": "Record launcher history for Recent and usage-based sorting",
           "label": "Track Usage"
+        },
+        "launcher-width": {
+          "description": "Set the launcher panel width",
+          "label": "Launcher Width"
         },
         "list-item-background": {
           "description": "Draw a rounded background behind each launcher and clipboard list item",
@@ -2843,6 +2924,10 @@
         "audio-overdrive": {
           "description": "Allow volume above 100%",
           "label": "Audio Overdrive"
+        },
+        "bluetooth-connect-when-enabled": {
+          "description": "Connect paired, trusted devices when Bluetooth turns on, at startup, and after resume",
+          "label": "Connect Devices When Bluetooth Turns On"
         },
         "calendar": {
           "description": "Show events from your online calendar accounts",
@@ -3219,6 +3304,10 @@
           "label": "Custom App Launch Command",
           "placeholder": "$CMD"
         },
+        "niri-overview-close-on-launch": {
+          "description": "Close the overview when an app launches from the launcher while the niri overview is open",
+          "label": "Close on Launch"
+        },
         "niri-overview-type-to-launch": {
           "description": "Open the launcher when typing in niri overview; uses a tiny keyboard-focus surface while overview is open",
           "label": "Type to Launch"
@@ -3266,6 +3355,10 @@
         "osd-kinds-caffeine": {
           "description": "Show an OSD popup when the caffeine (idle inhibitor) state changes",
           "label": "Caffeine"
+        },
+        "osd-kinds-custom": {
+          "description": "Show custom OSD popups sent by plugins or scripts",
+          "label": "Custom"
         },
         "osd-kinds-dnd": {
           "description": "Show an OSD popup when Do Not Disturb is toggled",
@@ -3397,13 +3490,17 @@
           "label": "Copy to Clipboard"
         },
         "screenshot-directory": {
-          "description": "Folder for saved PNG files; leave empty to use the standard XDG Pictures directory",
+          "description": "Folder for saved screenshot files; leave empty to use the standard XDG Pictures directory",
           "label": "Output Directory",
           "placeholder": "XDG Pictures directory"
         },
         "screenshot-filename-pattern": {
-          "description": "strftime pattern without extension (.png is added); use %s for unix epoch",
+          "description": "strftime pattern without extension (the format's extension is added); use %s for unix epoch",
           "label": "Filename Pattern"
+        },
+        "screenshot-format": {
+          "description": "File format for saved screenshots; clipboard copies and pipe commands always receive PNG",
+          "label": "File Format"
         },
         "screenshot-freeze-screen": {
           "description": "Capture the desktop before region selection so moving content stays still",
@@ -3421,17 +3518,41 @@
           "description": "Send the captured PNG to a shell command on stdin",
           "label": "Pipe to Command"
         },
+        "screenshot-quality": {
+          "description": "Compression quality for JPEG, WebP, and JPEG XL files; 100 saves WebP and JPEG XL losslessly",
+          "label": "Quality"
+        },
+        "screenshot-region-border-width": {
+          "description": "Width of the border around the selected region",
+          "label": "Region Border Width"
+        },
+        "screenshot-region-dim-opacity": {
+          "description": "Opacity of the darkened area around the selected region",
+          "label": "Region Dim Opacity"
+        },
+        "screenshot-region-modifier": {
+          "description": "Modifier to move or resize a selected region: left-drag to move, right-drag to resize from the outer thirds (corners resize both axes). None (default) keeps the plain drag-to-adjust behavior",
+          "label": "Move/Resize Modifier"
+        },
         "screenshot-remember-last-region": {
           "description": "Pre-select the last region (including after cancel) on the next region screenshot",
           "label": "Remember Last Region"
         },
         "screenshot-save-to-file": {
-          "description": "Write screenshots as PNG files to the output directory",
+          "description": "Write screenshots to the output directory in the chosen file format",
           "label": "Save to File"
         },
         "screenshot-show-cursor": {
           "description": "Include the mouse pointer in screenshots",
           "label": "Show Cursor"
+        },
+        "screenshot-show-region-dimensions": {
+          "description": "Show the size badge while resizing or moving a region",
+          "label": "Show Region Dimensions"
+        },
+        "screenshot-show-region-hint": {
+          "description": "Show the confirm hint with keybinds (Copy, Save, Cancel) while confirming a region",
+          "label": "Show Region Hint"
         },
         "screenshot-skip-annotate-on-copy-save": {
           "description": "Copy and Save in the region overlay deliver immediately; Enter and Space still open the editor",
@@ -3461,6 +3582,14 @@
         "time-format": {
           "description": "Default time format for shell UI without its own setting",
           "label": "Time Format"
+        },
+        "umbriel-audio-provider": {
+          "description": "Share the audio spectrum with Umbriel effects, even without a visualizer widget",
+          "label": "Provide Audio to Umbriel"
+        },
+        "umbriel-overview-close-on-launch": {
+          "description": "Close the overview when an app launches from the launcher while the umbriel overview is open",
+          "label": "Close on Launch"
         },
         "umbriel-overview-type-to-launch": {
           "description": "Open the launcher when typing in umbriel overview; uses a tiny keyboard-focus surface while overview is open",
@@ -3640,6 +3769,8 @@
       "success": "Private storage was reset successfully."
     },
     "templates": {
+      "documentation": "Documentation",
+      "readme": "Readme",
       "store": {
         "browse": "Browse Templates",
         "categories": "Categories",
@@ -3662,7 +3793,7 @@
         "command-placeholder": "Shell command",
         "commands": {
           "annotate": {
-            "description": "Draw on the screen over running apps; press F or the Freeze button to capture the background",
+            "description": "Draw on the screen over running apps; press Z or the Freeze button to capture the background",
             "label": "Annotate screen"
           },
           "bar-auto-hide-set": {
@@ -3941,6 +4072,10 @@
             "description": "Enable OSD popups",
             "label": "Enable OSD"
           },
+          "osd-show": {
+            "description": "Show a custom OSD popup",
+            "label": "Show custom OSD"
+          },
           "osd-toggle": {
             "description": "Toggle OSD popups",
             "label": "Toggle OSD"
@@ -3984,6 +4119,10 @@
           "screenshot-region": {
             "description": "Start an interactive region screenshot",
             "label": "Region screenshot"
+          },
+          "screenshot-window": {
+            "description": "Capture the focused window",
+            "label": "Window screenshot"
           },
           "session": {
             "description": "Run a built-in session action",
@@ -4710,6 +4849,10 @@
           "description": "Fill the widget background to show playback progress",
           "label": "Show Playback Progress"
         },
+        "show-running": {
+          "description": "Show running windows that are not in the pinned list",
+          "label": "Show Running"
+        },
         "show-scroll-lock": {
           "description": "Show Scroll Lock state",
           "label": "Show Scroll Lock"
@@ -4733,6 +4876,10 @@
         "show-vpn-label": {
           "description": "Replaces network label with VPN label in Replace mode; adds VPN label next to VPN icon in Both mode",
           "label": "Show VPN Label"
+        },
+        "show-wave": {
+          "description": "Display as a filled-area wave instead of discrete bars",
+          "label": "Show Wave"
         },
         "show-when-idle": {
           "description": "Keep the visualizer visible even when no media is playing",

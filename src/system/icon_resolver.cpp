@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <gio/gio.h>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -202,6 +203,10 @@ namespace {
       signature += std::to_string(dir.size);
       signature += dir.scalable ? ":scalable:" : ":fixed:";
       signature += dir.theme;
+      signature += ':';
+      signature += std::to_string(dir.minSize);
+      signature += ':';
+      signature += std::to_string(dir.maxSize);
       signature += '\n';
     }
     for (const auto& dir : plan.pixmapDirs) {
@@ -220,7 +225,7 @@ namespace {
       if (ec) {
         signature += "missing";
       } else {
-        signature += std::to_string(modified.time_since_epoch().count());
+        signature += std::to_string(static_cast<std::int64_t>(modified.time_since_epoch().count()));
       }
       signature += '\n';
     };
@@ -344,6 +349,9 @@ namespace {
       std::string path;
       int size = 0;
       int maxSize = 0;
+      int minSize = 0;
+      int threshold = 2;
+      std::string type = "Threshold";
       bool scalable = false;
     };
 
@@ -376,12 +384,25 @@ namespace {
         }
       }
       if (const auto it = section->find("Type"); it != section->end()) {
-        entry.scalable = (it->second == "Scalable" || it->second == "Threshold");
+        entry.type = it->second;
+        entry.scalable = (entry.type == "Scalable" || entry.type == "Threshold");
       }
       if (const auto it = section->find("MaxSize"); it != section->end()) {
-        // For threshold/scalable dirs, MaxSize gives a better sense of actual size
         try {
           entry.maxSize = std::stoi(it->second);
+        } catch (...) {
+        }
+      }
+      entry.minSize = entry.size;
+      if (const auto it = section->find("MinSize"); it != section->end()) {
+        try {
+          entry.minSize = std::stoi(it->second);
+        } catch (...) {
+        }
+      }
+      if (const auto it = section->find("Threshold"); it != section->end()) {
+        try {
+          entry.threshold = std::max(0, std::stoi(it->second));
         } catch (...) {
         }
       }
@@ -402,7 +423,25 @@ namespace {
     sortedPaths.reserve(dirNames.size());
     for (const auto& name : dirNames) {
       const auto& entry = dirMap[name];
-      sortedPaths.push_back(IconSearchDir{.path = name, .size = entry.size, .scalable = entry.scalable, .theme = {}});
+      int minSize = entry.size;
+      int maxSize = entry.size;
+      if (entry.type == "Threshold") {
+        minSize = std::max(1, entry.size - entry.threshold);
+        maxSize = entry.size + entry.threshold;
+      } else if (entry.type == "Scalable") {
+        minSize = entry.minSize;
+        maxSize = entry.maxSize > 0 ? entry.maxSize : entry.size;
+      }
+      sortedPaths.push_back(
+          IconSearchDir{
+              .path = name,
+              .size = entry.size,
+              .scalable = entry.scalable,
+              .theme = {},
+              .minSize = minSize,
+              .maxSize = std::max(minSize, maxSize)
+          }
+      );
     }
 
     return {sortedPaths, inherits};
@@ -417,6 +456,8 @@ namespace {
     }
     visited.insert(themeName);
 
+    std::vector<std::string> roots;
+    std::vector<IconSearchDir> dirs;
     std::vector<std::string> parents;
     for (const auto& base : baseDirs) {
       const std::string themeRoot = base + "/" + themeName;
@@ -424,9 +465,22 @@ namespace {
         continue;
       }
       pushUnique(themeRoots, themeRoot);
+      roots.push_back(themeRoot);
+      if (dirs.empty()) {
+        auto [parsedDirs, inherits] = parseIndexTheme(themeRoot);
+        if (!parsedDirs.empty()) {
+          dirs = std::move(parsedDirs);
+          parents = std::move(inherits);
+        } else {
+          for (const auto& parent : inherits) {
+            pushUnique(parents, parent);
+          }
+        }
+      }
+    }
 
-      auto [dirs, inherits] = parseIndexTheme(themeRoot);
-
+    // The first index.theme describes every root of this logical theme.
+    for (const auto& themeRoot : roots) {
       if (dirs.empty()) {
         // No index.theme — fall back to common paths so the theme isn't silently skipped
         for (const char* path :
@@ -439,7 +493,9 @@ namespace {
                   .path = themeRoot + path,
                   .size = sizeFromDirName(name),
                   .scalable = name.contains("scalable"),
-                  .theme = themeName
+                  .theme = themeName,
+                  .minSize = sizeFromDirName(name),
+                  .maxSize = sizeFromDirName(name)
               }
           );
         }
@@ -451,14 +507,12 @@ namespace {
                   .path = themeRoot + "/" + dir.path + "/",
                   .size = dir.size,
                   .scalable = dir.scalable,
-                  .theme = themeName
+                  .theme = themeName,
+                  .minSize = dir.minSize,
+                  .maxSize = dir.maxSize
               }
           );
         }
-      }
-
-      for (const auto& parent : inherits) {
-        pushUnique(parents, parent);
       }
     }
     for (const auto& parent : parents) {
@@ -627,6 +681,55 @@ const std::string& IconResolver::resolve(const std::string& iconName, int target
   }
   auto [ins, _] = m_cache.emplace(key, icon);
   return ins->second;
+}
+
+std::string IconResolver::resolveStatusVector(const std::string& iconName, int targetSize) {
+  if (iconName.empty()) {
+    return {};
+  }
+  const std::string normal = resolve(iconName, std::max(1, targetSize));
+  const auto isStatusVector = [](std::string_view path) {
+    return path.ends_with(".svg") && (path.contains("/status/") || path.contains("/panel/"));
+  };
+  if (!isStatusVector(normal)) {
+    return {};
+  }
+  if (iconName.front() == '/') {
+    return normal;
+  }
+
+  const auto owner = std::ranges::find_if(m_searchDirs, [&](const IconSearchDir& dir) {
+    return dir.path + iconName + ".svg" == normal;
+  });
+  if (owner == m_searchDirs.end()) {
+    return normal;
+  }
+
+  targetSize = std::max(1, targetSize);
+  std::string best = normal;
+  int bestDistance = std::numeric_limits<int>::max();
+  int bestNominalDistance = std::numeric_limits<int>::max();
+  for (const auto& dir : m_searchDirs) {
+    if (dir.theme != owner->theme) {
+      continue;
+    }
+    const std::string path = dir.path + iconName + ".svg";
+    if (!isStatusVector(path) || !pathExists(path)) {
+      continue;
+    }
+
+    // Prefer the allowed range, then its nominal artwork size. Equal candidates
+    // retain the existing directory and base-root order.
+    const int distance = dir.size > 0 ? std::max({0, dir.minSize - targetSize, targetSize - dir.maxSize})
+                                      : std::numeric_limits<int>::max();
+    const int nominalDistance = dir.size > 0 ? std::abs(dir.size - targetSize) : std::numeric_limits<int>::max();
+    if (distance < bestDistance || (distance == bestDistance && nominalDistance < bestNominalDistance)) {
+      best = path;
+      bestDistance = distance;
+      bestNominalDistance = nominalDistance;
+    }
+  }
+  return best;
 }
 
 void IconResolver::invalidateMissingCache() { m_missingCache.clear(); }

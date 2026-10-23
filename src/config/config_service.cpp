@@ -651,6 +651,7 @@ void ConfigService::fireReloadCallbacks() {
     add(m_lastChange.audio, "audio");
     add(m_lastChange.brightness, "brightness");
     add(m_lastChange.battery, "battery");
+    add(m_lastChange.bluetooth, "bluetooth");
     add(m_lastChange.keybinds, "keybinds");
     add(m_lastChange.nightlight, "nightlight");
     add(m_lastChange.location, "location");
@@ -964,6 +965,8 @@ BarConfig ConfigService::resolveForOutput(const BarConfig& base, const WaylandOu
       resolved.enabled = *ovr.enabled;
     if (ovr.autoHide)
       resolved.autoHide = *ovr.autoHide;
+    if (ovr.autoHideDelayMs)
+      resolved.autoHideDelayMs = *ovr.autoHideDelayMs;
     if (ovr.smartAutoHide)
       resolved.smartAutoHide = *ovr.smartAutoHide;
     if (ovr.showOnWorkspaceSwitch)

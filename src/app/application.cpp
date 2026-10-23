@@ -2,6 +2,7 @@
 
 #include "app/main_loop.h"
 #include "compositors/compositor_detect.h"
+#include "compositors/umbriel/umbriel_audio_provider.h"
 #include "config/config_types.h"
 #include "core/build_info.h"
 #include "core/deferred_call.h"
@@ -181,6 +182,9 @@ Application::Application()
 }
 
 Application::~Application() {
+  m_compositorPlatform.setOutputPowerChangeCallback({});
+  ++m_outputPowerRequestGeneration;
+  m_lockScreen.cancelOutputPowerOff();
   ColorPickerDialog::setPresenter(nullptr);
   GlyphPickerDialog::setPresenter(nullptr);
   FileDialog::setPresenter(nullptr);
@@ -232,6 +236,7 @@ void Application::run(std::function<void()> startupReadyCallback) {
         m_pluginServiceHost.refresh(m_configService.config().plugins.pluginSettings);
         reloadPluginLauncherProviders();
         reloadPluginPanels();
+        reloadPluginLayers();
         m_settingsWindow.onPluginsChanged();
       }
     });
@@ -244,6 +249,7 @@ void Application::run(std::function<void()> startupReadyCallback) {
       m_bar.reload();
       reloadPluginLauncherProviders();
       reloadPluginPanels();
+      reloadPluginLayers();
       m_settingsWindow.onPluginsChanged();
     });
     // A git-source enable exports on a worker thread; redraw the plugins list so the

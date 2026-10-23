@@ -24,11 +24,17 @@ public:
   void setPayload(std::string value);
   void setEnabled(bool enabled);
   void setTooltip(std::string_view text);
-  void setOnClick(std::function<void()> callback);
   void setDropHandler(DropHandler handler) { m_dropHandler = std::move(handler); }
   void setSourceOpacity(float opacity);
   void setPreviewAncestor(std::size_t levels);
   void setLiftFromLayout(bool enabled);
+  // Hover cursor: the grab hand (a grip's affordance) or the plain pointer (a
+  // whole item that is also clickable). Dragging always shows the grabbing hand.
+  void setGrabCursor(bool enabled);
+  // Tap handler: a press released before the drag threshold. Lets a source
+  // that wraps a whole item stay clickable (its input area covers the item).
+  void setOnClick(std::function<void()> handler);
+  void fireClick();
   void setDragging(bool dragging);
   void setSize(float width, float height) override;
 
@@ -49,6 +55,7 @@ protected:
 private:
   void applyVisualState();
   void applyTooltip();
+  void applyCursor();
   void updateInputArea();
 
   DragDropController* m_controller = nullptr;
@@ -58,9 +65,10 @@ private:
   std::string m_tooltip;
   std::function<void()> m_onClick;
   DropHandler m_dropHandler;
-  float m_sourceOpacity = 1.0f;
+  float m_sourceOpacity = 1.0F;
   std::size_t m_previewAncestor = 0;
   bool m_enabled = true;
   bool m_dragging = false;
+  bool m_grabCursor = true;
   bool m_liftFromLayout = false;
 };

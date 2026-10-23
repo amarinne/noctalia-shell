@@ -68,6 +68,7 @@ namespace noctalia::config::schema {
         field(&OsdKindsConfig::media, "media"),
         field(&OsdKindsConfig::privacy, "privacy"),
         field(&OsdKindsConfig::keyboardBacklight, "keyboard_backlight"),
+        field(&OsdKindsConfig::custom, "custom"),
     };
     return s;
   }
@@ -514,6 +515,13 @@ namespace noctalia::config::schema {
     return s;
   }
 
+  const Schema<BluetoothConfig>& bluetoothSchema() {
+    static const Schema<BluetoothConfig> s = {
+        field(&BluetoothConfig::connectWhenEnabled, "connect_when_enabled"),
+    };
+    return s;
+  }
+
   namespace {
     const Schema<ShortcutConfig>& shortcutSchema() {
       static const Schema<ShortcutConfig> s = {field(&ShortcutConfig::type, "type")};
@@ -524,6 +532,13 @@ namespace noctalia::config::schema {
       static const Schema<ControlCenterConfig::CalendarTabConfig> s = {
           field(&ControlCenterConfig::CalendarTabConfig::showEventsCard, "show_events_card"),
           field(&ControlCenterConfig::CalendarTabConfig::showWeekNumbers, "show_week_numbers"),
+      };
+      return s;
+    }
+
+    const Schema<ControlCenterConfig::MediaTabConfig>& mediaTabSchema() {
+      static const Schema<ControlCenterConfig::MediaTabConfig> s = {
+          field(&ControlCenterConfig::MediaTabConfig::showVisualizer, "show_visualizer"),
       };
       return s;
     }
@@ -538,6 +553,7 @@ namespace noctalia::config::schema {
         field(&ControlCenterConfig::showSessionButton, "show_session_button"),
         field(&ControlCenterConfig::hiddenTabs, "hidden_tabs"),
         subTable(&ControlCenterConfig::calendarTab, "calendar", calendarTabSchema()),
+        subTable(&ControlCenterConfig::mediaTab, "media", mediaTabSchema()),
         arrayOf<ControlCenterConfig, ShortcutConfig>(
             &ControlCenterConfig::shortcuts, "shortcuts", shortcutSchema(),
             [](const ShortcutConfig& sc) { return !sc.type.empty(); }
@@ -660,9 +676,19 @@ namespace noctalia::config::schema {
               }
           ),
           pathStringField(&CalendarConfig::Account::passwordFile, "password_file"),
+          pathStringField(&CalendarConfig::Account::clientCertFile, "client_cert_file"),
+          pathStringField(&CalendarConfig::Account::clientKeyFile, "client_key_file"),
           pathStringField(&CalendarConfig::Account::path, "path"),
           finalize<CalendarConfig::Account>([](CalendarConfig::Account& out, std::string_view parentPath,
                                                Diagnostics& diag) {
+            if (out.type != "caldav") {
+              if (!out.clientCertFile.empty()) {
+                diag.error(joinPath(parentPath, "client_cert_file"), "client_cert_file is only valid for caldav");
+              }
+              if (!out.clientKeyFile.empty()) {
+                diag.error(joinPath(parentPath, "client_key_file"), "client_key_file is only valid for caldav");
+              }
+            }
             if (out.type == "vdir") {
               if (out.credentialSource != CalendarCredentialSource::SecretService) {
                 diag.error(joinPath(parentPath, "credential_source"), "credential_source is only valid for caldav");
@@ -719,6 +745,20 @@ namespace noctalia::config::schema {
               }
             } else if (!out.passwordFile.empty()) {
               diag.error(joinPath(parentPath, "password_file"), R"(password_file requires credential_source = "file")");
+            }
+            if (!out.clientCertFile.empty() || !out.clientKeyFile.empty()) {
+              if (out.clientCertFile.empty()) {
+                diag.error(joinPath(parentPath, "client_key_file"), "client_key_file without client_cert_file");
+              } else if (!std::filesystem::path(out.clientCertFile).is_absolute()) {
+                diag.error(
+                    joinPath(parentPath, "client_cert_file"), "client_cert_file must resolve to an absolute path"
+                );
+              }
+              if (out.clientKeyFile.empty()) {
+                diag.error(joinPath(parentPath, "client_cert_file"), "client_cert_file without client_key_file");
+              } else if (!std::filesystem::path(out.clientKeyFile).is_absolute()) {
+                diag.error(joinPath(parentPath, "client_key_file"), "client_key_file must resolve to an absolute path");
+              }
             }
             if (out.provider.empty()) {
               diag.error(
@@ -1292,6 +1332,7 @@ namespace noctalia::config::schema {
         enumField(&ThemeConfig::mode, "mode", kThemeModes),
         enumField(&ThemeConfig::shellMode, "shell_mode", kShellThemeModes),
         field(&ThemeConfig::pureBlackDark, "pure_black_dark"),
+        field(&ThemeConfig::syncColorScheme, "sync_color_scheme"),
         subTable(&ThemeConfig::templates, "templates", templatesSchema()),
     };
     return s;
@@ -1436,6 +1477,7 @@ namespace noctalia::config::schema {
 
     const Schema<ShellConfig::LauncherConfig>& shellLauncherSchema() {
       static const Schema<ShellConfig::LauncherConfig> s = {
+          enumField(&ShellConfig::LauncherConfig::layout, "layout", ShellConfig::kLauncherLayouts),
           field(&ShellConfig::LauncherConfig::width, "width", noctalia::config::schema::kLauncherWidthRange),
           enumField(
               &ShellConfig::LauncherConfig::searchPosition, "search_position", ShellConfig::kLauncherSearchPositions
@@ -1513,6 +1555,14 @@ namespace noctalia::config::schema {
           field(&ShellConfig::ScreenshotConfig::freezeScreen, "freeze_screen"),
           field(&ShellConfig::ScreenshotConfig::confirmRegion, "confirm_region"),
           field(&ShellConfig::ScreenshotConfig::rememberLastRegion, "remember_last_region"),
+          enumField(&ShellConfig::ScreenshotConfig::regionModifier, "region_modifier", kScreenshotRegionModifiers),
+          field(
+              &ShellConfig::ScreenshotConfig::regionBorderWidth, "region_border_width",
+              kScreenshotRegionBorderWidthRange
+          ),
+          field(&ShellConfig::ScreenshotConfig::regionDimOpacity, "region_dim_opacity", kUnitRange),
+          field(&ShellConfig::ScreenshotConfig::showRegionHint, "show_region_hint"),
+          field(&ShellConfig::ScreenshotConfig::showRegionDimensions, "show_region_dimensions"),
           field(&ShellConfig::ScreenshotConfig::showCursor, "show_cursor"),
           field(&ShellConfig::ScreenshotConfig::annotate, "annotate"),
           field(&ShellConfig::ScreenshotConfig::skipAnnotateOnCopySave, "skip_annotate_on_copy_save"),
@@ -1522,6 +1572,8 @@ namespace noctalia::config::schema {
           field(&ShellConfig::ScreenshotConfig::pipeCommand, "pipe_command"),
           field(&ShellConfig::ScreenshotConfig::directory, "directory"),
           field(&ShellConfig::ScreenshotConfig::filenamePattern, "filename_pattern"),
+          enumField(&ShellConfig::ScreenshotConfig::format, "format", kScreenshotFormats),
+          field(&ShellConfig::ScreenshotConfig::quality, "quality", kScreenshotQualityRange),
       };
       return s;
     }
@@ -1658,6 +1710,9 @@ namespace noctalia::config::schema {
         field(&ShellConfig::setupWizardEnabled, "setup_wizard_enabled"),
         field(&ShellConfig::niriOverviewTypeToLaunchEnabled, "niri_overview_type_to_launch_enabled"),
         field(&ShellConfig::umbrielOverviewTypeToLaunchEnabled, "umbriel_overview_type_to_launch_enabled"),
+        field(&ShellConfig::umbrielAudioProviderEnabled, "umbriel_audio_provider_enabled"),
+        field(&ShellConfig::niriOverviewCloseOnLaunchEnabled, "niri_overview_close_on_launch_enabled"),
+        field(&ShellConfig::umbrielOverviewCloseOnLaunchEnabled, "umbriel_overview_close_on_launch_enabled"),
         field(&ShellConfig::polkitAgent, "polkit_agent"),
         enumField(&ShellConfig::passwordMaskStyle, "password_style", kPasswordMaskStyles),
         field(&ShellConfig::readlineShortcuts, "readline_shortcuts"),
@@ -2164,6 +2219,10 @@ namespace noctalia::config::schema {
           field(&BarCapsuleGroupStyle::opacity, "opacity", kBarOpacityRange),
           field(&BarCapsuleGroupStyle::accordion, "accordion"),
           enumField(&BarCapsuleGroupStyle::accordionDirection, "accordion_direction", kBarAccordionDirections),
+          optionalIntField(
+              &BarCapsuleGroupStyle::accordionDurationMs, "accordion_duration", kBarCapsuleAccordionMsRange
+          ),
+          optionalIntField(&BarCapsuleGroupStyle::accordionDelayMs, "accordion_delay_ms", kBarCapsuleAccordionMsRange),
           optionalIntField(&BarCapsuleGroupStyle::widgetSpacing, "widget_spacing"),
       };
       return s;
@@ -2367,6 +2426,7 @@ namespace noctalia::config::schema {
     static const Schema<BarConfig> s = {
         field(&BarConfig::enabled, "enabled"),
         field(&BarConfig::autoHide, "auto_hide"),
+        field(&BarConfig::autoHideDelayMs, "auto_hide_delay_ms", kBarAutoHideDelayMsRange),
         field(&BarConfig::smartAutoHide, "smart_auto_hide"),
         field(&BarConfig::showOnWorkspaceSwitch, "show_on_workspace_switch"),
         field(&BarConfig::reserveSpace, "reserve_space"),
@@ -2426,6 +2486,7 @@ namespace noctalia::config::schema {
         field(&BarMonitorOverride::position, "position"),
         optionalBoolField(&BarMonitorOverride::enabled, "enabled"),
         optionalBoolField(&BarMonitorOverride::autoHide, "auto_hide"),
+        optionalIntField(&BarMonitorOverride::autoHideDelayMs, "auto_hide_delay_ms", kBarAutoHideDelayMsRange),
         optionalBoolField(&BarMonitorOverride::smartAutoHide, "smart_auto_hide"),
         optionalBoolField(&BarMonitorOverride::showOnWorkspaceSwitch, "show_on_workspace_switch"),
         optionalBoolField(&BarMonitorOverride::reserveSpace, "reserve_space"),

@@ -155,6 +155,10 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                               ),
                           }
                       ),
+                      field<&Options::showRunning>({
+                          .key = "show_running",
+                          .presentation = presentation("taskbar.windows", matches("group_by_workspace", {"false"})),
+                      }),
                       field<&Options::onlyActiveWorkspace>({
                           .key = "only_active_workspace",
                           .presentation = presentation("taskbar.grouping", std::nullopt, true),
@@ -200,25 +204,21 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                               .key = "group_single_icon_per_app",
                               .presentation = presentation(
                                   "taskbar.grouping",
-                                  all(
-                                      {
-                                          {"group_by_workspace", {"true"}},
-                                          {"workspace_group_content", {"icons"}},
-                                      }
-                                  ),
+                                  all({
+                                      {"group_by_workspace", {"true"}},
+                                      {"workspace_group_content", {"icons"}},
+                                  }),
                                   true
                               ),
                           }
                       ),
-                      field<&Options::workspaceGroupCapsule>(
-                          {
-                              .key = "workspace_group_capsule",
-                              .presentation = presentation(
-                                  "taskbar.grouping", groupedOnly(), true,
-                                  "settings.widgets.settings.workspace-group-capsule.description"
-                              ),
-                          }
-                      ),
+                      field<&Options::workspaceGroupCapsule>({
+                          .key = "workspace_group_capsule",
+                          .presentation = presentation(
+                              "taskbar.grouping", groupedOnly(), true,
+                              "settings.widgets.settings.workspace-group-capsule.description"
+                          ),
+                      }),
                       field<&Options::showWorkspaceLabel>({
                           .key = "show_workspace_label",
                           .presentation = presentation("taskbar.workspace-labels", groupedOnly(), true),

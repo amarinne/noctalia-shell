@@ -26,8 +26,11 @@ public:
   void setValue(std::string value);
   void setOnDrop(std::string value);
   void setEnabled(bool enabled);
-  void setDragOver(bool dragOver, float draggedHeight = 0.0F);
+  // While targeted, an expandOnDrag zone grows along its thin axis: a narrow
+  // marker between row members widens, a short rule between rows grows taller.
+  void setDragOver(bool dragOver, float draggedWidth = 0.0F, float draggedHeight = 0.0F);
   void setExpandOnDrag(bool enabled);
+  void setCollapsedWidth(float width);
   void setCollapsedHeight(float height);
   void setHitSlop(float hitSlop);
   void setDropHandler(DropHandler handler) { m_dropHandler = std::move(handler); }
@@ -51,6 +54,9 @@ public:
 
 private:
   void applyVisualState();
+  [[nodiscard]] bool expandsAlongWidth() const;
+  void animateWidth(float target);
+  void applyAnimatedWidth(float width);
   void animateHeight(float target);
   void applyAnimatedHeight(float height);
 
@@ -62,11 +68,14 @@ private:
   ColorSpec m_zoneFill = clearColorSpec();
   ColorSpec m_zoneBorder = clearColorSpec();
   float m_zoneBorderWidth = 0.0F;
+  float m_collapsedWidth = 0.0F;
+  float m_animatedWidth = 0.0F;
   float m_collapsedHeight = 0.0F;
   float m_animatedHeight = 0.0F;
   float m_hitSlop = 0.0F;
   float m_zoneRadius = 0.0F;
   float m_idleRadius = 0.0F;
+  std::uint32_t m_widthAnimation = 0;
   std::uint32_t m_heightAnimation = 0;
   bool m_hasZoneFill = false;
   bool m_hasZoneBorder = false;

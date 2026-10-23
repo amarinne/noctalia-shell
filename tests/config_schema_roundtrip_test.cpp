@@ -198,6 +198,7 @@ location = "https://example.invalid/bad"
     bar.position = "bottom";
     bar.enabled = false;
     bar.autoHide = true;
+    bar.autoHideDelayMs = 300000;
     bar.smartAutoHide = false;
     bar.showOnWorkspaceSwitch = true;
     bar.reserveSpace = false;
@@ -273,6 +274,7 @@ location = "https://example.invalid/bad"
     ovr.position = "top";
     ovr.enabled = true;
     ovr.autoHide = false;
+    ovr.autoHideDelayMs = 5000;
     ovr.smartAutoHide = false;
     ovr.showOnWorkspaceSwitch = true;
     ovr.reserveSpace = true;
@@ -364,6 +366,7 @@ location = "https://example.invalid/bad"
     c.osd.monitors = {"DP-1", "HDMI-A-1"};
     c.osd.kinds.lockKeys = false;
     c.osd.kinds.keyboardLayout = false;
+    c.osd.kinds.custom = false;
     c.backdrop = BackdropConfig{true, 0.8F, 0.2F};
     c.lockscreen = LockscreenConfig{
         .lockBeforeSuspend = false,
@@ -449,10 +452,12 @@ location = "https://example.invalid/bad"
     };
     c.battery.warningThreshold = 15;
     c.battery.deviceThresholds = {{"BAT0", 10}, {"hidpp:1", 25}};
+    c.bluetooth.connectWhenEnabled = true;
     c.controlCenter.sidebarMode = ControlCenterSidebarMode::Full;
     c.controlCenter.sidebarSectionMode = ControlCenterSidebarMode::None;
     c.controlCenter.calendarTab.showEventsCard = false;
     c.controlCenter.calendarTab.showWeekNumbers = true;
+    c.controlCenter.mediaTab.showVisualizer = false;
     c.controlCenter.shortcuts = {{"wifi"}, {"bluetooth"}};
     c.calendar.enabled = true;
     c.calendar.dedupeEvents = true;
@@ -528,10 +533,12 @@ location = "https://example.invalid/bad"
     c.shell.panel.transparencyMode = PanelTransparencyMode::Glass;
     c.shell.panel.floatingLayer = "top";
     c.shell.panel.launcherPlacement = PanelPlacement::Floating;
+    c.shell.launcher.layout = ShellConfig::LauncherLayout::Simple;
     c.shell.launcher.width = 680;
     c.shell.launcher.categories = false;
     c.shell.launcher.searchPosition = ShellConfig::LauncherSearchPosition::Bottom;
     c.shell.launcher.defaultView = ShellConfig::LauncherDefaultView::Categories;
+    c.shell.launcher.categories = false;
     c.shell.launcher.categoryIconsOnly = true;
     c.shell.launcher.showSettingsButton = false;
     c.shell.launcher.showSessionButton = false;
@@ -563,6 +570,13 @@ location = "https://example.invalid/bad"
     c.shell.screenshot.pipeToCommand = true;
     c.shell.screenshot.skipAnnotateOnCopySave = true;
     c.shell.screenshot.closeOnSave = false; // non-default (default is true) so the round-trip exercises it
+    c.shell.screenshot.regionModifier = ScreenshotRegionModifier::Super;
+    c.shell.screenshot.regionBorderWidth = 4.0F;
+    c.shell.screenshot.regionDimOpacity = 0.8F;
+    c.shell.screenshot.showRegionHint = false;
+    c.shell.screenshot.showRegionDimensions = false;
+    c.shell.screenshot.format = ScreenshotFormat::Webp;
+    c.shell.screenshot.quality = 75;
     c.shell.session.actions = {
         SessionPanelActionConfig{
             "lock",
@@ -699,7 +713,7 @@ location = "https://example.invalid/bad"
     // Invalid transition values are surfaced instead of silently changing the
     // configured effect pool.
     {
-      auto t = toml::parse(R"(transition = ["fade", "unknown", 3])");
+      auto t = toml::parse(R"(transition = ["fade", "Fade", "unknown", 3])");
       LockscreenConfig lockscreen{};
       Diagnostics d;
       readInto(t, lockscreen, lockscreenSchema(), "lockscreen", d);
@@ -709,8 +723,8 @@ location = "https://example.invalid/bad"
       const auto warnings = std::ranges::count_if(d.entries, [](const Diagnostics::Entry& entry) {
         return entry.severity == Diagnostics::Severity::Warning && entry.path.starts_with("lockscreen.transition[");
       });
-      if (warnings != 2) {
-        fail("lockscreen.transition: invalid entries were not reported");
+      if (warnings != 3) {
+        fail("lockscreen.transition: invalid or incorrectly-cased entries were not reported");
       }
     }
     // Grace period is strictly opt-in: a config that never mentions the key keeps
@@ -1130,6 +1144,7 @@ int main() {
 
 [default]
 auto_hide = true
+auto_hide_delay_ms = 300000
 background_opacity = 0.85000002384185791
 border = "#123456"
 border_width = 2.0
@@ -1191,6 +1206,7 @@ widget_spacing = 8
 
     [default.monitor.DP-1]
     auto_hide = false
+    auto_hide_delay_ms = 5000
     background_opacity = 0.69999998807907104
     border = "#A1A2A3"
     border_width = 3.0

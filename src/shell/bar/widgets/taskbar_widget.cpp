@@ -894,6 +894,12 @@ void TaskbarWidget::applyPinnedMerge(std::vector<TaskModel>& tasks) {
   tasks = std::move(merged);
 }
 
+void TaskbarWidget::dropUnpinnedTasks(std::vector<TaskModel>& tasks, bool showRunning) {
+  if (!showRunning) {
+    std::erase_if(tasks, [](const TaskModel& task) { return !task.pinned; });
+  }
+}
+
 void TaskbarWidget::create() {
   auto container = ui::inputArea({});
 
@@ -3012,6 +3018,7 @@ void TaskbarWidget::updateModels() {
       return a.handleKey < b.handleKey;
     });
     applyPinnedMerge(nextTasks);
+    dropUnpinnedTasks(nextTasks, m_configOptions.showRunning);
   }
 
   const ModelComparison comparison =
