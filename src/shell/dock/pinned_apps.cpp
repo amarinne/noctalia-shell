@@ -12,14 +12,14 @@ namespace shell::dock::pinned_apps {
 
     constexpr Logger kLog("dock");
 
-    [[nodiscard]] std::string legacyStemLower(const DesktopEntry& entry) {
+    std::string legacyStemLower(const DesktopEntry& entry) {
       const auto slash = entry.id.rfind('/');
       const auto base = (slash == std::string::npos) ? entry.id : entry.id.substr(slash + 1);
       const auto dot = base.rfind('.');
       return StringUtils::toLower((dot == std::string::npos) ? base : base.substr(0, dot));
     }
 
-    [[nodiscard]] DesktopEntry placeholderEntry(std::string_view pinnedId, std::string_view pinnedLower) {
+    DesktopEntry placeholderEntry(std::string_view pinnedId, std::string_view pinnedLower) {
       DesktopEntry placeholder;
       placeholder.id = std::string(pinnedId);
       placeholder.name = std::string(pinnedId);
@@ -65,7 +65,7 @@ namespace shell::dock::pinned_apps {
         return !entry.hidden && !entry.noDisplay && matchesEntryLower(entry, pinnedLower);
       });
 
-      DesktopEntry entry = match != entries.end() ? *match : [&]() {
+      DesktopEntry entry = match != entries.end() ? *match : [&] {
         kLog.debug("pinned app not found: {}", pinnedId);
         return placeholderEntry(pinnedId, pinnedLower);
       }();

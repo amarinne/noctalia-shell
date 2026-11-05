@@ -4,10 +4,10 @@
 #include "config/config_service.h"
 #include "core/log.h"
 #include "i18n/i18n.h"
+#include "launcher/fuzzy_match.h"
 #include "launcher/launcher_provider.h"
 #include "shell/panel/panel_manager.h"
 #include "system/desktop_entry_launch.h"
-#include "util/fuzzy_match.h"
 #include "util/string_utils.h"
 
 #include <algorithm>
@@ -160,12 +160,13 @@ namespace {
     return {};
   }
 
-  std::string originGlyph(DesktopEntryOrigin origin) {
+  std::string_view originGlyph(DesktopEntryOrigin origin) {
     switch (origin) {
     case DesktopEntryOrigin::Flatpak:
     case DesktopEntryOrigin::Snap:
-    case DesktopEntryOrigin::AppImage:
       return "package";
+    case DesktopEntryOrigin::AppImage:
+      return "settings-automation";
     case DesktopEntryOrigin::Unknown:
     case DesktopEntryOrigin::User:
     case DesktopEntryOrigin::System:
@@ -250,6 +251,7 @@ std::vector<LauncherResult> AppProvider::query(std::string_view text) const {
     LauncherResult result;
     result.id = entry.path;
     result.desktopEntryPath = entry.path;
+    result.appIcon = true;
     result.title = entry.name;
     result.subtitle = entry.genericName.empty() ? entry.comment : entry.genericName;
     result.origin = originLabel(entry.origin);

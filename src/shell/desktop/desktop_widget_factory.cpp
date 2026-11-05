@@ -11,6 +11,7 @@
 #include "shell/desktop/widgets/desktop_fancy_audio_visualizer_widget.h"
 #include "shell/desktop/widgets/desktop_label_widget.h"
 #include "shell/desktop/widgets/desktop_login_box_widget.h"
+#include "shell/desktop/widgets/desktop_lyrics_widget.h"
 #include "shell/desktop/widgets/desktop_media_player_widget.h"
 #include "shell/desktop/widgets/desktop_sticker_widget.h"
 #include "shell/desktop/widgets/desktop_sysmon_widget.h"
@@ -184,8 +185,8 @@ namespace {
 
 DesktopWidgetFactory::DesktopWidgetFactory(DesktopWidgetRuntimeServices services)
     : m_calendar(services.calendar), m_pipewire(services.pipewire), m_pipewireSpectrum(services.pipewireSpectrum),
-      m_weather(services.weather), m_mpris(services.mpris), m_httpClient(services.httpClient),
-      m_sysmon(services.sysmon), m_scriptDeps(services.scriptDeps) {}
+      m_weather(services.weather), m_mpris(services.mpris), m_lyrics(services.lyrics),
+      m_httpClient(services.httpClient), m_sysmon(services.sysmon), m_scriptDeps(services.scriptDeps) {}
 
 std::unique_ptr<DesktopWidget> DesktopWidgetFactory::create(
     const std::string& type, const std::unordered_map<std::string, WidgetSettingValue>& settings, float contentScale
@@ -196,6 +197,7 @@ std::unique_ptr<DesktopWidget> DesktopWidgetFactory::create(
         DesktopCalendarWidget::Options{
             .showEvents = getBoolSetting(settings, "show_events", true),
             .showWeekNumbers = getBoolSetting(settings, "show_week_numbers", false),
+            .showEventsLocation = getBoolSetting(settings, "show_events_location", false),
         }
     );
     applyCommonSettings(*widget, settings);
@@ -325,6 +327,38 @@ std::unique_ptr<DesktopWidget> DesktopWidgetFactory::create(
     return widget;
   }
 
+  if (type == "lyrics") {
+    if (m_mpris == nullptr || m_lyrics == nullptr) {
+      kLog.warn("desktop widget factory: lyrics requires MprisService and LyricsService");
+      return nullptr;
+    }
+    const int lineCount = getIntSetting(settings, "line_count", 3);
+    if (lineCount < 1 || lineCount > 15) {
+      kLog.warn("desktop widget factory: lyrics line_count must be between 1 and 15");
+      return nullptr;
+    }
+    const int syncOffsetMs = getIntSetting(settings, "sync_offset_ms", 0);
+    if (syncOffsetMs < -10000 || syncOffsetMs > 10000) {
+      kLog.warn("desktop widget factory: lyrics sync_offset_ms must be between -10000 and 10000");
+      return nullptr;
+    }
+    auto widget = std::make_unique<DesktopLyricsWidget>(
+        *m_mpris, *m_lyrics,
+        DesktopLyricsWidget::Options{
+            .lineCount = lineCount,
+            .syncOffsetMs = syncOffsetMs,
+            .color = getColorSpecSetting(settings, "color", colorSpecFromRole(ColorRole::OnSurfaceVariant)),
+            .activeColor = getColorSpecSetting(settings, "active_color", colorSpecFromRole(ColorRole::Primary)),
+            .shadow = getBoolSetting(settings, "shadow", true),
+            .hideWhenNoMedia = getBoolSetting(settings, "hide_when_no_media", false),
+            .hideWhenIdle = getBoolSetting(settings, "hide_when_idle", false),
+        }
+    );
+    applyCommonSettings(*widget, settings);
+    widget->setContentScale(contentScale);
+    return widget;
+  }
+
   if (type == "label") {
     auto widget = std::make_unique<DesktopLabelWidget>(DesktopLabelWidget::Options{
         .title = getStringSetting(settings, "title", "Title"),
@@ -411,6 +445,10 @@ std::unique_ptr<DesktopWidget> DesktopWidgetFactory::create(
             .networkSpeedLabelStyle = getBoolSetting(settings, "network_speed_compact", false)
                 ? FormatUnits::ByteRateLabelStyle::Compact
                 : FormatUnits::ByteRateLabelStyle::Full,
+            .networkSpeedDecimalPlaces = std::clamp(
+                getIntSetting(settings, "network_speed_decimal_places", 1),
+                FormatUnits::kMinCompactByteRateDecimalPlaces, FormatUnits::kMaxCompactByteRateDecimalPlaces
+            ),
             .showLabel = getBoolSetting(settings, "show_label", true),
             .labelMinWidth = getFloatSetting(settings, "label_min_width", 0.0F),
             .shadow = getBoolSetting(settings, "shadow", true),

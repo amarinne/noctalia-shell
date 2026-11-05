@@ -74,6 +74,7 @@ No special linker is required. The default linker from the compiler driver is fi
 - Do **not** enable `-Dnative_optimizations=true` for distro packages (CPU-local codegen; not portable).
 - Tests: `-Dtests=disabled` (or leave `auto`, which skips tests for release).
 - `jemalloc`: recommended on glibc; Meson feature option `-Djemalloc=auto|enabled|disabled`. Only used on glibc builds.
+- `system_libraries`: `-Dsystem_libraries=true` links system copies of the vendored libraries instead of building `third_party/`. See [Vendored](#vendored-no-system-package) for the expected layout.
 
 Prefix/datadir are baked into the binary via `NOCTALIA_INSTALL_PREFIX` / `NOCTALIA_INSTALL_DATADIR`. Install with the same prefix you configured.
 
@@ -114,7 +115,9 @@ Noctalia resolves the asset root in this order:
 5. `../share/noctalia/assets` relative to the executable
 6. the compiled install path from Meson (`<prefix>/<datadir>/noctalia/assets`)
 
-A candidate is only accepted if it contains `emoji.json`, `fonts/noctalia-tabler.ttf`, `templates/builtin.toml`, and `translations/en.json`. If none qualifies, Noctalia logs a warning and uses the compiled install path.
+A candidate is only accepted if it contains `translations/en.json`. If none qualifies, Noctalia logs a warning and uses the compiled install path.
+
+The shared UI library's own assets (the glyph font and its metadata, `lib/assets/` in the source tree) are installed into the same `share/noctalia/assets/` directory, so a bundle that copies the installed asset directory carries them. A binary run from a build directory finds them in the source tree's `lib/assets/`.
 
 Not shipped (don’t look for them in the install): AppStream / metainfo XML, man pages, systemd units.
 
@@ -136,7 +139,7 @@ No Qt or GTK. UI is Wayland + OpenGL ES (EGL/GLES, or `libepoxy` as a fallback w
 
 ### Build-time (required)
 
-Canonical list is the `dependency(...)` / header checks in [`meson.build`](meson.build). Distro package names differ; [BUILDING.md](BUILDING.md) has copy-paste install lines for common distros.
+Canonical list is the `dependency(...)` / header checks in [`meson.build`](meson.build) and [`lib/meson.build`](lib/meson.build) (the shared UI library). Distro package names differ; [BUILDING.md](BUILDING.md) has copy-paste install lines for common distros.
 
 Notes packagers hit often:
 
@@ -145,7 +148,18 @@ Notes packagers hit often:
 
 ### Vendored (no system package)
 
-Shipped under `third_party/`: Wuffs, Luau, fzy, Material Color Utilities. Each carries its own license file beside the code.
+Shipped under `third_party/`: Luau, fzy, Material Color Utilities; Wuffs ships under `lib/third_party/`, beside the shared UI library that uses it. Each carries its own license file beside the code.
+
+With `-Dsystem_libraries=true`, Meson uses system copies of all four instead; the option is all-or-nothing. None of them ship pkg-config files, so Meson finds them by library and header name on the compiler search paths:
+
+| Library                  | Libraries                                                                             | Headers                          |
+| ------------------------ | ------------------------------------------------------------------------------------- | -------------------------------- |
+| Wuffs                    | none (single-file release, compiled into Noctalia)                                    | `wuffs-v0.4.c`                   |
+| fzy                      | `libfzy` (built from `src/match.c`)                                                   | `fzy/match.h`                    |
+| Material Color Utilities | `libmaterial-color-utilities` (C++ implementation)                                    | `cpp/...` (upstream layout)      |
+| Luau                     | `libLuau.Compiler`, `libLuau.Bytecode`, `libLuau.Ast`, `libLuau.VM`, `libLuau.Common` | `lua.h`, `lualib.h`, `luacode.h` |
+
+Vendored versions: Wuffs 0.4.0-alpha.9, Luau 0.742 (0.724 also builds), fzy 1.1, Material Color Utilities C++ at upstream commit `1a34bd2` with abseil replaced by the standard library and missing standard includes added. The public headers do not use abseil, so a system copy built with or without abseil links the same way. Plugins only get the Luau language features of the linked release.
 
 ### Runtime
 
@@ -164,9 +178,11 @@ Shipped under `third_party/`: Wuffs, Luau, fzy, Material Color Utilities. Each c
 
 ## Startup and IPC
 
-No systemd user unit is shipped. Typical startup is compositor autostart or the desktop entry (`noctalia --daemon`). Control a running instance with `noctalia msg ...` (Unix socket under `XDG_RUNTIME_DIR`).
+Typical startup is compositor autostart or the desktop entry (`noctalia --daemon`). Control a running instance with `noctalia msg ...` (Unix socket under `XDG_RUNTIME_DIR`).
 
 Keep the `.desktop` daemon Exec unless you intentionally package a different session integration. Prefer the canonical description above for `Comment=` / AppStream summary as well.
+
+An experimental systemd user service is provided in `<prefix>/share/noctalia/assets/noctalia.service`. See `docs/user/compositor-settings/systemd-service.mdx` for details.
 
 ## Session conflicts
 

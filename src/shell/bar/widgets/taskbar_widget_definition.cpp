@@ -59,6 +59,10 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                           .key = "middle_click_command",
                           .presentation = presentation("taskbar.windows"),
                       }),
+                      field<&Options::colorizeIcons>({
+                          .key = "colorize_icons",
+                          .presentation = presentation("taskbar.windows"),
+                      }),
                       field<&Options::showActiveIndicator>({
                           .key = "show_active_indicator",
                           .presentation = presentation("taskbar.windows"),
@@ -86,6 +90,10 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                           .minValue = 0.1,
                           .maxValue = 2.0,
                           .step = 0.05,
+                          .presentation = presentation("taskbar.windows"),
+                      }),
+                      field<&Options::preferSymbolicIcons>({
+                          .key = "prefer_symbolic_icons",
                           .presentation = presentation("taskbar.windows"),
                       }),
                       field<&Options::itemSpacing>({
@@ -120,24 +128,19 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                           .key = "show_window_title",
                           .presentation = presentation("taskbar.windows", matches("group_by_workspace", {"false"})),
                       }),
-                      field<&Options::windowTitleMaxWidth>(
-                          {
-                              .key = "window_title_max_width",
-                              .minValue = 10.0,
-                              .maxValue = 200.0,
-                              .step = 1.0,
-                              .presentation =
-                                  presentation(
-                                      "taskbar.windows",
-                                      all(
-                                          {
-                                              {"show_window_title", {"true"}},
-                                              {"group_by_workspace", {"false"}},
-                                          }
-                                      )
-                                  ),
-                          }
-                      ),
+                      field<&Options::windowTitleMaxWidth>({
+                          .key = "window_title_max_width",
+                          .minValue = 10.0,
+                          .maxValue = 200.0,
+                          .step = 1.0,
+                          .presentation = presentation(
+                              "taskbar.windows",
+                              all({
+                                  {"show_window_title", {"true"}},
+                                  {"group_by_workspace", {"false"}},
+                              })
+                          ),
+                      }),
                       field<&Options::taskbarMaxWidth>(
                           {
                               .key = "taskbar_max_width",
@@ -199,6 +202,14 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                               .presentation = presentation("taskbar.grouping", groupedOnly(), true),
                           }
                       ),
+                      field<&Options::workspaceGroupActiveBorderColor>({
+                          .key = "workspace_group_active_border_color",
+                          .presentation = presentation("taskbar.grouping", groupedOnly(), true),
+                      }),
+                      field<&Options::workspaceGroupInactiveBorderColor>({
+                          .key = "workspace_group_inactive_border_color",
+                          .presentation = presentation("taskbar.grouping", groupedOnly(), true),
+                      }),
                       field<&Options::groupSingleIconPerApp>(
                           {
                               .key = "group_single_icon_per_app",
@@ -260,19 +271,17 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                               ),
                           }
                       ),
-                      field<&Options::focusedOutputOnly>(
-                          {
-                              .key = "focused_output_only",
-                              .presentation = presentation(
-                                  "taskbar.workspace-labels",
-                                  all({
-                                      {"group_by_workspace", {"true"}},
-                                      {"show_workspace_label", {"true"}},
-                                  }),
-                                  true, "settings.widgets.settings.focused-output-only.taskbar-description"
-                              ),
-                          }
-                      ),
+                      field<&Options::focusedOutputOnly>({
+                          .key = "focused_output_only",
+                          .presentation = presentation(
+                              "taskbar.workspace-labels",
+                              all({
+                                  {"group_by_workspace", {"true"}},
+                                  {"show_workspace_label", {"true"}},
+                              }),
+                              true, "settings.widgets.settings.focused-output-only.taskbar-description"
+                          ),
+                      }),
                       field<&Options::focusedColor>({
                           .key = "focused_color",
                           .presentation = presentation("taskbar.workspace-labels", groupedOnly(), true),
@@ -300,6 +309,6 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                       },
                   },
               },
-          };
+  };
   return definition;
 }

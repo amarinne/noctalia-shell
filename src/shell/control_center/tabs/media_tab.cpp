@@ -13,10 +13,11 @@
 #include "shell/control_center/tab.h"
 #include "shell/panel/panel_button_style.h"
 #include "shell/panel/panel_manager.h"
+#include "shell/visuals/audio_visualizer.h"
 #include "ui/builders.h"
 #include "ui/controls/context_menu.h"
 #include "ui/controls/context_menu_popup.h"
-#include "ui/visuals/audio_visualizer.h"
+#include "ui/controls/image.h"
 
 #include <algorithm>
 #include <chrono>
@@ -55,16 +56,18 @@ namespace {
   constexpr auto kProgressSettleHold = std::chrono::milliseconds(2500);
   constexpr auto kPendingSeekTimeout = std::chrono::milliseconds(5000);
 
-  std::string playPauseGlyph(const std::string& playbackStatus) {
+  std::string_view playPauseGlyph(const std::string& playbackStatus) {
     return playbackStatus == "Playing" ? "media-pause" : "media-play";
   }
 
-  [[nodiscard]] int mediaTabArtDecodeSize(float scale) {
+  int mediaTabArtDecodeSize(float scale) {
     // Match the widest artwork layout bound (see mediaWidth in doLayout).
     return static_cast<int>(std::round(kMediaUnit * 11.0F * scale));
   }
 
-  std::string repeatGlyph(const std::string& loopStatus) { return loopStatus == "Track" ? "repeat-once" : "repeat"; }
+  std::string_view repeatGlyph(const std::string& loopStatus) {
+    return loopStatus == "Track" ? "repeat-once" : "repeat";
+  }
 
   ButtonVariant toggleVariant(bool active) { return active ? ButtonVariant::Primary : ButtonVariant::Ghost; }
   constexpr int kVisualizerBandCount = 32;
@@ -139,7 +142,7 @@ void MediaTab::openPlayerMenu() {
   PanelManager::instance().beginAttachedPopup(parentCtx->surface);
   PanelManager::instance().setActivePopup(m_playerMenuPopup.get());
 
-  m_playerMenuPopup->setOnDismissed([parentSurface = parentCtx->surface]() {
+  m_playerMenuPopup->setOnDismissed([parentSurface = parentCtx->surface] {
     PanelManager::instance().clearActivePopup();
     PanelManager::instance().endAttachedPopup(parentSurface);
   });
@@ -159,7 +162,7 @@ void MediaTab::openPlayerMenu() {
               },
           .parent =
               PopupSurfaceParent{
-                  .layerSurface = parentCtx->layerSurface,
+                  .attach = parentCtx->attach,
                   .output = parentCtx->output,
               },
           .pointerParentSurface = parentCtx->surface,
@@ -218,7 +221,7 @@ std::unique_ptr<Flex> MediaTab::create() {
           .minWidth = Style::controlHeightSm * scale,
           .minHeight = Style::controlHeightSm * scale,
           .padding = Style::spaceXs * scale,
-          .onClick = [this]() {
+          .onClick = [this] {
             if (m_playerBusNames.empty()) {
               return;
             }
@@ -287,6 +290,7 @@ std::unique_ptr<Flex> MediaTab::create() {
           .trackHeight = 7.0F * scale,
           .thumbSize = 16.0F * scale,
           .controlHeight = (Style::controlHeight + Style::spaceXs) * scale,
+          .wheelAdjustEnabled = false,
           .onValueChanged =
               [this](double value) {
                 if (m_syncingProgress || m_mpris == nullptr) {
@@ -305,7 +309,7 @@ std::unique_ptr<Flex> MediaTab::create() {
                 m_progressSettleUntil = now + kProgressSettleHold;
               },
           .onDragEnd =
-              [this]() {
+              [this] {
                 if (m_syncingProgress || m_mpris == nullptr || m_progressSlider == nullptr) {
                   return;
                 }
@@ -328,15 +332,15 @@ std::unique_ptr<Flex> MediaTab::create() {
           .minHeight = kMediaControlsHeight * scale,
           .padding = Style::spaceSm * scale,
           .radius = Style::scaledRadiusLg(scale),
-          .onClick = [this]() {
+          .onClick = [this] {
             const std::weak_ptr<void> aliveGuard = m_aliveGuard;
-            DeferredCall::callLater([this, aliveGuard]() {
+            DeferredCall::callLater([this, aliveGuard] {
               if (aliveGuard.expired() || m_mpris == nullptr) {
                 return;
               }
               const auto current = m_mpris->loopStatusActive().value_or("None");
               const std::string next = current == "None" ? "Playlist" : (current == "Playlist" ? "Track" : "None");
-              (void)m_mpris->setLoopStatusActive(next);
+              m_mpris->setLoopStatusActive(next);
               PanelManager::instance().refresh();
             });
           },
@@ -352,13 +356,13 @@ std::unique_ptr<Flex> MediaTab::create() {
           .minHeight = kMediaControlsHeight * scale,
           .padding = Style::spaceSm * scale,
           .radius = Style::scaledRadiusLg(scale),
-          .onClick = [this]() {
+          .onClick = [this] {
             const std::weak_ptr<void> aliveGuard = m_aliveGuard;
-            DeferredCall::callLater([this, aliveGuard]() {
+            DeferredCall::callLater([this, aliveGuard] {
               if (aliveGuard.expired() || m_mpris == nullptr) {
                 return;
               }
-              (void)m_mpris->previousActive();
+              m_mpris->previousActive();
               PanelManager::instance().refresh();
             });
           },
@@ -374,13 +378,13 @@ std::unique_ptr<Flex> MediaTab::create() {
           .minHeight = kMediaPlayPauseHeight * scale,
           .padding = Style::spaceSm * scale,
           .radius = Style::scaledRadiusLg(scale),
-          .onClick = [this]() {
+          .onClick = [this] {
             const std::weak_ptr<void> aliveGuard = m_aliveGuard;
-            DeferredCall::callLater([this, aliveGuard]() {
+            DeferredCall::callLater([this, aliveGuard] {
               if (aliveGuard.expired() || m_mpris == nullptr) {
                 return;
               }
-              (void)m_mpris->playPauseActive();
+              m_mpris->playPauseActive();
               PanelManager::instance().refresh();
             });
           },
@@ -396,13 +400,13 @@ std::unique_ptr<Flex> MediaTab::create() {
           .minHeight = kMediaControlsHeight * scale,
           .padding = Style::spaceSm * scale,
           .radius = Style::scaledRadiusLg(scale),
-          .onClick = [this]() {
+          .onClick = [this] {
             const std::weak_ptr<void> aliveGuard = m_aliveGuard;
-            DeferredCall::callLater([this, aliveGuard]() {
+            DeferredCall::callLater([this, aliveGuard] {
               if (aliveGuard.expired() || m_mpris == nullptr) {
                 return;
               }
-              (void)m_mpris->nextActive();
+              m_mpris->nextActive();
               PanelManager::instance().refresh();
             });
           },
@@ -418,14 +422,14 @@ std::unique_ptr<Flex> MediaTab::create() {
           .minHeight = kMediaControlsHeight * scale,
           .padding = Style::spaceSm * scale,
           .radius = Style::scaledRadiusLg(scale),
-          .onClick = [this]() {
+          .onClick = [this] {
             const std::weak_ptr<void> aliveGuard = m_aliveGuard;
-            DeferredCall::callLater([this, aliveGuard]() {
+            DeferredCall::callLater([this, aliveGuard] {
               if (aliveGuard.expired() || m_mpris == nullptr) {
                 return;
               }
               const bool enabled = m_mpris->shuffleActive().value_or(false);
-              (void)m_mpris->setShuffleActive(!enabled);
+              m_mpris->setShuffleActive(!enabled);
               PanelManager::instance().refresh();
             });
           },
@@ -482,7 +486,7 @@ std::unique_ptr<Flex> MediaTab::create() {
     m_playerMenuPopup = std::make_unique<ContextMenuPopup>(*m_wayland, *m_renderContext);
     m_playerMenuPopup->setOnActivate([this](const ContextMenuControlEntry& entry) {
       const std::weak_ptr<void> aliveGuard = m_aliveGuard;
-      DeferredCall::callLater([this, aliveGuard, entry]() {
+      DeferredCall::callLater([this, aliveGuard, entry] {
         if (aliveGuard.expired() || m_mpris == nullptr) {
           return;
         }
@@ -517,7 +521,7 @@ std::unique_ptr<Flex> MediaTab::createHeaderActions() {
           .glyph = m_showVisualizer ? "chart-bar" : "chart-bar-off",
           .selected = m_showVisualizer,
           .tooltip = i18n::tr("control-center.media.toggle-visualizer"),
-          .onClick = [this]() { toggleVisualizer(); },
+          .onClick = [this] { toggleVisualizer(); },
           .configure = [scale](Button& button) { panel_button_style::configureHeaderIconButton(button, scale); },
       })
   );
@@ -617,10 +621,12 @@ void MediaTab::doUpdate(Renderer& renderer) {
     m_progressTimer.stop();
     return;
   }
-  if (m_showVisualizer && m_visualizerSpectrum != nullptr && m_spectrum != nullptr && m_spectrumListenerId != 0) {
-    if (!m_spectrum->idle() || !m_visualizerSpectrum->converged()) {
-      m_visualizerSpectrum->setValues(m_spectrum->values(m_spectrumListenerId));
-    }
+  if (m_showVisualizer
+      && m_visualizerSpectrum != nullptr
+      && m_spectrum != nullptr
+      && m_spectrumListenerId != 0
+      && (!m_spectrum->idle() || !m_visualizerSpectrum->converged())) {
+    m_visualizerSpectrum->setValues(m_spectrum->values(m_spectrumListenerId));
   }
 
   const auto active = m_mpris != nullptr ? m_mpris->activePlayer() : std::nullopt;
@@ -631,7 +637,7 @@ void MediaTab::doUpdate(Renderer& renderer) {
   const bool playing = active.has_value() && active->playbackStatus == "Playing";
   if (playing || hasPendingSeek || withinProgressSettle) {
     if (!m_progressTimer.active()) {
-      m_progressTimer.startRepeating(std::chrono::milliseconds(1000), [this]() {
+      m_progressTimer.startRepeating(std::chrono::milliseconds(1000), [this] {
         if (!m_active) {
           return;
         }
@@ -646,18 +652,19 @@ void MediaTab::doUpdate(Renderer& renderer) {
   refresh(renderer);
 }
 
-void MediaTab::onFrameTick(float deltaMs) {
+void MediaTab::onFrameTick(float deltaMs, Renderer& /*renderer*/) {
   if (!m_active || !m_showVisualizer) {
     return;
   }
 
   if (m_visualizerSpectrum != nullptr) {
-    if (m_spectrum != nullptr && m_spectrumListenerId != 0) {
-      if (!m_spectrum->idle() || !m_visualizerSpectrum->converged()) {
-        m_visualizerSpectrum->setValues(m_spectrum->values(m_spectrumListenerId));
-      }
+    if (m_spectrum != nullptr
+        && m_spectrumListenerId != 0
+        && (!m_spectrum->idle() || !m_visualizerSpectrum->converged())) {
+      m_visualizerSpectrum->setValues(m_spectrum->values(m_spectrumListenerId));
     }
-    m_visualizerSpectrum->tick(deltaMs);
+
+    m_visualizerSpectrum->advance(deltaMs, m_spectrum != nullptr && !m_spectrum->idle());
   }
 }
 
@@ -757,14 +764,14 @@ void MediaTab::commitPendingSeek(double valueSeconds) {
   m_progressSettleUntil = now + kProgressSettleHold;
 
   const std::weak_ptr<void> aliveGuard = m_aliveGuard;
-  DeferredCall::callLater([this, aliveGuard, seekBusName, targetUs]() {
+  DeferredCall::callLater([this, aliveGuard, seekBusName, targetUs] {
     if (aliveGuard.expired() || m_mpris == nullptr) {
       return;
     }
     if (!seekBusName.empty()) {
-      (void)m_mpris->setPosition(seekBusName, targetUs);
+      m_mpris->setPosition(seekBusName, targetUs);
     } else {
-      (void)m_mpris->setPositionActive(targetUs);
+      m_mpris->setPositionActive(targetUs);
     }
     PanelManager::instance().refresh();
   });
@@ -848,6 +855,14 @@ void MediaTab::refresh(Renderer& renderer) {
       livePositionUs = std::max<std::int64_t>(0, livePositionUs);
     }
 
+    // A new track ends a seek still waiting on the previous one, and the hold after it, so the bar starts at 0:00.
+    if (m_positionBusName == player.busName
+        && !m_positionTrackSignature.empty()
+        && m_positionTrackSignature != trackSignature) {
+      m_pendingSeekBusName.clear();
+      m_pendingSeekUs = -1;
+      m_progressSettleUntil = {};
+    }
     const bool pendingMatchesPlayer = m_pendingSeekBusName.empty() || m_pendingSeekBusName == player.busName;
     const bool seekArrived = pendingMatchesPlayer
         && m_pendingSeekUs >= 0
@@ -876,9 +891,10 @@ void MediaTab::refresh(Renderer& renderer) {
     std::int64_t displayPositionUs = livePositionUs;
     if (seekPending) {
       displayPositionUs = m_pendingSeekUs;
-    } else if (withinProgressSettle && livePositionUs + kTransientPositionRegressionDeltaUs < m_positionUs) {
-      displayPositionUs = m_positionUs;
-    } else if (preserveDisplayedPosition) {
+    } else if (
+        (withinProgressSettle && livePositionUs + kTransientPositionRegressionDeltaUs < m_positionUs)
+        || preserveDisplayedPosition
+    ) {
       displayPositionUs = m_positionUs;
     }
 
@@ -1038,7 +1054,7 @@ void MediaTab::updateSpectrumSubscription() {
   }
   const bool shouldSubscribe = m_active && m_showVisualizer;
   if (shouldSubscribe && m_spectrumListenerId == 0) {
-    m_spectrumListenerId = m_spectrum->addChangeListener(kVisualizerBandCount, [this]() {
+    m_spectrumListenerId = m_spectrum->addChangeListener(kVisualizerBandCount, [this] {
       if (!m_active || !m_showVisualizer || m_spectrum->idle()) {
         return;
       }

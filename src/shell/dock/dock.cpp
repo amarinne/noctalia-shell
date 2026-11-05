@@ -7,6 +7,7 @@
 #include "core/log.h"
 #include "ipc/ipc_service.h"
 #include "render/scene/node.h"
+#include "shell/app_icon_colorization_settings.h"
 #include "shell/dock/dock_context_menu.h"
 #include "shell/dock/dock_geometry.h"
 #include "shell/dock/dock_instance.h"
@@ -14,13 +15,12 @@
 #include "shell/dock/dock_model.h"
 #include "shell/dock/pinned_apps.h"
 #include "shell/panel/panel_manager.h"
+#include "shell/wayland/layer_surface.h"
+#include "shell/wayland/wayland_toplevels.h"
 #include "system/desktop_entry.h"
 #include "system/desktop_entry_launch.h"
-#include "ui/app_icon_colorization.h"
 #include "ui/style.h"
-#include "wayland/layer_surface.h"
 #include "wayland/surface.h"
-#include "wayland/wayland_toplevels.h"
 
 #include <algorithm>
 #include <cassert>
@@ -78,7 +78,7 @@ namespace {
     for (const auto& bar : config.bars) {
       std::string item = std::format(
           "{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}", bar.name, bar.position, bar.enabled, bar.autoHide,
-          bar.reserveSpace, bar.layer, bar.thickness, bar.marginEnds, bar.marginEdge, bar.shadow
+          bar.reserveSpace, bar.layer, bar.thickness, formatLength(bar.marginEnds), bar.marginEdge, bar.shadow
       );
 
       item.push_back('\x1e');
@@ -90,7 +90,7 @@ namespace {
         appendOptionalStackPart(item, override.reserveSpace);
         appendOptionalStackPart(item, override.layer);
         appendOptionalStackPart(item, override.thickness);
-        appendOptionalStackPart(item, override.marginEnds);
+        appendOptionalStackPart(item, override.marginEnds.transform(formatLength));
         appendOptionalStackPart(item, override.marginEdge);
         appendOptionalStackPart(item, override.shadow);
         item.push_back('\x1e');
@@ -102,13 +102,13 @@ namespace {
     return signature;
   }
 
-  [[nodiscard]] bool canActivateWindow(const ToplevelInfo& window) {
+  bool canActivateWindow(const ToplevelInfo& window) {
     return window.handle != nullptr
         || !window.identifier.empty()
         || (compositors::isKde() && (!window.title.empty() || !window.appId.empty()));
   }
 
-  [[nodiscard]] const ToplevelInfo* newestActivatableWindow(const std::vector<ToplevelInfo>& windows) {
+  const ToplevelInfo* newestActivatableWindow(const std::vector<ToplevelInfo>& windows) {
     const ToplevelInfo* best = nullptr;
     for (const auto& window : windows) {
       if (!canActivateWindow(window)) {
@@ -119,7 +119,7 @@ namespace {
     return best;
   }
 
-  [[nodiscard]] bool matchesActiveWindow(
+  bool matchesActiveWindow(
       const ToplevelInfo& window, const ActiveToplevel& active, std::string_view focusedCompositorWindowId,
       const std::vector<ToplevelInfo>& windows
   ) {
@@ -218,7 +218,7 @@ namespace {
     return nullptr;
   }
 
-  [[nodiscard]] bool dockPointerHideAllowed(const DockConfig& cfg, const shell::dock::DockInstance& instance) noexcept {
+  bool dockPointerHideAllowed(const DockConfig& cfg, const shell::dock::DockInstance& instance) noexcept {
     if (cfg.overviewAutoHide) {
       // Overview-only: visibility is overview-driven. While the overview is open the dock stays
       // visible regardless of hover; when it is closed the dock must not reveal from the edge.
@@ -230,28 +230,27 @@ namespace {
     return cfg.autoHide;
   }
 
-  [[nodiscard]] const DockMonitorOverride*
-  matchingDockMonitorOverride(const DockConfig& cfg, const WaylandOutput& output) {
+  const DockMonitorOverride* matchingDockMonitorOverride(const DockConfig& cfg, const WaylandOutput& output) {
     const auto it = std::ranges::find_if(cfg.monitorOverrides, [&output](const DockMonitorOverride& override) {
       return outputMatchesSelector(override.match, output);
     });
     return it != cfg.monitorOverrides.end() ? &*it : nullptr;
   }
 
-  [[nodiscard]] bool dockMayBeEnabled(const DockConfig& cfg) {
+  bool dockMayBeEnabled(const DockConfig& cfg) {
     return cfg.enabled || std::ranges::any_of(cfg.monitorOverrides, [](const DockMonitorOverride& override) {
              return override.enabled.value_or(false);
            });
   }
 
-  [[nodiscard]] std::vector<std::string> dockPinnedOverridePath(const shell::dock::DockInstance& instance) {
+  std::vector<std::string> dockPinnedOverridePath(const shell::dock::DockInstance& instance) {
     if (instance.pinnedOverridden && !instance.monitorOverrideTable.empty()) {
       return {"dock", "monitor", instance.monitorOverrideTable, "pinned"};
     }
     return {"dock", "pinned"};
   }
 
-  [[nodiscard]] bool workspaceKeyMatchesAssignment(std::string_view assignmentKey, const Workspace& workspace) {
+  bool workspaceKeyMatchesAssignment(std::string_view assignmentKey, const Workspace& workspace) {
     if (assignmentKey.empty()) {
       return false;
     }
@@ -267,7 +266,7 @@ namespace {
     return false;
   }
 
-  [[nodiscard]] bool activeWorkspaceHasWindows(const CompositorPlatform& platform, wl_output* output) {
+  bool activeWorkspaceHasWindows(const CompositorPlatform& platform, wl_output* output) {
     const auto workspaces = platform.workspaces(output);
     const Workspace* active = nullptr;
     for (const auto& workspace : workspaces) {
@@ -282,6 +281,9 @@ namespace {
 
     const auto assignments = platform.workspaceWindowAssignments(output);
     for (const auto& assignment : assignments) {
+      if (assignment.minimizeState.has_value() && assignment.minimizeState->minimized) {
+        continue;
+      }
       if (workspaceKeyMatchesAssignment(assignment.workspaceKey, *active)) {
         return true;
       }
@@ -289,10 +291,13 @@ namespace {
     if (!assignments.empty()) {
       return false;
     }
+    if (platform.hasUnminimizedToplevels(output) == false) {
+      return false;
+    }
     return active->occupied;
   }
 
-  [[nodiscard]] bool dockSmartAutoHideWantsPinnedVisible(const CompositorPlatform& platform, wl_output* output) {
+  bool dockSmartAutoHideWantsPinnedVisible(const CompositorPlatform& platform, wl_output* output) {
     if (platform.hasOverviewState() && platform.isOverviewOpen()) {
       return true;
     }
@@ -317,7 +322,7 @@ bool Dock::initialize(CompositorPlatform& platform, ConfigService* config, Rende
 
   const auto& cfg = m_config->config().dock;
   m_config->addReloadCallback(
-      [this]() {
+      [this] {
         const auto& newCfg = m_config->config().dock;
         const auto& newShadow = m_config->config().shell.shadow;
         const auto newBarLayerStack = barLayerStackSignature(m_config->config());
@@ -332,7 +337,7 @@ bool Dock::initialize(CompositorPlatform& platform, ConfigService* config, Rende
       "dock"
   );
 
-  m_appIconColorizeConn = shellAppIconColorizationChanged().connect([this]() {
+  m_appIconColorizeConn = shellAppIconColorizationChanged().connect([this] {
     if (m_config == nullptr) {
       return;
     }
@@ -377,6 +382,16 @@ void Dock::reload() {
     );
   }
   syncInstances();
+}
+
+void Dock::onIconThemeChanged() {
+  for (auto& inst : m_instances) {
+    // A new model serial makes the next update rebuild the items, which re-resolves icons.
+    ++inst->modelSerial;
+    if (inst->surface != nullptr) {
+      inst->surface->requestUpdate();
+    }
+  }
 }
 
 void Dock::show() {
@@ -537,15 +552,25 @@ bool Dock::onPointerEvent(const PointerEvent& event) {
       break;
     }
     updateHoverZoomPointer(*m_hoveredInstance, static_cast<float>(event.sx), static_cast<float>(event.sy));
-    // Auto-hide: show the dock when the pointer enters.
+    // Auto-hide: reveal once the pointer has dwelled on the edge trigger strip.
     if (dockPointerHideAllowed(m_hoveredInstance->config, *m_hoveredInstance)
         && m_hoveredInstance->sceneRoot != nullptr) {
-      shell::dock::revealAutoHideDock(*m_hoveredInstance);
+      const auto revealDelay = std::chrono::milliseconds{entered->config.autoHideRevealDelayMs};
+      if (revealDelay.count() <= 0 || (entered->hideOpacity >= 0.999F && entered->hideAnimId == 0)) {
+        shell::dock::revealAutoHideDock(*entered);
+      } else {
+        entered->revealTimer.start(revealDelay, [entered] {
+          if (entered->pointerInside && dockPointerHideAllowed(entered->config, *entered)) {
+            shell::dock::revealAutoHideDock(*entered);
+          }
+        });
+      }
     }
     break;
   }
   case PointerEvent::Type::Leave: {
     if (m_hoveredInstance != nullptr) {
+      m_hoveredInstance->revealTimer.stop();
       if (m_hoveredInstance->drag.active || m_hoveredInstance->drag.armed) {
         endDrag(*m_hoveredInstance, false);
       }
@@ -699,7 +724,7 @@ void Dock::scheduleSmartAutoHideReevaluation() {
     return;
   }
   m_smartAutoHideReevalQueued = true;
-  DeferredCall::callLater([this]() {
+  DeferredCall::callLater([this] {
     m_smartAutoHideReevalQueued = false;
     reevaluateSmartAutoHide();
   });
@@ -756,11 +781,11 @@ void Dock::reevaluateSmartAutoHide() {
         shell::dock::revealAutoHideDock(*instance);
         needsRedraw = true;
       }
-    } else if (!instance->pointerInside && m_popupOwnerInstance == nullptr) {
-      if (instance->hideOpacity > 0.0F || pinnedChanged) {
-        shell::dock::startHideFadeOut(*instance);
-        needsRedraw = true;
-      }
+    } else if (
+        !instance->pointerInside && m_popupOwnerInstance == nullptr && (instance->hideOpacity > 0.0F || pinnedChanged)
+    ) {
+      shell::dock::startHideFadeOut(*instance);
+      needsRedraw = true;
     }
 
     if (needsRedraw && instance->surface != nullptr) {
@@ -796,8 +821,7 @@ void Dock::createInstance(const WaylandOutput& output) {
 
   const auto& shadowConfig = m_config->config().shell.shadow;
   LayerSurfaceConfig lsCfg = shell::dock::makeLayerSurfaceConfig(
-      cfg, shadowConfig, cfg.pinned.size() + shell::dock::dockLauncherButtonCount(cfg), instance->fractionalScale,
-      instance->outputLogicalWidth, instance->outputLogicalHeight
+      cfg, shadowConfig, instance->fractionalScale, instance->outputLogicalWidth, instance->outputLogicalHeight
   );
 
   instance->surface = std::make_unique<LayerSurface>(m_platform->wayland(), std::move(lsCfg));
@@ -866,7 +890,7 @@ bool Dock::syncInstanceModel(shell::dock::DockInstance& instance) {
     }
   }
 
-  (void)shell::dock::refreshPinnedAppsIfNeeded(
+  shell::dock::refreshPinnedAppsIfNeeded(
       instance.config, instance.lastPinnedConfig, instance.pinnedEntries, instance.modelSerial, instance.entriesVersion
   );
 
@@ -1056,9 +1080,9 @@ void Dock::endDrag(shell::dock::DockInstance& instance, bool commit) {
   pinnedList.insert(pinnedList.begin() + static_cast<std::ptrdiff_t>(insertAt), std::move(moved));
   ConfigService* config = m_config;
   auto path = dockPinnedOverridePath(instance);
-  DeferredCall::callLater([config, path = std::move(path), pinnedList = std::move(pinnedList)]() mutable {
+  DeferredCall::callLater([config, path = std::move(path), pinnedList = std::move(pinnedList)] mutable {
     if (config != nullptr) {
-      (void)config->setOverride(path, std::move(pinnedList));
+      config->setOverride(path, std::move(pinnedList));
     }
   });
 }
@@ -1167,7 +1191,7 @@ void Dock::activateOrLaunchItem(shell::dock::DockInstance& instance, const shell
   }
 
   if (windows.size() == 1) {
-    m_platform->activateToplevelInfo(windows[0]);
+    m_platform->activateOrMinimizeToplevelInfo(windows[0]);
     return;
   }
 
@@ -1193,7 +1217,7 @@ void Dock::activateOrLaunchItem(shell::dock::DockInstance& instance, const shell
     activeHandle = active->handle;
   }
 
-  auto* preferredHandle = [&]() -> zwlr_foreign_toplevel_handle_v1* {
+  auto* preferredHandle = [&] -> zwlr_foreign_toplevel_handle_v1* {
     const auto it = m_lastActiveHandleByAppIdLower.find(action.idLower);
     return it != m_lastActiveHandleByAppIdLower.end() ? it->second : nullptr;
   }();
@@ -1237,6 +1261,22 @@ void Dock::openItemMenu(shell::dock::DockInstance& instance, const shell::dock::
               m_platform->closeToplevelInfo(windows[windowIndex]);
             }
           },
+      .setWindowMinimized =
+          [this, windows](std::size_t windowIndex, bool minimized) {
+            if (windowIndex >= windows.size()) {
+              return;
+            }
+            const auto& window = windows[windowIndex];
+            const auto state = m_platform->windowMinimizeState(window);
+            if (!state.has_value() || state->minimized == minimized) {
+              return;
+            }
+            if (minimized) {
+              (void)m_platform->minimizeToplevelInfo(window);
+            } else {
+              m_platform->activateToplevelInfo(window);
+            }
+          },
       .launchAction =
           [this, entryId, entryWorkingDir, entryTerminal, entryForPin,
            output = instance.output](const DesktopAction& desktopAction) {
@@ -1260,9 +1300,9 @@ void Dock::openItemMenu(shell::dock::DockInstance& instance, const shell::dock::
             } else {
               shell::dock::pinned_apps::removeEntry(pinnedList, entryForPin);
             }
-            (void)m_config->setOverride(pinnedPath, std::move(pinnedList));
+            m_config->setOverride(pinnedPath, std::move(pinnedList));
           },
-      .closeMenu = [this]() { closeItemMenu(); },
+      .closeMenu = [this] { closeItemMenu(); },
   };
 
   auto* layerSurface =

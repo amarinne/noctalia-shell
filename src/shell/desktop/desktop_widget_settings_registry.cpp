@@ -5,6 +5,7 @@
 #include "scripting/plugin_registry.h"
 #include "shell/settings/font_family_catalog.h"
 #include "shell/settings/widget_settings_registry.h"
+#include "system/format_units.h"
 #include "util/string_utils.h"
 
 #include <algorithm>
@@ -26,6 +27,7 @@ namespace desktop_settings {
         {.type = "clock", .labelKey = "desktop-widgets.editor.types.clock"},
         {.type = "fancy_audio_visualizer", .labelKey = "desktop-widgets.editor.types.fancy-audio-visualizer"},
         {.type = "label", .labelKey = "desktop-widgets.editor.types.label"},
+        {.type = "lyrics", .labelKey = "desktop-widgets.editor.types.lyrics"},
         {.type = "media_player", .labelKey = "desktop-widgets.editor.types.media-player"},
         {.type = "sticker", .labelKey = "desktop-widgets.editor.types.sticker"},
         {.type = "sysmon", .labelKey = "desktop-widgets.editor.types.system-monitor"},
@@ -160,17 +162,16 @@ namespace desktop_settings {
     if (type == "login_box") {
       return i18n::tr("desktop-widgets.editor.types.login-box");
     }
-    if (auto entry = resolvePluginDesktopWidget(type); entry.has_value()) {
-      if (!entry->manifest->name.empty()) {
-        return entry->manifest->name;
-      }
+    if (auto entry = resolvePluginDesktopWidget(type); entry.has_value() && !entry->manifest->name.empty()) {
+      return entry->manifest->name;
     }
+
     return std::string(type);
   }
 
   std::vector<WidgetSettingSpec> commonDesktopWidgetSettingSpecs(std::string_view type) {
     if (type == "login_box") {
-      auto bgColor = colorSpec("background_color", "surface_variant");
+      auto bgColor = colorSpec("background_color", "surface_container");
       auto bgRadius = intSpec("background_radius", 12.0, 0.0, 32.0, 1.0);
       auto bgOpacity = doubleSpec("background_opacity", 0.88, 0.0, 1.0, 0.01);
       return {
@@ -246,6 +247,7 @@ namespace desktop_settings {
     if (type == "calendar") {
       add(boolSpec("show_events", true));
       add(boolSpec("show_week_numbers", false));
+      add(boolSpec("show_events_location", false));
       add(fontFamilySpec());
     } else if (type == "clock") {
       const WidgetSettingVisibility digitalOnly{{"clock_style", {"digital"}}};
@@ -346,6 +348,23 @@ namespace desktop_settings {
       add(std::move(albumArtBlur));
       add(boolSpec("audio_visualizer", false));
       add(boolSpec("hide_when_no_media", false));
+    } else if (type == "lyrics") {
+      auto lineCount = stepperIntSpec("line_count", 3, 1.0, 15.0);
+      lineCount.labelKey = "settings.widgets.settings.line-count.label";
+      lineCount.descriptionKey = "settings.widgets.settings.line-count.description";
+      add(std::move(lineCount));
+      auto syncOffset = stepperIntSpec("sync_offset_ms", 0, -10000.0, 10000.0, 100.0);
+      syncOffset.labelKey = "settings.widgets.settings.sync-offset-ms.label";
+      syncOffset.descriptionKey = "settings.widgets.settings.sync-offset-ms.description";
+      add(std::move(syncOffset));
+      add(colorSpec("color", "on_surface_variant"));
+      auto activeColor = colorSpec("active_color", "primary");
+      activeColor.labelKey = "settings.widgets.settings.active-color.label";
+      add(std::move(activeColor));
+      add(fontFamilySpec());
+      add(boolSpec("shadow", true));
+      add(boolSpec("hide_when_no_media", false));
+      add(boolSpec("hide_when_idle", false));
     } else if (type == "label") {
       add(stringSpec("title", "Title"));
       add(stringSpec("description"));
@@ -377,6 +396,8 @@ namespace desktop_settings {
       };
       const WidgetSettingVisibility graphOnly{"display", {"graph"}};
       const WidgetSettingVisibility gaugeOnly{"display", {"gauge"}};
+      WidgetSettingVisibility compactNetworkStat{{{"stat", {"net_rx", "net_tx"}}, {"stat2", {"net_rx", "net_tx"}}}};
+      compactNetworkStat.all = {{"network_speed_compact", {"true"}}};
 
       add(selectSpec("stat", "cpu_usage", sysmonStats));
       {
@@ -400,6 +421,14 @@ namespace desktop_settings {
         compact.visibleWhen =
             WidgetSettingVisibility{{{"stat", {"net_rx", "net_tx"}}, {"stat2", {"net_rx", "net_tx"}}}};
         add(std::move(compact));
+      }
+      {
+        auto decimalPlaces = intSpec(
+            "network_speed_decimal_places", 1, FormatUnits::kMinCompactByteRateDecimalPlaces,
+            FormatUnits::kMaxCompactByteRateDecimalPlaces, 1.0
+        );
+        decimalPlaces.visibleWhen = compactNetworkStat;
+        add(std::move(decimalPlaces));
       }
       add(segmentedSpec("display", "graph", sysmonDisplay));
       {
@@ -461,6 +490,14 @@ namespace desktop_settings {
       auto showMedia = boolSpec("show_media", true);
       showMedia.visibleWhen = regularOnly;
       add(std::move(showMedia));
+      auto showMediaControls = boolSpec("show_media_controls", true);
+      WidgetSettingVisibility showMediaControlsVis;
+      showMediaControlsVis.all = {
+          WidgetSettingVisibilityCondition{"layout", {"regular"}},
+          WidgetSettingVisibilityCondition{"show_media", {"true"}},
+      };
+      showMediaControls.visibleWhen = showMediaControlsVis;
+      add(std::move(showMediaControls));
       auto showWeather = boolSpec("show_weather", true);
       showWeather.visibleWhen = regularOnly;
       add(std::move(showWeather));

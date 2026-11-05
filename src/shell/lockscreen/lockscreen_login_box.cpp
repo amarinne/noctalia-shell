@@ -16,7 +16,7 @@ namespace lockscreen_login_box {
 
     constexpr Logger kLog("lockscreen-widgets");
 
-    [[nodiscard]] float readFloat(
+    float readFloat(
         const std::unordered_map<std::string, WidgetSettingValue>& settings, std::string_view key, float fallback
     ) {
       const auto it = settings.find(std::string(key));
@@ -32,7 +32,7 @@ namespace lockscreen_login_box {
       return fallback;
     }
 
-    [[nodiscard]] bool
+    bool
     readBool(const std::unordered_map<std::string, WidgetSettingValue>& settings, std::string_view key, bool fallback) {
       const auto it = settings.find(std::string(key));
       if (it == settings.end()) {
@@ -44,7 +44,7 @@ namespace lockscreen_login_box {
       return fallback;
     }
 
-    [[nodiscard]] std::string readString(
+    std::string readString(
         const std::unordered_map<std::string, WidgetSettingValue>& settings, std::string_view key,
         std::string_view fallback
     ) {
@@ -309,7 +309,7 @@ namespace lockscreen_login_box {
     style.layout = resolveLayout(settings);
     style.panelOpacity = std::clamp(readFloat(settings, "background_opacity", style.panelOpacity), 0.0F, 1.0F);
     ColorSpec panelFill =
-        colorSpecFromConfigString(readString(settings, "background_color", "surface_variant"), "background_color");
+        colorSpecFromConfigString(readString(settings, "background_color", "surface_container"), "background_color");
     panelFill.alpha *= style.panelOpacity;
     style.panelFill = panelFill;
     style.panelRadius = std::clamp(readFloat(settings, "background_radius", style.panelRadius), 0.0F, 32.0F);
@@ -322,6 +322,7 @@ namespace lockscreen_login_box {
     style.showPasswordReveal = readBool(settings, kShowPasswordRevealKey, style.showPasswordReveal);
     style.showSessionButtons = readBool(settings, kShowSessionButtonsKey, style.showSessionButtons);
     style.showMedia = readBool(settings, kShowMediaKey, style.showMedia);
+    style.showMediaControls = readBool(settings, kShowMediaControlsKey, style.showMediaControls);
     style.showWeather = readBool(settings, kShowWeatherKey, style.showWeather);
     style.showUnlockHint = readBool(settings, kShowUnlockHintKey, style.showUnlockHint);
     return style;
@@ -334,6 +335,7 @@ namespace lockscreen_login_box {
       settings.insert_or_assign(std::string(kLayoutKey), std::string(kLayoutCompact));
       settings.insert_or_assign(std::string(kShowSessionButtonsKey), false);
       settings.insert_or_assign(std::string(kShowMediaKey), false);
+      settings.insert_or_assign(std::string(kShowMediaControlsKey), false);
       settings.insert_or_assign(std::string(kShowWeatherKey), false);
       settings.insert_or_assign(std::string(kShowLoginButtonKey), false);
       settings.insert_or_assign(std::string(kShowCapsLockKey), false);
@@ -370,6 +372,9 @@ namespace lockscreen_login_box {
     }
     if (!settings.contains(std::string(kShowMediaKey))) {
       settings.insert_or_assign(std::string(kShowMediaKey), true);
+    }
+    if (!settings.contains(std::string(kShowMediaControlsKey))) {
+      settings.insert_or_assign(std::string(kShowMediaControlsKey), true);
     }
     if (!settings.contains(std::string(kShowWeatherKey))) {
       settings.insert_or_assign(std::string(kShowWeatherKey), true);
