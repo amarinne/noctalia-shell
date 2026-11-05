@@ -128,19 +128,24 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                           .key = "show_window_title",
                           .presentation = presentation("taskbar.windows", matches("group_by_workspace", {"false"})),
                       }),
-                      field<&Options::windowTitleMaxWidth>({
-                          .key = "window_title_max_width",
-                          .minValue = 10.0,
-                          .maxValue = 200.0,
-                          .step = 1.0,
-                          .presentation = presentation(
-                              "taskbar.windows",
-                              all({
-                                  {"show_window_title", {"true"}},
-                                  {"group_by_workspace", {"false"}},
-                              })
-                          ),
-                      }),
+                      field<&Options::windowTitleMaxWidth>(
+                          {
+                              .key = "window_title_max_width",
+                              .minValue = 10.0,
+                              .maxValue = 200.0,
+                              .step = 1.0,
+                              .presentation =
+                                  presentation(
+                                      "taskbar.windows",
+                                      all(
+                                          {
+                                              {"show_window_title", {"true"}},
+                                              {"group_by_workspace", {"false"}},
+                                          }
+                                      )
+                                  ),
+                          }
+                      ),
                       field<&Options::taskbarMaxWidth>(
                           {
                               .key = "taskbar_max_width",
@@ -271,17 +276,19 @@ const noctalia::bar::WidgetDefinition<TaskbarWidgetOptions>& taskbarWidgetDefini
                               ),
                           }
                       ),
-                      field<&Options::focusedOutputOnly>({
-                          .key = "focused_output_only",
-                          .presentation = presentation(
-                              "taskbar.workspace-labels",
-                              all({
-                                  {"group_by_workspace", {"true"}},
-                                  {"show_workspace_label", {"true"}},
-                              }),
-                              true, "settings.widgets.settings.focused-output-only.taskbar-description"
-                          ),
-                      }),
+                      field<&Options::focusedOutputOnly>(
+                          {
+                              .key = "focused_output_only",
+                              .presentation = presentation(
+                                  "taskbar.workspace-labels",
+                                  all({
+                                      {"group_by_workspace", {"true"}},
+                                      {"show_workspace_label", {"true"}},
+                                  }),
+                                  true, "settings.widgets.settings.focused-output-only.taskbar-description"
+                              ),
+                          }
+                      ),
                       field<&Options::focusedColor>({
                           .key = "focused_color",
                           .presentation = presentation("taskbar.workspace-labels", groupedOnly(), true),

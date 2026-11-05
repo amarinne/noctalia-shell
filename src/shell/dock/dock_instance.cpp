@@ -192,7 +192,8 @@ namespace shell::dock {
       return;
     }
 
-    const bool revealed = (instance.pointerInside || (dockUsesPinnedVisibility(cfg) && instance.smartAutoHidePinnedVisible))
+    const bool revealed =
+        (instance.pointerInside || (dockUsesPinnedVisibility(cfg) && instance.smartAutoHidePinnedVisible))
         && !instance.revealTimer.active();
     if (revealed) {
       instance.surface->setInputRegion({InputRect{0, 0, surfW, surfH}});

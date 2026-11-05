@@ -967,7 +967,8 @@ void Application::initWaylandCallbacks() {
     if (m_panelManager.isOpenPanel("control-center")) {
       m_panelManager.refresh();
     }
-    if (!m_lockScreen.isActive() && m_wayland.hasPointerPosition()
+    if (!m_lockScreen.isActive()
+        && m_wayland.hasPointerPosition()
         && !m_compositorPlatform.activeToplevel().has_value()) {
       const std::uint32_t serial = m_wayland.lastInputSerial();
       if (serial != 0) {

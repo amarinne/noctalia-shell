@@ -5,7 +5,6 @@
 #include "compositors/workspace_backend.h"
 #include "config/config_service.h"
 #include "core/deferred_call.h"
-#include "system/process.h"
 #include "i18n/i18n.h"
 #include "render/core/color.h"
 #include "render/core/renderer.h"
@@ -20,6 +19,7 @@
 #include "system/desktop_entry.h"
 #include "system/desktop_entry_launch.h"
 #include "system/internal_app_metadata.h"
+#include "system/process.h"
 #include "ui/builders.h"
 #include "ui/controls/context_menu.h"
 #include "ui/controls/context_menu_popup.h"
@@ -218,8 +218,8 @@ TaskbarWidget::TaskbarWidget(
       m_middleClickCommand(m_configOptions.middleClickCommand),
       m_workspaceGroupActiveBorder(m_configOptions.workspaceGroupActiveBorderColor),
       m_workspaceGroupInactiveBorder(m_configOptions.workspaceGroupInactiveBorderColor),
-      m_focusedOutputOnly(m_configOptions.focusedOutputOnly),
-      m_minimal(m_configOptions.minimal), m_showActiveIndicator(m_configOptions.showActiveIndicator),
+      m_focusedOutputOnly(m_configOptions.focusedOutputOnly), m_minimal(m_configOptions.minimal),
+      m_showActiveIndicator(m_configOptions.showActiveIndicator),
       m_activeIndicatorColor(m_configOptions.activeIndicatorColor), m_activeOpacity(m_configOptions.activeOpacity),
       m_inactiveOpacity(m_configOptions.inactiveOpacity), m_pinnedOpacity(m_configOptions.pinnedOpacity),
       m_focusedColor(m_configOptions.focusedColor), m_occupiedColor(m_configOptions.occupiedColor),
